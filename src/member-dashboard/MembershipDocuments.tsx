@@ -1,0 +1,20 @@
+import React from "react";
+import { Download, ExternalLink, FileText, ReceiptText } from "lucide-react";
+import { formatMemberDate, receiptDownloadHref, receiptHref, type MemberPayment } from "./member-overview-data";
+
+const currency = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
+
+export function MembershipDocuments({ payment, loading, error, onRetry }: { payment: MemberPayment | null; loading: boolean; error: boolean; onRetry: () => void }) {
+  const viewUrl = receiptHref(payment);
+  const downloadUrl = receiptDownloadHref(payment);
+  return <section aria-labelledby="membership-documents-title" className="rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+    <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-4 sm:px-6"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-50 text-cyan-700"><FileText className="h-4.5 w-4.5" /></span><div><h2 id="membership-documents-title" className="text-base font-semibold text-slate-950">Payment &amp; documents</h2><p className="mt-0.5 text-sm text-slate-500">Latest successful membership payment</p></div></div>
+    {loading ? <div className="grid animate-pulse gap-6 p-5 sm:grid-cols-2 sm:p-6 lg:grid-cols-[1fr_0.8fr]"><div><div className="h-5 w-32 rounded bg-slate-200" /><div className="mt-4 h-4 w-56 rounded bg-slate-100" /><div className="mt-3 h-4 w-44 rounded bg-slate-100" /></div><div className="h-24 rounded-xl bg-slate-100" /></div>
+    : error ? <div className="px-6 py-8"><p className="text-sm text-slate-600">We couldn't load your payment documents.</p><button type="button" onClick={onRetry} className="mt-3 min-h-11 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-800 hover:bg-slate-50">Try again</button></div>
+    : !payment ? <div className="px-6 py-9 text-center"><ReceiptText className="mx-auto h-6 w-6 text-slate-400" /><p className="mt-3 text-sm font-semibold text-slate-800">No completed payment yet</p><p className="mt-1 text-sm text-slate-500">Payment details and documents will appear here when available.</p></div>
+    : <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[1fr_0.8fr] lg:items-center">
+      <dl className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-3"><div><dt className="text-xs text-slate-500">Payment status</dt><dd className="mt-1.5 text-sm font-semibold text-emerald-700">{payment.status}</dd></div><div><dt className="text-xs text-slate-500">Amount paid</dt><dd className="mt-1.5 whitespace-nowrap text-sm font-semibold text-slate-900">{currency.format(payment.amount)}</dd></div>{formatMemberDate(payment.paymentDate) && <div><dt className="text-xs text-slate-500">Payment date</dt><dd className="mt-1.5 whitespace-nowrap text-sm font-semibold text-slate-900">{formatMemberDate(payment.paymentDate)}</dd></div>}{payment.receiptNo && <div><dt className="text-xs text-slate-500">Receipt number</dt><dd className="mt-1.5 break-words text-sm font-semibold text-slate-900">{payment.receiptNo}</dd></div>}{payment.invoiceNo && <div><dt className="text-xs text-slate-500">Invoice number</dt><dd className="mt-1.5 break-words text-sm font-semibold text-slate-900">{payment.invoiceNo}</dd></div>}</dl>
+      {viewUrl && downloadUrl ? <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2"><a href={viewUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800"><ExternalLink className="h-4 w-4" />View invoice</a><a href={downloadUrl} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 hover:bg-slate-50"><Download className="h-4 w-4" />Download invoice</a></div> : <div className="rounded-xl bg-slate-50 p-4"><p className="text-sm font-semibold text-slate-800">Document not available yet</p><p className="mt-1 text-sm leading-5 text-slate-500">The invoice actions will appear after generation is complete.</p></div>}
+    </div>}
+  </section>;
+}

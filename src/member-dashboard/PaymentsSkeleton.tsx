@@ -1,0 +1,5 @@
+import React from "react";
+
+export function PaymentsSkeleton() {
+  return <div className="animate-pulse space-y-6" aria-label="Loading payment history" aria-busy="true"><div><div className="h-8 w-64 rounded-lg bg-slate-200" /><div className="mt-3 h-4 w-80 max-w-full rounded bg-slate-100" /></div><div className="grid gap-4 md:grid-cols-3">{[0, 1, 2].map(item => <div key={item} className="h-[142px] rounded-2xl border border-slate-200 bg-white p-5"><div className="h-3 w-24 rounded bg-slate-200" /><div className="mt-4 h-7 w-32 rounded bg-slate-200" /><div className="mt-6 h-4 w-40 rounded bg-slate-100" /></div>)}</div><div className="overflow-hidden rounded-2xl border border-slate-200 bg-white"><div className="h-20 border-b border-slate-100 p-5"><div className="h-5 w-36 rounded bg-slate-200" /></div><div className="space-y-6 p-5">{[0, 1, 2].map(item => <div key={item} className="grid grid-cols-[1fr_90px] gap-5"><div><div className="h-5 w-32 rounded bg-slate-200" /><div className="mt-2 h-4 w-48 rounded bg-slate-100" /></div><div className="h-6 rounded-full bg-slate-100" /></div>)}</div></div></div>;
+}
