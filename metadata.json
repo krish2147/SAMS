@@ -1,6 +1,0 @@
-{
-  "name": "SAMS",
-  "description": "Sports Academy Management System (SAMS) - A luxury SaaS portal for premium athletic academies, including Baroda Swim Front and The Cricket Academy.",
-  "requestFramePermissions": ["camera"],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
