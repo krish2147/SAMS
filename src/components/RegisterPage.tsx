@@ -866,7 +866,7 @@ export function RegisterPage({ academyId, onRegisterSuccess, onCancel }: Registe
                       onClick={triggerFileSelect}
                       className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all duration-200 flex flex-col items-center justify-center gap-3 ${
                         isDragging 
-                          ? "border-sky-500 bg-sky-50/20 scale-99" 
+                          ? "border-sky-500 bg-sky-50/20 scale-[0.99]"
                           : isSwim 
                             ? "border-slate-300 hover:border-slate-400 bg-slate-50/30" 
                             : "border-emerald-800/50 hover:border-emerald-700/80 bg-emerald-950/10"
@@ -1482,7 +1482,7 @@ export function RegisterPage({ academyId, onRegisterSuccess, onCancel }: Registe
             <div className={`p-4 rounded-2xl border text-xs space-y-2 leading-relaxed ${
               isSwim ? "bg-sky-50/50 border-sky-100 text-slate-600" : "bg-emerald-950/50 border-emerald-900/60 text-emerald-100/80"
             }`}>
-              <p className="font-bold text-slate-800 uppercase tracking-wider text-[10px] mb-2 flex items-center gap-1">
+              <p className={`font-bold uppercase tracking-wider text-[10px] mb-2 flex items-center gap-1 ${isSwim ? "text-slate-800" : "text-emerald-50"}`}>
                 <ShieldAlert className="w-4 h-4 text-amber-500" />
                 Safety Regulations Outline
               </p>
@@ -1501,7 +1501,7 @@ export function RegisterPage({ academyId, onRegisterSuccess, onCancel }: Registe
                   name="agreedToRules"
                   checked={form.agreedToRules}
                   onChange={handleCheckboxChange}
-                  className={`mt-0.5 w-4.5 h-4.5 rounded border text-sky-600 ${
+                  className={`mt-0.5 w-[18px] h-[18px] rounded border text-sky-600 ${
                     isSwim ? "border-slate-300" : "border-emerald-800 bg-emerald-950"
                   } focus:ring-sky-500`}
                 />
@@ -1522,7 +1522,7 @@ export function RegisterPage({ academyId, onRegisterSuccess, onCancel }: Registe
               <button
                 type="button"
                 onClick={onCancel}
-                className={`flex-1 py-3.5 px-4 rounded-xl font-bold text-sm transition-all text-center border cursor-pointer active:scale-98 ${
+                className={`flex-1 py-3.5 px-4 rounded-xl font-bold text-sm transition-all text-center border cursor-pointer active:scale-[0.98] ${
                   isSwim 
                     ? "border-slate-200 bg-white hover:bg-slate-100 text-slate-700" 
                     : "border-emerald-800/40 bg-emerald-950/20 text-emerald-200 hover:bg-emerald-900/20"
@@ -1534,11 +1534,11 @@ export function RegisterPage({ academyId, onRegisterSuccess, onCancel }: Registe
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className={`flex-1 py-3.5 px-4 rounded-xl font-bold text-white text-sm transition-all text-center shadow-lg cursor-pointer flex items-center justify-center gap-2 active:scale-98 disabled:opacity-50 ${accentBg}`}
+                className={`flex-1 py-3.5 px-4 rounded-xl font-bold text-white text-sm transition-all text-center shadow-lg cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-50 ${accentBg}`}
               >
                 {isSubmitting ? (
                   <>
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/ajax/libs/svg" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
