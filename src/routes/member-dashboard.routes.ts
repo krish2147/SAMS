@@ -1,7 +1,7 @@
 import { Router, Response } from "express";
 import { requireAuth } from "../middleware/authMiddleware";
 import { getDbPool } from "../config/db";
-import { ActivityService } from "../services/activity.service";
+import { PaymentService } from "../services/payment.service";
 
 
 const router = Router();
@@ -400,6 +400,9 @@ router.get("/member/renewal-status", requireAuth(["member", "parent"]), async (r
 });
 
 // 10. POST /member/renew
+// Creates a real, server-priced Razorpay order for the member's own renewal.
+// This does NOT activate the membership — activation only happens once
+// POST /api/payments/verify confirms a signed Razorpay payment (see payment.service.ts verifyPayment).
 router.post("/member/renew", requireAuth(["member", "parent"]), async (req: any, res: Response, next) => {
   try {
     const member = await getAuthenticatedMember(req);
@@ -407,37 +410,14 @@ router.post("/member/renew", requireAuth(["member", "parent"]), async (req: any,
       return res.status(404).json({ error: "Authenticated member record not found" });
     }
 
-    const pool = await getDbPool();
-    const todayStr = new Date().toISOString().split("T")[0];
-    const txnId = `pay_ren_${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
-    const renewAmount = parseFloat(req.body.amount || member.amountPaid || "2500.00");
-
-    // 1. Update the members table
-    await pool.query(
-      `UPDATE members 
-       SET membership_status = 'Active', 
-           payment_status = 'Paid', 
-           paymentDate = ?, 
-           txnId = ?, 
-           amountPaid = ? 
-       WHERE id = ?`,
-      [todayStr, txnId, renewAmount, member.id]
-    );
-
-    // 2. Insert into the payments table
-    await pool.query(
-      `INSERT INTO payments (member_id, membership_plan_id, amount, payment_status, payment_method, razorpay_payment_id, payment_date) 
-       VALUES (?, ?, ?, 'Paid', 'UPI', ?, CURRENT_TIMESTAMP)`,
-      [member.id, member.membership_plan_id || 1, renewAmount, txnId]
-    );
-
-    await ActivityService.logActivity(member.fullName, "Membership Renewal Completed", "Success", "Self");
-
-    res.json({
-      success: true,
-      message: "Membership renewed successfully! Plan extended.",
-      transactionId: txnId
+    const result = await new PaymentService().createRazorpayOrder({
+      memberId: member.id,
+      membershipNo: member.membershipNo,
+      paymentType: "Renewal",
+      approvedBy: member.fullName || "Member Self-Renewal"
     });
+
+    res.json(result);
   } catch (err) {
     next(err);
   }

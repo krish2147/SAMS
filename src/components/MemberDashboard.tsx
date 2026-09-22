@@ -290,23 +290,92 @@ export function MemberDashboard({ academyId, userName, onLogout }: MemberDashboa
       });
   };
 
-  // Handle renewal post request
+  // Loads the Razorpay checkout script once, reusing it if already present on the page.
+  const loadRazorpayScript = (): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      if ((window as any).Razorpay) {
+        resolve();
+        return;
+      }
+      const existing = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
+      if (existing) {
+        existing.addEventListener("load", () => resolve());
+        existing.addEventListener("error", () => reject(new Error("Failed to load the secure checkout.")));
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error("Failed to load the secure checkout."));
+      document.body.appendChild(script);
+    });
+  };
+
+  // Handle renewal: create a server-priced Razorpay order, then complete it through
+  // the real checkout so the membership only extends after a verified payment.
   const handleRenewMembership = async () => {
     if (!renewalStatus) return;
     setRenewing(true);
     setRenewalSuccessMsg(null);
     try {
-      const response = await fetch("/api/member/renew", {
+      const orderResponse = await fetch("/api/member/renew", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: renewalStatus.renewalPrice })
+        headers: { "Content-Type": "application/json" }
       });
-      const result = await response.json();
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || "Renewal transaction processing failed.");
+      const order = await orderResponse.json();
+      if (!orderResponse.ok || !order.success) {
+        throw new Error(order.error || "Could not start the renewal payment.");
       }
-      setRenewalSuccessMsg(`Success! Membership extended. Transaction ID: ${result.transactionId}`);
-      
+
+      await loadRazorpayScript();
+
+      await new Promise<void>((resolve, reject) => {
+        const RazorpayCheckout = (window as any).Razorpay;
+        const instance = new RazorpayCheckout({
+          key: order.razorpayKeyId,
+          amount: Math.round(Number(order.amount) * 100),
+          currency: order.currency || "INR",
+          name: "Baroda Swim Front",
+          description: "Membership renewal",
+          order_id: order.orderId,
+          prefill: {
+            name: order.memberName,
+            contact: order.mobileNo,
+            email: order.email
+          },
+          notes: { membershipNo: order.membershipNo },
+          theme: { color: "#0284c7" },
+          handler: async (response: any) => {
+            try {
+              const verifyResponse = await fetch("/api/payments/verify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                  paymentId: order.paymentId
+                })
+              });
+              const result = await verifyResponse.json().catch(() => ({}));
+              if (!verifyResponse.ok || !result.success) {
+                throw new Error(result.error || "Payment verification failed.");
+              }
+              setRenewalSuccessMsg(`Success! Membership extended. Receipt ${result.receiptNo || "generated"}.`);
+              resolve();
+            } catch (err: any) {
+              reject(err);
+            }
+          },
+          modal: { ondismiss: () => reject(new Error("Payment was cancelled.")) }
+        });
+        instance.on("payment.failed", (response: any) => {
+          reject(new Error(response?.error?.description || "The payment was not completed."));
+        });
+        instance.open();
+      });
+
       // Refresh all related states instantly
       fetchMembership();
       fetchPaymentHistory();
@@ -315,7 +384,7 @@ export function MemberDashboard({ academyId, userName, onLogout }: MemberDashboa
       fetchProfile();
       fetchPayments();
       fetchAttendance();
-      
+
       setTimeout(() => setRenewalSuccessMsg(null), 5000);
     } catch (err: any) {
       alert(err.message);

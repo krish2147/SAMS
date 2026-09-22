@@ -6,6 +6,7 @@ import { sendEventNotification } from "./communication.service";
 import { PdfInvoiceService } from "./pdf-invoice.service";
 import { sendPaymentReminder } from "./whatsapp.service";
 import { enqueuePaymentWhatsApp } from "./notification-worker.service";
+import { calculateActivationMembershipPeriod } from "../utils/membership-date";
 
 let razorpayInstance: Razorpay | null = null;
 
@@ -76,29 +77,14 @@ export class PaymentService {
   /**
    * Helper: Calculate membership expiry and renewal dates
    * Extends existing expiry date if member is currently active and unexpired.
+   * Delegates to the canonical membership-date utility for inclusive end dates,
+   * calendar-month clamping and timezone-safe date-only parsing.
    */
   calculateExpiryDates(currentExpiry: string | Date | null | undefined, durationMonths: number = 1) {
-    const now = new Date();
-    let baseDate = now;
-
-    if (currentExpiry) {
-      const parsed = new Date(currentExpiry);
-      if (!isNaN(parsed.getTime()) && parsed > now) {
-        baseDate = parsed; // Extend from current active expiry
-      }
-    }
-
-    const startDate = new Date(now);
-    const expiryDate = new Date(baseDate);
-    expiryDate.setMonth(expiryDate.getMonth() + durationMonths);
-
-    const startDateStr = startDate.toISOString().split("T")[0];
-    const expiryDateStr = expiryDate.toISOString().split("T")[0];
-
-    return {
-      startDateStr,
-      expiryDateStr
-    };
+    return calculateActivationMembershipPeriod({
+      currentExpiry: currentExpiry ?? undefined,
+      durationMonths
+    });
   }
 
   /**
