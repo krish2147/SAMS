@@ -334,7 +334,9 @@ function loadMockDb(): any {
       attendance: [],
       events: [],
       holidays: [],
-      notifications: []
+      notifications: [],
+      otp_login_challenges: [],
+      otp_rate_limits: []
     };
 
     saveMockDb(initialDb);
@@ -351,6 +353,8 @@ function loadMockDb(): any {
     if (!db.holidays) db.holidays = [];
     if (!db.notifications) db.notifications = [];
     if (!db.activities) db.activities = [];
+    if (!db.otp_login_challenges) db.otp_login_challenges = [];
+    if (!db.otp_rate_limits) db.otp_rate_limits = [];
   }
 
   return db;
@@ -1271,6 +1275,97 @@ function executeMockQuery(sql: string, params: any[] = []): [any, any] {
       performedBy: a.performedBy
     })).sort((a: any, b: any) => b.id - a.id);
     return [list, null];
+  }
+
+  // 11. OTP login-challenge & rate-limit mocks (OtpSecurityService)
+  if (sqlTrim.match(/INSERT INTO otp_login_challenges/i)) {
+    db.otp_login_challenges = db.otp_login_challenges || [];
+    const [phoneHash, memberId, requestedAtMs, expiresAtMs, providerRequestId] = params;
+    let row = db.otp_login_challenges.find((c: any) => c.phone_hash === phoneHash);
+    if (!row) {
+      row = { phone_hash: phoneHash };
+      db.otp_login_challenges.push(row);
+    }
+    row.member_id = Number(memberId);
+    row.requested_at = new Date(Number(requestedAtMs)).toISOString();
+    row.expires_at = new Date(Number(expiresAtMs)).toISOString();
+    row.verify_attempts = 0;
+    row.verified_at = null;
+    row.provider_request_id = providerRequestId || null;
+    saveMockDb(db);
+    return [{ affectedRows: 1 }, null];
+  }
+
+  if (sqlTrim.match(/UPDATE otp_login_challenges SET verify_attempts\s*=\s*verify_attempts\s*\+\s*1/i)) {
+    const [phoneHash] = params;
+    const row = (db.otp_login_challenges || []).find((c: any) => c.phone_hash === phoneHash && !c.verified_at);
+    if (row) {
+      row.verify_attempts = Number(row.verify_attempts || 0) + 1;
+      saveMockDb(db);
+    }
+    return [{ affectedRows: row ? 1 : 0 }, null];
+  }
+
+  if (sqlTrim.match(/UPDATE otp_login_challenges SET verify_attempts\s*=\s*GREATEST/i)) {
+    const [phoneHash] = params;
+    const row = (db.otp_login_challenges || []).find((c: any) => c.phone_hash === phoneHash);
+    if (row) {
+      row.verify_attempts = Math.max(Number(row.verify_attempts || 0) - 1, 0);
+      saveMockDb(db);
+    }
+    return [{ affectedRows: row ? 1 : 0 }, null];
+  }
+
+  if (sqlTrim.match(/UPDATE otp_login_challenges SET verified_at\s*=\s*CURRENT_TIMESTAMP/i)) {
+    const [phoneHash] = params;
+    const row = (db.otp_login_challenges || []).find((c: any) => c.phone_hash === phoneHash && !c.verified_at);
+    if (row) {
+      row.verified_at = new Date().toISOString();
+      saveMockDb(db);
+    }
+    return [{ affectedRows: row ? 1 : 0 }, null];
+  }
+
+  if (sqlTrim.match(/SELECT member_id,requested_at,expires_at,verify_attempts,verified_at FROM otp_login_challenges/i)) {
+    const [phoneHash] = params;
+    const row = (db.otp_login_challenges || []).find((c: any) => c.phone_hash === phoneHash);
+    return [row ? [row] : [], null];
+  }
+
+  if (sqlTrim.match(/INSERT INTO otp_rate_limits/i)) {
+    db.otp_rate_limits = db.otp_rate_limits || [];
+    const [scopeKey, actionName, windowSeconds] = params;
+    const now = Date.now();
+    let row = db.otp_rate_limits.find((r: any) => r.scope_key === scopeKey && r.action_name === actionName);
+    if (!row) {
+      db.otp_rate_limits.push({ scope_key: scopeKey, action_name: actionName, window_started_at: new Date(now).toISOString(), request_count: 1 });
+    } else {
+      const windowStartMs = new Date(row.window_started_at).getTime();
+      if (windowStartMs < now - Number(windowSeconds) * 1000) {
+        row.window_started_at = new Date(now).toISOString();
+        row.request_count = 1;
+      } else {
+        row.request_count = Number(row.request_count || 0) + 1;
+      }
+    }
+    saveMockDb(db);
+    return [{ affectedRows: 1 }, null];
+  }
+
+  if (sqlTrim.match(/SELECT request_count FROM otp_rate_limits/i)) {
+    const [scopeKey, actionName] = params;
+    const row = (db.otp_rate_limits || []).find((r: any) => r.scope_key === scopeKey && r.action_name === actionName);
+    return [row ? [{ request_count: row.request_count }] : [], null];
+  }
+
+  if (sqlTrim.match(/UPDATE otp_rate_limits SET request_count\s*=\s*GREATEST/i)) {
+    const [scopeKey, actionName] = params;
+    const row = (db.otp_rate_limits || []).find((r: any) => r.scope_key === scopeKey && r.action_name === actionName);
+    if (row) {
+      row.request_count = Math.max(Number(row.request_count || 0) - 1, 0);
+      saveMockDb(db);
+    }
+    return [{ affectedRows: row ? 1 : 0 }, null];
   }
 
   console.log(`⚠️ Unhandled query in fallback mode: ${sqlTrim}`);

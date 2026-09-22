@@ -6,14 +6,28 @@ import bcrypt from "bcryptjs";
 
 
 
+const OTP_ERROR_STATUS: Record<string, number> = {
+  OTP_COOLDOWN: 429,
+  OTP_RATE_LIMIT: 429,
+  OTP_ATTEMPTS_EXCEEDED: 429,
+  OTP_EXPIRED: 410,
+  OTP_NOT_REQUESTED: 400,
+  OTP_ALREADY_USED: 400,
+  OTP_INVALID: 401,
+  MEMBER_INELIGIBLE: 403,
+  INVALID_PHONE: 400,
+  OTP_PROVIDER_FAILURE: 502
+};
+
 export class UserController {
   private userService = new UserService();
 
   sendOtp = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await this.userService.sendOtp(req.body);
+      const result = await this.userService.sendOtp({ ...req.body, ipAddress: req.ip });
       if (!result.success) {
-        return res.status(400).json({ error: result.error });
+        const status = (result.code && OTP_ERROR_STATUS[result.code]) || 400;
+        return res.status(status).json({ error: result.error, code: result.code });
       }
       res.json(result);
     } catch (err) {
@@ -23,9 +37,10 @@ export class UserController {
 
   login = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await this.userService.login(req.body);
+      const result = await this.userService.login({ ...req.body, ipAddress: req.ip });
       if (!result.success) {
-        return res.status(result.error?.includes("Invalid") ? 401 : 400).json({ error: result.error });
+        const status = (result.code && OTP_ERROR_STATUS[result.code]) || (result.error?.includes("Invalid") ? 401 : 400);
+        return res.status(status).json({ error: result.error, code: result.code });
       }
 
       // Set cookie

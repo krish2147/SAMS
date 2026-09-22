@@ -79,8 +79,9 @@ export class MemberRepository {
       FROM members m
       LEFT JOIN membership_plans p ON m.membership_plan_id = p.id
       LEFT JOIN batches b ON m.selected_batch_id = b.id
-      WHERE REPLACE(m.mobileNo, ' ', '') LIKE ? 
+      WHERE REPLACE(m.mobileNo, ' ', '') LIKE ?
          OR ? LIKE CONCAT('%', REPLACE(m.mobileNo, ' ', ''), '%')
+      ORDER BY m.id DESC
       LIMIT 1
     `, [`%${cleanPhone}%`, cleanPhone]);
 

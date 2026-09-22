@@ -209,7 +209,7 @@ CREATE TABLE IF NOT EXISTS renewals (
   FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
--- 9. OTP VERIFICATIONS
+-- 9. OTP VERIFICATIONS (legacy locally-generated OTP table, superseded by otp_login_challenges below)
 CREATE TABLE IF NOT EXISTS otp_verifications (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   mobile VARCHAR(15) NOT NULL,
@@ -218,6 +218,31 @@ CREATE TABLE IF NOT EXISTS otp_verifications (
   verified TINYINT(1) NOT NULL DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_otp_mobile (mobile)
+) ENGINE=InnoDB;
+
+-- 9a. OTP LOGIN CHALLENGES (provider-managed MSG91 OTP login, see OtpSecurityService)
+CREATE TABLE IF NOT EXISTS otp_login_challenges (
+  phone_hash CHAR(64) NOT NULL PRIMARY KEY,
+  member_id INT UNSIGNED NOT NULL,
+  provider_request_id VARCHAR(120) NULL,
+  requested_at DATETIME NOT NULL,
+  expires_at DATETIME NOT NULL,
+  verify_attempts INT UNSIGNED NOT NULL DEFAULT 0,
+  verified_at DATETIME NULL DEFAULT NULL,
+  updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_otp_login_challenges_member (member_id),
+  INDEX idx_otp_login_challenges_expires (expires_at)
+) ENGINE=InnoDB;
+
+-- 9b. OTP RATE LIMITS (sliding-window send/verify throttling, see OtpSecurityService)
+CREATE TABLE IF NOT EXISTS otp_rate_limits (
+  scope_key CHAR(64) NOT NULL,
+  action_name VARCHAR(30) NOT NULL,
+  window_started_at DATETIME NOT NULL,
+  request_count INT UNSIGNED NOT NULL DEFAULT 0,
+  updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (scope_key, action_name),
+  INDEX idx_otp_rate_limits_window (window_started_at)
 ) ENGINE=InnoDB;
 
 -- 10. EVENTS

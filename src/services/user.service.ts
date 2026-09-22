@@ -4,6 +4,10 @@ import { UserRepository } from "../repositories/user.repository";
 import { MemberRepository } from "../repositories/member.repository";
 import { getDbPool, isMockDatabase } from "../config/db";
 import { ActivityService } from "./activity.service";
+import { Msg91OtpService, type OtpProvider } from "./msg91-otp.service";
+import { OtpSecurityService } from "./otp-security.service";
+import { normalizeIndianMobile } from "../utils/phone";
+import { toDateOnlyString, calendarToday } from "../utils/membership-date";
 
 
 export interface SessionData {
@@ -19,13 +23,18 @@ export interface SessionData {
 
 export class UserService {
   private userRepository = new UserRepository();
-  private memberRepository = new MemberRepository();
-  
+  private memberRepository: MemberRepository;
+  private otpProvider: OtpProvider;
+  private otpSecurity: OtpSecurityService;
+
   // In-memory sessions map
   private static activeSessions = new Map<string, SessionData>();
 
-  // In-memory secure OTP map: normalized phone -> { otp, expiresAt }
-  private static otpStore = new Map<string, { otp: string; expiresAt: number }>();
+  constructor(deps?: { memberRepository?: MemberRepository; otpProvider?: OtpProvider; otpSecurity?: OtpSecurityService }) {
+    this.memberRepository = deps?.memberRepository || new MemberRepository();
+    this.otpProvider = deps?.otpProvider || new Msg91OtpService();
+    this.otpSecurity = deps?.otpSecurity || new OtpSecurityService();
+  }
 
   private static hashSessionToken(token: string): string {
     return crypto.createHash("sha256").update(token).digest("hex");
@@ -92,69 +101,67 @@ export class UserService {
     await pool.query("DELETE FROM user_sessions WHERE token_hash = ?", [this.hashSessionToken(token)]);
   }
 
-  async sendOtp(payload: { phoneNumber: string; role: string }): Promise<{ success: boolean; error?: string; message?: string }> {
-    const { phoneNumber, role } = payload;
-    if (!phoneNumber) {
-      return { success: false, error: "Phone number is required." };
+  /**
+   * A member is eligible for OTP login only once admin-approved, paid, and
+   * actively within their membership window — the same gate the legacy flow
+   * used, plus an inclusive membership_end_date check via membership-date.ts.
+   */
+  private isMemberEligibleForOtpLogin(member: any): boolean {
+    if (!member) return false;
+    if (member.blocked) return false;
+    if (member.is_deleted) return false;
+    if (member.registration_status !== "Approved") return false;
+    if (member.payment_status !== "Paid") return false;
+    if (member.membership_status !== "Active") return false;
+    if (!member.login_enabled) return false;
+    const endDateStr = toDateOnlyString(member.membership_end_date);
+    if (endDateStr && endDateStr < calendarToday()) return false;
+    return true;
+  }
+
+  async sendOtp(payload: { phoneNumber: string; role: string; ipAddress?: string }): Promise<{ success: boolean; error?: string; message?: string; code?: string }> {
+    const { phoneNumber, role, ipAddress } = payload;
+    if (role !== "member" && role !== "parent") {
+      return { success: false, error: "OTP login is only available for members.", code: "OTP_ROLE_UNSUPPORTED" };
     }
 
-    const cleanPhone = phoneNumber.replace(/\D/g, "");
-    if (cleanPhone.length < 10) {
-      return { success: false, error: "Please specify a valid 10-digit mobile number." };
-    }
-
-    // Check if member exists in the academy matching phone
-    const member = await this.memberRepository.getByPhone(phoneNumber);
-    if (!member) {
-      return { success: false, error: "Member not found. Please register as a new member." };
-    }
-    if (member.registration_status !== "Approved") {
-      return { success: false, error: "Your registration is still pending admin approval." };
-    }
-    if (member.payment_status !== "Paid" || !member.login_enabled) {
-      return { success: false, error: "Complete the payment sent to your WhatsApp before signing in." };
-    }
-    if (member.membership_status !== "Active") {
-      return { success: false, error: "Your membership is not active. Please contact the academy." };
-    }
-
-    // Generate secure 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = Date.now() + 5 * 60 * 1000; // 5-minute expiry
-
-    // Store in SQL for cross-replica verification; local development uses memory.
+    let phone: string;
     try {
-      const pool = await getDbPool();
-      if (isMockDatabase()) {
-        UserService.otpStore.set(cleanPhone, { otp, expiresAt });
-      } else {
-        const mysqlExpires = new Date(expiresAt).toISOString().slice(0, 19).replace("T", " ");
-        await pool.query(
-          "INSERT INTO otp_verifications (mobile, otp, expires_at, verified) VALUES (?, ?, ?, 0)",
-          [phoneNumber, otp, mysqlExpires]
-        );
-      }
-    } catch (dbErr) {
-      throw new Error("Unable to store the verification code. Please try again.");
+      phone = normalizeIndianMobile(phoneNumber).international;
+    } catch (err: any) {
+      return { success: false, error: err.message || "Enter a valid Indian mobile number.", code: "INVALID_PHONE" };
     }
 
-    // Simulation logic
-    if (process.env.NODE_ENV !== "production") {
-      console.log(`
-============================================================
-📱 [DEVELOPMENT MODE OTP DISPATCH]
-To: ${phoneNumber}
-OTP Verification Code: ${otp}
-Expires: In 5 minutes (at ${new Date(expiresAt).toLocaleTimeString()})
-============================================================
-      `);
-    } else {
-      console.log(`📡 [PRODUCTION SMS] OTP dispatch requested for ${phoneNumber}.`);
+    // Same generic denial whether the member is missing or simply ineligible,
+    // so this endpoint can't be used to enumerate registered phone numbers.
+    const member = await this.memberRepository.getByPhone(phone);
+    if (!this.isMemberEligibleForOtpLogin(member)) {
+      return { success: false, error: "This mobile number is not eligible for OTP login yet.", code: "MEMBER_INELIGIBLE" };
     }
 
-    return { 
-      success: true, 
-      message: "We've sent a verification code to your registered mobile number." 
+    try {
+      await this.otpSecurity.assertSendAllowed(phone, ipAddress || "unknown");
+    } catch (err: any) {
+      return { success: false, error: err.message, code: err.code || "OTP_SEND_BLOCKED" };
+    }
+
+    let sendResult;
+    try {
+      sendResult = await this.otpProvider.send(phone);
+    } catch (err: any) {
+      sendResult = { success: false as const, reason: "provider" as const };
+    }
+
+    if (!sendResult.success) {
+      await this.otpSecurity.releaseSend(phone, ipAddress || "unknown");
+      return { success: false, error: "We couldn't send the verification code. Please try again shortly.", code: "OTP_PROVIDER_FAILURE" };
+    }
+
+    await this.otpSecurity.recordChallenge(phone, member.id, sendResult.requestId);
+
+    return {
+      success: true,
+      message: "We've sent a verification code to your registered mobile number."
     };
   }
 
@@ -164,8 +171,9 @@ Expires: In 5 minutes (at ${new Date(expiresAt).toLocaleTimeString()})
     email?: string;
     password?: string;
     otpCode?: string;
-  }): Promise<{ success: boolean; token?: string; member?: any; staff?: any; error?: string }> {
-    const { phoneNumber, role, email, password, otpCode } = payload;
+    ipAddress?: string;
+  }): Promise<{ success: boolean; token?: string; member?: any; staff?: any; error?: string; code?: string }> {
+    const { phoneNumber, role, email, password, otpCode, ipAddress } = payload;
 
     if (role === "parent" || role === "member") {
       if (!phoneNumber) {
@@ -175,61 +183,41 @@ Expires: In 5 minutes (at ${new Date(expiresAt).toLocaleTimeString()})
         return { success: false, error: "Verification code is required" };
       }
 
-      const cleanPhone = phoneNumber.replace(/\D/g, "");
-      const pool = await getDbPool();
-      let storedOtpInfo: { otp: string; expiresAt: number } | undefined;
-
-      if (isMockDatabase()) {
-        storedOtpInfo = UserService.otpStore.get(cleanPhone);
-      } else {
-        const [otpRows]: any = await pool.query(
-          `SELECT otp, expires_at FROM otp_verifications
-           WHERE mobile = ? AND verified = 0
-           ORDER BY id DESC LIMIT 1`,
-          [phoneNumber]
-        );
-        if (otpRows[0]) {
-          storedOtpInfo = {
-            otp: String(otpRows[0].otp),
-            expiresAt: new Date(otpRows[0].expires_at).getTime()
-          };
-        }
-      }
-
-      if (!storedOtpInfo) {
-        return { success: false, error: "No verification code requested for this number." };
-      }
-
-      if (Date.now() > storedOtpInfo.expiresAt) {
-        if (isMockDatabase()) UserService.otpStore.delete(cleanPhone);
-        return { success: false, error: "The verification code has expired. Please request a new one." };
-      }
-
-      if (storedOtpInfo.otp !== otpCode) {
-        return { success: false, error: "The verification code is invalid. Please try again." };
-      }
-
-      // Verification succeeded! Consume the OTP
-      if (isMockDatabase()) UserService.otpStore.delete(cleanPhone);
-
-      // Audit mark verified in SQL db if active
+      let phone: string;
       try {
-        const pool = await getDbPool();
-        if (!isMockDatabase()) {
-          await pool.query(
-            "UPDATE otp_verifications SET verified = 1 WHERE mobile = ? AND otp = ? ORDER BY id DESC LIMIT 1",
-            [phoneNumber, otpCode]
-          );
-        }
-      } catch (dbErr) {
-        // Safe to ignore
+        phone = normalizeIndianMobile(phoneNumber).international;
+      } catch (err: any) {
+        return { success: false, error: err.message || "Enter a valid Indian mobile number." };
       }
 
-      const member = await this.memberRepository.getByPhone(phoneNumber);
-      if (!member) {
-        return { success: false, error: "Member not found. Please register as a new member." };
+      let verification: { memberId: number; phoneHash: string };
+      try {
+        verification = await this.otpSecurity.beginVerification(phone, ipAddress || "unknown");
+      } catch (err: any) {
+        return { success: false, error: err.message, code: err.code };
       }
-      if (member.registration_status !== "Approved" || member.payment_status !== "Paid" || !member.login_enabled || member.membership_status !== "Active") {
+
+      let verifyResult;
+      try {
+        verifyResult = await this.otpProvider.verify(phone, otpCode);
+      } catch (err: any) {
+        verifyResult = { success: false as const, reason: "provider" as const };
+      }
+
+      if (!verifyResult.success) {
+        const code = verifyResult.reason === "expired" ? "OTP_EXPIRED" : verifyResult.reason === "invalid" ? "OTP_INVALID" : "OTP_PROVIDER_FAILURE";
+        const error = code === "OTP_EXPIRED"
+          ? "The verification code has expired. Please request a new one."
+          : code === "OTP_INVALID"
+            ? "The verification code is invalid. Please try again."
+            : "We couldn't verify this code right now. Please try again.";
+        return { success: false, error, code };
+      }
+
+      await this.otpSecurity.markVerified(verification.phoneHash);
+
+      const member = await this.memberRepository.getByPhone(phone);
+      if (!this.isMemberEligibleForOtpLogin(member)) {
         return { success: false, error: "This membership is not approved, paid, and active." };
       }
 
