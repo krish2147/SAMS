@@ -1,9 +1,9 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   User, Smartphone, ArrowLeft, ShieldCheck, Mail, MapPin,
   Calendar, Heart, FileText, CheckCircle, AlertCircle,
-  Clock, Activity, Check, Upload, Sparkles, UserCheck, Droplets,
+  Clock, Activity, Upload, Sparkles, UserCheck, Droplets,
   PhoneCall, ShieldAlert, HeartPulse, Sparkle, X
 } from "lucide-react";
 import { AcademyId, UserSession } from "../types";
@@ -190,6 +190,27 @@ const OFFICIAL_PRICING_MATRIX: Record<string, Record<string, Array<{ id: string;
   }
 };
 
+// Which weekly-frequency variants exist for a membership category (e.g. Learners has both 6/3 days; Guest only has "hourly").
+function getCategoryFrequencyKeys(categoryId: string): string[] {
+  return Object.keys(OFFICIAL_PRICING_MATRIX[categoryId] || {});
+}
+
+// Duration options are identical across a category's frequency variants (e.g. Learners 6-day and 3-day both
+// offer 1/3/6/9-month + annual tiers, just at different prices), so the duration list can be shown before frequency is chosen.
+function getCategoryDurationOptions(categoryId: string): Array<{ id: string; label: string }> {
+  const options: Array<{ id: string; label: string }> = [];
+  const seenIds = new Set<string>();
+  for (const freqKey of getCategoryFrequencyKeys(categoryId)) {
+    for (const tier of OFFICIAL_PRICING_MATRIX[categoryId][freqKey]) {
+      if (!seenIds.has(tier.id)) {
+        seenIds.add(tier.id);
+        options.push({ id: tier.id, label: tier.label });
+      }
+    }
+  }
+  return options;
+}
+
 export function RegisterPage({ academyId, onRegisterSuccess, onCancel }: RegisterPageProps) {
   const isSwim = academyId === "swim";
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -224,6 +245,47 @@ export function RegisterPage({ academyId, onRegisterSuccess, onCancel }: Registe
       setErrors(prev => ({ ...prev, [name]: undefined }));
     }
   };
+
+  // Sequential membership selection: Type -> Duration -> Weekly Frequency -> total price.
+  // Categories with only one duration/frequency variant (Guest, Group) are auto-resolved
+  // immediately so the dropdown for that step never needs to appear.
+  const handleCategorySelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const categoryId = e.target.value;
+    if (!categoryId) {
+      setForm(prev => ({ ...prev, batchCategory: "", frequency: "", planDuration: "", memberType: "" }));
+      return;
+    }
+    const freqKeys = getCategoryFrequencyKeys(categoryId);
+    const durationOptions = getCategoryDurationOptions(categoryId);
+    setForm(prev => ({
+      ...prev,
+      batchCategory: categoryId as any,
+      frequency: (freqKeys.length === 1 ? freqKeys[0] : "") as any,
+      planDuration: (durationOptions.length === 1 ? durationOptions[0].id : "") as any,
+      memberType: ""
+    }));
+    if (errors.memberType) setErrors(prev => ({ ...prev, memberType: undefined }));
+  };
+
+  const handleDurationSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setForm(prev => ({ ...prev, planDuration: e.target.value as any }));
+  };
+
+  const handleFrequencySelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setForm(prev => ({ ...prev, frequency: e.target.value as any }));
+  };
+
+  // Once category + duration + frequency are all resolved, derive the priced plan label used for submission.
+  useEffect(() => {
+    if (!form.batchCategory || !form.planDuration || !form.frequency) return;
+    const categoryObj = BATCH_TYPES.find(b => b.id === form.batchCategory);
+    const tiers = OFFICIAL_PRICING_MATRIX[form.batchCategory]?.[form.frequency] || [];
+    const tier = tiers.find(t => t.id === form.planDuration);
+    if (!tier || !categoryObj) return;
+    const freqText = form.frequency === "6_days" ? "6 Days/Wk" : form.frequency === "3_days" ? "3 Days/Wk" : "";
+    const memTypeStr = `${categoryObj.name}${freqText ? ` - ${freqText}` : ""} (${tier.label}: ${tier.formattedPrice})`;
+    setForm(prev => (prev.memberType === memTypeStr ? prev : { ...prev, memberType: memTypeStr }));
+  }, [form.batchCategory, form.planDuration, form.frequency]);
 
   const handleToggleMedical = (hasCondition: boolean) => {
     setForm(prev => ({ 
@@ -1095,165 +1157,71 @@ export function RegisterPage({ academyId, onRegisterSuccess, onCancel }: Registe
                   </button>
                 </div>
 
-                {/* Step 1: Batch Category Selection */}
+                {/* Step 1: Membership Type */}
                 <div className="space-y-3">
                   <label className={labelStyle}>
-                    Select Membership Category <span className="text-red-500">*</span>
+                    Select Membership Type <span className="text-red-500">*</span>
                   </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {BATCH_TYPES.map(b => {
-                      const selected = form.batchCategory === b.id;
-                      return (
-                        <div
-                          key={b.id}
-                          onClick={() => {
-                            let defaultFreq = "6_days";
-                            if (b.id === "Guest") defaultFreq = "hourly";
-                            if (b.id === "Group") defaultFreq = "fixed";
-
-                            const availableTiers = OFFICIAL_PRICING_MATRIX[b.id]?.[defaultFreq] || [];
-                            const defaultDur = availableTiers[0]?.id || "1_month";
-                            const defaultTier = availableTiers[0];
-
-                            const memTypeStr = `${b.name} (${defaultTier?.formattedPrice || "Selected"})`;
-
-                            setForm(prev => ({ 
-                              ...prev, 
-                              batchCategory: b.id as any,
-                              frequency: defaultFreq as any,
-                              planDuration: defaultDur as any,
-                              memberType: memTypeStr 
-                            }));
-                            if (errors.memberType) setErrors(prev => ({ ...prev, memberType: undefined }));
-                          }}
-                          className={`p-4 rounded-2xl border text-left cursor-pointer transition-all duration-200 ${
-                            selected 
-                              ? isSwim 
-                                ? "border-sky-500 bg-sky-50/60 ring-2 ring-sky-500/20 shadow-sm"
-                                : "border-emerald-500 bg-emerald-950/80 ring-2 ring-emerald-500/20 shadow-lg"
-                              : isSwim 
-                                ? "border-slate-200 hover:bg-slate-50/80" 
-                                : "border-emerald-800/40 hover:bg-emerald-900/20"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-extrabold">{b.name}</span>
-                            {selected && (
-                              <div className={`w-4 h-4 rounded-full flex items-center justify-center ${accentBg}`}>
-                                <Check className="w-2.5 h-2.5 text-white" />
-                              </div>
-                            )}
-                          </div>
-                          <p className={`text-[11px] mt-1.5 leading-normal ${textSecondary}`}>{b.desc}</p>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <select
+                    value={form.batchCategory}
+                    onChange={handleCategorySelect}
+                    className={inputStyle}
+                  >
+                    <option value="">Choose a membership type…</option>
+                    {BATCH_TYPES.map(b => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                  </select>
+                  {form.batchCategory && (
+                    <p className={`text-[11px] leading-normal ${textSecondary}`}>
+                      {BATCH_TYPES.find(b => b.id === form.batchCategory)?.desc}
+                    </p>
+                  )}
                 </div>
 
-                {/* Step 2: Frequency Selection (for Learners and General) */}
-                {form.batchCategory && (form.batchCategory === "Learners" || form.batchCategory === "General") && (
-                  <motion.div 
+                {/* Step 2: Membership Duration (options are shared across a category's frequency variants) */}
+                {form.batchCategory && getCategoryDurationOptions(form.batchCategory).length > 1 && (
+                  <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     className="space-y-3 pt-2 border-t border-slate-100/10"
                   >
                     <label className={labelStyle}>
-                      Weekly Schedule Frequency <span className="text-red-500">*</span>
+                      Select Membership Duration <span className="text-red-500">*</span>
                     </label>
-                    <div className="grid grid-cols-2 gap-3">
-                      {FREQUENCY_OPTIONS.map(freq => {
-                        const selected = form.frequency === freq.id;
-                        return (
-                          <div
-                            key={freq.id}
-                            onClick={() => {
-                              const categoryObj = BATCH_TYPES.find(b => b.id === form.batchCategory);
-                              const availableTiers = OFFICIAL_PRICING_MATRIX[form.batchCategory]?.[freq.id] || [];
-                              const selectedTier = availableTiers.find(t => t.id === form.planDuration) || availableTiers[0];
-                              
-                              const memTypeStr = `${categoryObj?.name || form.batchCategory} - ${freq.id === "6_days" ? "6 Days/Wk" : "3 Days/Wk"} (${selectedTier?.label}: ${selectedTier?.formattedPrice})`;
-
-                              setForm(prev => ({
-                                ...prev,
-                                frequency: freq.id as any,
-                                planDuration: (selectedTier?.id || "1_month") as any,
-                                memberType: memTypeStr
-                              }));
-                            }}
-                            className={`p-3.5 rounded-2xl border text-left cursor-pointer transition-all ${
-                              selected
-                                ? isSwim
-                                  ? "border-sky-500 bg-sky-500 text-white font-bold shadow-sm"
-                                  : "border-emerald-500 bg-emerald-600 text-white font-bold shadow-md"
-                                : isSwim
-                                  ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                                  : "border-emerald-800/40 bg-emerald-950/30 text-emerald-200 hover:bg-emerald-900/20"
-                            }`}
-                          >
-                            <span className="text-xs block font-bold">{freq.name}</span>
-                            <span className={`text-[10px] block mt-0.5 opacity-80 font-normal`}>{freq.subtitle}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
+                    <select
+                      value={form.planDuration}
+                      onChange={handleDurationSelect}
+                      className={inputStyle}
+                    >
+                      <option value="">Choose a duration…</option>
+                      {getCategoryDurationOptions(form.batchCategory).map(opt => (
+                        <option key={opt.id} value={opt.id}>{opt.label}</option>
+                      ))}
+                    </select>
                   </motion.div>
                 )}
 
-                {/* Step 3: Duration & Official Pricing Tiers */}
-                {form.batchCategory && form.frequency && (
-                  <motion.div 
+                {/* Step 3: Weekly Frequency (only when the category actually offers more than one) */}
+                {form.batchCategory && form.planDuration && getCategoryFrequencyKeys(form.batchCategory).length > 1 && (
+                  <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     className="space-y-3 pt-2 border-t border-slate-100/10"
                   >
-                    <div className="flex justify-between items-center">
-                      <label className={labelStyle}>
-                        Select Plan Duration & Price <span className="text-red-500">*</span>
-                      </label>
-                      <span className="text-[10px] font-mono text-amber-500 font-bold uppercase">Official Feb 2026 Rate</span>
-                    </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                      {(OFFICIAL_PRICING_MATRIX[form.batchCategory]?.[form.frequency] || []).map((tier) => {
-                        const selected = form.planDuration === tier.id;
-                        return (
-                          <div
-                            key={tier.id}
-                            onClick={() => {
-                              const categoryObj = BATCH_TYPES.find(b => b.id === form.batchCategory);
-                              const freqText = form.frequency === "6_days" ? "6 Days/Wk" : form.frequency === "3_days" ? "3 Days/Wk" : "";
-                              const memTypeStr = `${categoryObj?.name} ${freqText ? `- ${freqText}` : ""} (${tier.label}: ${tier.formattedPrice})`;
-
-                              setForm(prev => ({
-                                ...prev,
-                                planDuration: tier.id as any,
-                                memberType: memTypeStr
-                              }));
-                            }}
-                            className={`p-3 rounded-2xl border text-left cursor-pointer transition-all ${
-                              selected
-                                ? isSwim
-                                  ? "border-sky-500 bg-sky-500/10 ring-2 ring-sky-500 text-slate-900 shadow-sm"
-                                  : "border-emerald-400 bg-emerald-900/60 ring-2 ring-emerald-400 text-white shadow-md"
-                                : isSwim
-                                  ? "border-slate-200 bg-slate-50/50 hover:bg-slate-100/50 text-slate-800"
-                                  : "border-emerald-800/40 bg-emerald-950/20 hover:bg-emerald-900/20 text-emerald-100"
-                            }`}
-                          >
-                            <div className="flex justify-between items-start">
-                              <span className="text-xs font-bold block">{tier.label}</span>
-                              {selected && (
-                                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                              )}
-                            </div>
-                            <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 block mt-1">
-                              {tier.formattedPrice}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
+                    <label className={labelStyle}>
+                      Select Weekly Schedule Frequency <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={form.frequency}
+                      onChange={handleFrequencySelect}
+                      className={inputStyle}
+                    >
+                      <option value="">Choose a frequency…</option>
+                      {FREQUENCY_OPTIONS.filter(freq => getCategoryFrequencyKeys(form.batchCategory).includes(freq.id)).map(freq => (
+                        <option key={freq.id} value={freq.id}>{freq.name} ({freq.subtitle})</option>
+                      ))}
+                    </select>
                   </motion.div>
                 )}
 
