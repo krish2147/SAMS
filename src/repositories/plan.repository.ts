@@ -25,9 +25,10 @@ export class PlanRepository {
     );
     if (rows && rows.length > 0) return rows[0];
 
-    // Default to first plan if none matches
-    [rows] = await pool.query("SELECT * FROM membership_plans LIMIT 1");
-    return rows && rows.length > 0 ? rows[0] : null;
+    // Deliberately no fallback. This previously returned the first plan in the table when
+    // nothing matched, which silently charged every such registration at that plan's price
+    // regardless of what the member actually chose. Callers must handle null.
+    return null;
   }
 
   async getAll(): Promise<any[]> {

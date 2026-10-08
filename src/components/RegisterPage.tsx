@@ -196,6 +196,22 @@ const OFFICIAL_PRICING_MATRIX: Record<string, Record<string, Array<{ id: string;
   }
 };
 
+/**
+ * Converts the form's category/frequency/duration into the codes the server prices against
+ * (membership_plans.plan_category, frequency_code, duration_code). The server resolves the
+ * exact plan from these; the human-readable memberType label is for display only.
+ */
+const toPlanSelection = (category: string, frequency: string, duration: string) => {
+  if (category === "Family_4" || category === "Family_3") {
+    return { membershipType: "Family", variant: category, duration };
+  }
+  if (category === "Guest") {
+    // Guest plans are identified by the entry type; they carry no separate duration.
+    return { membershipType: "Guest", variant: frequency || "hourly", duration: "" };
+  }
+  return { membershipType: category, variant: frequency, duration };
+};
+
 // Which weekly-frequency variants exist for a membership category (e.g. Learners has both 6/3 days; Guest only has "hourly").
 function getCategoryFrequencyKeys(categoryId: string): string[] {
   return Object.keys(OFFICIAL_PRICING_MATRIX[categoryId] || {});
@@ -480,6 +496,11 @@ export function RegisterPage({ academyId, onRegisterSuccess, onCancel }: Registe
       formData.append("relationship", form.relationship);
       formData.append("memberType", form.memberType);
       formData.append("member_type", form.memberType);
+      // The server prices the membership from these codes, not from the label above.
+      const planSelection = toPlanSelection(form.batchCategory, form.frequency, form.planDuration);
+      formData.append("membership_type", planSelection.membershipType);
+      formData.append("plan_variant", planSelection.variant);
+      formData.append("plan_duration", planSelection.duration);
       formData.append("batch", form.batch);
       formData.append("academyId", academyId);
       formData.append("academy_id", academyId);
@@ -1264,7 +1285,11 @@ export function RegisterPage({ academyId, onRegisterSuccess, onCancel }: Registe
                   const tiers = OFFICIAL_PRICING_MATRIX[form.batchCategory]?.[form.frequency] || [];
                   const activeTier = tiers.find(t => t.id === form.planDuration) || tiers[0];
                   const basePrice = activeTier?.price || 0;
-                  const registrationFee = 300;
+                  // Mirrors membership_plans.registration_fee: the rate-card plans charge ₹300,
+                  // while guest entries and group bookings carry none. Showing a flat ₹300 here
+                  // made the quoted total disagree with the amount actually charged.
+                  const registrationFee =
+                    form.batchCategory === "Guest" || form.batchCategory === "Group" ? 0 : 300;
                   const grandTotal = basePrice + registrationFee;
 
                   return (

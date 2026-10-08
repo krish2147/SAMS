@@ -4,12 +4,48 @@ import { PlanRepository } from "../repositories/plan.repository";
 import { getDbPool } from "../config/db";
 import { ActivityService } from "./activity.service";
 import { sendEventNotification } from "./communication.service";
+import { resolveRegistrationPlan } from "../utils/membership-plan-catalog";
 
 
 export class MemberService {
   private memberRepository = new MemberRepository();
   private batchRepository = new BatchRepository();
   private planRepository = new PlanRepository();
+
+  /**
+   * Resolves the exact priced plan a registration selected. Uses the structured
+   * type/variant/duration codes, which map directly onto membership_plans, and refuses
+   * rather than guessing when the selection matches no plan or more than one — the price
+   * charged to a member must never be the result of a fallback.
+   */
+  private async resolveSelectedPlan(input: {
+    membershipType?: string; variant?: string; duration?: string; legacyName?: string;
+  }): Promise<any> {
+    const fail = (message: string) => {
+      const error: any = new Error(message);
+      error.status = 400;
+      error.validationErrors = [{ field: "member_type", message }];
+      return error;
+    };
+
+    if (input.membershipType && input.variant) {
+      const plans = await this.planRepository.getAll();
+      const { plan, error } = resolveRegistrationPlan(plans as any, {
+        membershipType: input.membershipType as any,
+        variant: input.variant,
+        duration: input.duration || ""
+      });
+      if (!plan) throw fail(error || "That membership selection could not be priced.");
+      return plan;
+    }
+
+    // Older callers still submit a plan name (admin tools, offline entry).
+    if (input.legacyName) {
+      const byName = await this.planRepository.findByName(input.legacyName);
+      if (byName) return byName;
+    }
+    throw fail("Please select a membership plan.");
+  }
 
   async getAllMembers(): Promise<any[]> {
     return this.memberRepository.getAll();
@@ -155,11 +191,15 @@ export class MemberService {
       }
     }
 
-    // Resolve plan
-    const plan = await this.planRepository.findByName(member_type);
-    if (!plan) {
-      throw new Error(`Membership plan with name ${member_type} could not be resolved.`);
-    }
+    // Resolve plan from the structured selection the form made, never from its display label.
+    // The label (e.g. "Learners - 6 Days/Wk (1 Month: ₹3,500)") matches no plan name, so the old
+    // name lookup always fell through to the first plan in the table and charged its price.
+    const plan = await this.resolveSelectedPlan({
+      membershipType: payload.membership_type || payload.membershipType,
+      variant: payload.plan_variant || payload.planVariant,
+      duration: payload.plan_duration || payload.planDuration,
+      legacyName: member_type
+    });
 
     // Resolve batch
     const batch = await this.batchRepository.findByNameOrTime(batchSelection);
