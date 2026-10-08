@@ -2,9 +2,17 @@ import { Router, Response } from "express";
 import { requireAuth } from "../middleware/authMiddleware";
 import { getDbPool } from "../config/db";
 import { PaymentService } from "../services/payment.service";
+import { normalizeIndianMobile } from "../utils/phone";
 
 
 const router = Router();
+
+const MEMBER_SELECT = `SELECT m.*, p.name as plan_name, p.duration_months as plan_duration,
+          p.registration_fee, p.renewal_fee, p.co_charge,
+          b.batch_name, b.start_time, b.end_time
+   FROM members m
+   LEFT JOIN membership_plans p ON m.membership_plan_id = p.id
+   LEFT JOIN batches b ON m.selected_batch_id = b.id`;
 
 // Robust helper to get the authenticated member from the session
 async function getAuthenticatedMember(req: any): Promise<any> {
@@ -17,13 +25,7 @@ async function getAuthenticatedMember(req: any): Promise<any> {
   // 1. Try search by numeric id first
   if (/^\d+$/.test(idOrNo)) {
     const [rows]: any = await pool.query(
-      `SELECT m.*, p.name as plan_name, p.duration_months as plan_duration, 
-              p.registration_fee, p.renewal_fee, p.co_charge,
-              b.batch_name, b.start_time, b.end_time 
-       FROM members m 
-       LEFT JOIN membership_plans p ON m.membership_plan_id = p.id 
-       LEFT JOIN batches b ON m.selected_batch_id = b.id 
-       WHERE m.id = ?`,
+      `${MEMBER_SELECT} WHERE m.id = ? LIMIT 1`,
       [parseInt(idOrNo, 10)]
     );
     if (rows && rows.length > 0) return rows[0];
@@ -31,30 +33,28 @@ async function getAuthenticatedMember(req: any): Promise<any> {
 
   // 2. Try search by membershipNo
   const [rowsByNo]: any = await pool.query(
-    `SELECT m.*, p.name as plan_name, p.duration_months as plan_duration, 
-            p.registration_fee, p.renewal_fee, p.co_charge,
-            b.batch_name, b.start_time, b.end_time 
-     FROM members m 
-     LEFT JOIN membership_plans p ON m.membership_plan_id = p.id 
-     LEFT JOIN batches b ON m.selected_batch_id = b.id 
-     WHERE m.membershipNo = ?`,
+    `${MEMBER_SELECT} WHERE m.membershipNo = ? LIMIT 1`,
     [idOrNo]
   );
   if (rowsByNo && rowsByNo.length > 0) return rowsByNo[0];
 
-  // 3. Try search by mobileNo fallback
+  // 3. Fall back to the session phone, matched on the exact normalized 10-digit
+  // national number. Substring/LIKE matching here would let one member row with a
+  // malformed short mobileNo resolve to any session, and ORDER BY keeps the result
+  // deterministic when duplicate numbers exist.
   if (req.user.phoneNumber) {
-    const cleanPhone = req.user.phoneNumber.replace(/\D/g, "");
+    let national: string;
+    try {
+      national = normalizeIndianMobile(req.user.phoneNumber).national;
+    } catch {
+      return null;
+    }
     const [rowsByPhone]: any = await pool.query(
-      `SELECT m.*, p.name as plan_name, p.duration_months as plan_duration, 
-              p.registration_fee, p.renewal_fee, p.co_charge,
-              b.batch_name, b.start_time, b.end_time 
-       FROM members m 
-       LEFT JOIN membership_plans p ON m.membership_plan_id = p.id 
-       LEFT JOIN batches b ON m.selected_batch_id = b.id 
-       WHERE REPLACE(m.mobileNo, ' ', '') LIKE ? 
-          OR ? LIKE CONCAT('%', REPLACE(m.mobileNo, ' ', ''), '%')`,
-      [`%${cleanPhone}%`, cleanPhone]
+      `${MEMBER_SELECT}
+       WHERE RIGHT(REGEXP_REPLACE(m.mobileNo, '[^0-9]', ''), 10) = ?
+       ORDER BY m.id DESC
+       LIMIT 1`,
+      [national]
     );
     if (rowsByPhone && rowsByPhone.length > 0) return rowsByPhone[0];
   }
@@ -166,6 +166,50 @@ router.get("/member/dashboard", requireAuth(["member", "parent"]), async (req: a
       upcomingEvent: upcomingEvents[0],
       upcomingHoliday: upcomingHolidays[0],
       recentNotifications: recentNotifications.slice(0, 3)
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 2a. GET /api/member/batch
+router.get("/member/batch", requireAuth(["member", "parent"]), async (req: any, res: Response, next) => {
+  try {
+    const member = await getAuthenticatedMember(req);
+    if (!member) {
+      return res.status(404).json({ error: "Authenticated member record not found" });
+    }
+
+    // No batch chosen yet is a normal state, not an error.
+    if (!member.selected_batch_id) {
+      return res.json({ batch: null });
+    }
+
+    const pool = await getDbPool();
+    const [rows]: any = await pool.query(
+      `SELECT b.batch_name, b.start_time, b.end_time, b.status, a.name AS academy_name
+       FROM batches b
+       LEFT JOIN academies a ON b.academy_id = a.id
+       WHERE b.id = ? AND b.academy_id = ?
+       LIMIT 1`,
+      [member.selected_batch_id, member.academyId]
+    );
+
+    // Assigned batch is missing or belongs to another academy — surface it rather than
+    // silently showing "no batch", which would hide a real data problem.
+    if (!rows || rows.length === 0) {
+      return res.status(409).json({ error: "Assigned batch unavailable" });
+    }
+
+    const batch = rows[0];
+    return res.json({
+      batch: {
+        name: batch.batch_name,
+        startTime: batch.start_time ?? null,
+        endTime: batch.end_time ?? null,
+        status: batch.status ?? null,
+        academyName: batch.academy_name ?? null
+      }
     });
   } catch (err) {
     next(err);

@@ -9,7 +9,33 @@ export class OtpSecurityService {
   static readonly PHONE_REQUEST_LIMIT = 5;
   static readonly IP_REQUEST_LIMIT = 20;
   static readonly VERIFY_ATTEMPT_LIMIT = 5;
+  /** How often the opportunistic purge is allowed to run. */
+  static readonly PURGE_INTERVAL_SECONDS = 15 * 60;
+  /** Rows older than this are far outside any live window and are safe to drop. */
+  static readonly PURGE_AGE_SECONDS = 24 * 60 * 60;
+  private static lastPurgeAt = 0;
   constructor(private readonly poolFactory:typeof getDbPool=getDbPool, private readonly clock=()=>Date.now()) {}
+
+  /**
+   * Rate-limit and challenge rows are written per phone and per IP and were never
+   * cleaned up, so IP-scoped rows grew without bound. Purging here (throttled, and
+   * never blocking the caller) keeps both tables flat without extra infrastructure.
+   */
+  private purgeStaleRows() {
+    const now = this.clock();
+    if (now - OtpSecurityService.lastPurgeAt < OtpSecurityService.PURGE_INTERVAL_SECONDS * 1000) return;
+    OtpSecurityService.lastPurgeAt = now;
+    void (async () => {
+      try {
+        const pool = await this.poolFactory();
+        const age = OtpSecurityService.PURGE_AGE_SECONDS;
+        await pool.query("DELETE FROM otp_rate_limits WHERE window_started_at < DATE_SUB(CURRENT_TIMESTAMP, INTERVAL ? SECOND)", [age]);
+        await pool.query("DELETE FROM otp_login_challenges WHERE expires_at < DATE_SUB(CURRENT_TIMESTAMP, INTERVAL ? SECOND)", [age]);
+      } catch {
+        // Housekeeping only - never fail an OTP request because cleanup failed.
+      }
+    })();
+  }
 
   hash(kind:string,value:string) {
     const secret=process.env.OTP_HASH_SECRET || "development-only-otp-hash-secret";
@@ -17,6 +43,7 @@ export class OtpSecurityService {
   }
 
   async assertSendAllowed(phone:string,ip:string) {
+    this.purgeStaleRows();
     const phoneHash=this.hash("phone",phone); const ipHash=this.hash("ip",ip||"unknown"); const now=this.clock();
     const existing=await this.getChallenge(phoneHash);
     if(existing && now-existing.requestedAt < OtpSecurityService.RESEND_COOLDOWN_SECONDS*1000) {

@@ -210,16 +210,9 @@ CREATE TABLE IF NOT EXISTS renewals (
   FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
--- 9. OTP VERIFICATIONS (legacy locally-generated OTP table, superseded by otp_login_challenges below)
-CREATE TABLE IF NOT EXISTS otp_verifications (
-  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  mobile VARCHAR(15) NOT NULL,
-  otp VARCHAR(6) NOT NULL,
-  expires_at TIMESTAMP NOT NULL,
-  verified TINYINT(1) NOT NULL DEFAULT 0,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_otp_mobile (mobile)
-) ENGINE=InnoDB;
+-- 9. (removed) otp_verifications — legacy plaintext OTP table, superseded by
+-- otp_login_challenges. No code references it. Any existing empty table can be
+-- dropped manually; it is intentionally not dropped here to avoid destructive migrations.
 
 -- 9a. OTP LOGIN CHALLENGES (MSG91-delivered OTP login, see OtpSecurityService)
 CREATE TABLE IF NOT EXISTS otp_login_challenges (
