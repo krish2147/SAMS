@@ -1,54 +1,61 @@
 import axios from "axios";
+import crypto from "crypto";
 
-export type OtpProviderResult = { success: boolean; reason?: "invalid" | "expired" | "provider"; requestId?: string };
-export interface OtpProvider { send(mobile: string): Promise<OtpProviderResult>; verify(mobile: string, otp: string): Promise<OtpProviderResult>; }
+export type OtpProviderResult = { success: boolean; reason?: "invalid" | "expired" | "provider"; requestId?: string; otp?: string };
+export interface OtpProvider { send(mobile: string): Promise<OtpProviderResult>; }
+
+const SEND_ENDPOINT = "https://control.msg91.com/api/sendhttp.php";
 
 function config() {
   const authKey = (process.env.MSG91_AUTH_KEY || process.env.MSG91_AUTHKEY || "").trim();
-  const templateId = (process.env.MSG91_OTP_TEMPLATE_ID || "").trim();
-  if (!authKey || !templateId) throw Object.assign(new Error("OTP delivery is not configured."), { code: "OTP_NOT_CONFIGURED" });
-  return { authKey, templateId };
+  const senderId = (process.env.MSG91_SENDER_ID || "").trim();
+  const dltTemplateId = (process.env.MSG91_OTP_DLT_TEMPLATE_ID || "").trim();
+  if (!authKey || !senderId || !dltTemplateId) {
+    throw Object.assign(new Error("OTP delivery is not configured."), { code: "OTP_NOT_CONFIGURED" });
+  }
+  return { authKey, senderId, dltTemplateId };
 }
 
-function accepted(data: any) {
-  const type = String(data?.type || data?.status || "").toLowerCase();
-  const message = String(data?.message || "").toLowerCase();
-  return !data?.hasError && (type === "success" || message.includes("otp verified success") || message.includes("sent successfully"));
+// Must stay character-identical to the DLT-approved template body, or the telco silently drops it.
+export function buildOtpMessage(otp: string) {
+  return `Your OTP for Baroda Swim Front login is ${otp}. It is valid for 5 minutes. Do not share this OTP with anyone. - Baroda Swim Front`;
+}
+
+export function generateOtp(length = 6) {
+  const max = 10 ** length;
+  return String(crypto.randomInt(0, max)).padStart(length, "0");
 }
 
 export class Msg91OtpService implements OtpProvider {
-  constructor(private readonly http: Pick<typeof axios,"get"|"post"> = axios) {}
+  constructor(private readonly http: Pick<typeof axios, "get" | "post"> = axios) {}
 
   async send(mobile: string): Promise<OtpProviderResult> {
-    const { authKey, templateId } = config();
+    const { authKey, senderId, dltTemplateId } = config();
+    const otp = generateOtp();
     try {
-      const response = await this.http.post("https://control.msg91.com/api/v5/otp", {}, {
-        headers: { "Content-Type": "application/json", authkey: authKey },
-        params: { template_id: templateId, mobile, otp_expiry: 5, otp_length: 6 }, timeout: 15000
+      const response = await this.http.get(SEND_ENDPOINT, {
+        params: {
+          authkey: authKey,
+          mobiles: mobile,
+          message: buildOtpMessage(otp),
+          sender: senderId,
+          route: "4",
+          country: "91",
+          DLT_TE_ID: dltTemplateId
+        },
+        timeout: 15000
       });
-      if (!accepted(response.data)) return { success:false, reason:"provider" };
-      return { success:true, requestId:String(response.data?.request_id || response.data?.message || "").slice(0,120) };
-    } catch (error:any) {
-      console.error(`[OTP] MSG91 send failed: ${String(error.response?.data?.message || error.message || "provider error").slice(0,180)}`);
-      return { success:false, reason:"provider" };
-    }
-  }
-
-  async verify(mobile: string, otp: string): Promise<OtpProviderResult> {
-    const { authKey } = config();
-    try {
-      const response = await this.http.get("https://control.msg91.com/api/v5/otp/verify", {
-        headers: { authkey: authKey }, params: { mobile, otp }, timeout: 15000
-      });
-      if (accepted(response.data)) return { success:true };
-      const message = String(response.data?.message || "").toLowerCase();
-      return { success:false, reason:message.includes("expir") ? "expired" : "invalid" };
-    } catch (error:any) {
-      const message = String(error.response?.data?.message || "").toLowerCase();
-      if (message.includes("expir")) return { success:false, reason:"expired" };
-      if (message.includes("invalid") || message.includes("incorrect")) return { success:false, reason:"invalid" };
-      console.error(`[OTP] MSG91 verify failed: ${String(error.message || "provider error").slice(0,180)}`);
-      return { success:false, reason:"provider" };
+      // A successful submission returns a bare request id; anything containing an error
+      // marker means the gateway rejected it outright.
+      const body = String(response.data ?? "").trim();
+      if (!body || /error|invalid|failure/i.test(body)) {
+        console.error(`[OTP] MSG91 rejected send: ${body.slice(0, 180)}`);
+        return { success: false, reason: "provider" };
+      }
+      return { success: true, requestId: body.slice(0, 120), otp };
+    } catch (error: any) {
+      console.error(`[OTP] MSG91 send failed: ${String(error.response?.data || error.message || "provider error").slice(0, 180)}`);
+      return { success: false, reason: "provider" };
     }
   }
 }

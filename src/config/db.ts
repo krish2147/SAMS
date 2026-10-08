@@ -140,7 +140,8 @@ const statements = cleanedSql
       "ALTER TABLE members ADD COLUMN membership_start_date DATE NULL",
       "ALTER TABLE members ADD COLUMN membership_end_date DATE NULL",
       "ALTER TABLE members ADD COLUMN next_renewal_date DATE NULL",
-      "ALTER TABLE members ADD COLUMN last_payment_id INT UNSIGNED NULL"
+      "ALTER TABLE members ADD COLUMN last_payment_id INT UNSIGNED NULL",
+      "ALTER TABLE otp_login_challenges ADD COLUMN otp_hash CHAR(64) NULL"
     ];
 
     for (const alterSql of alterColumns) {

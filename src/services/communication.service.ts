@@ -411,7 +411,7 @@ export async function sendWhatsAppMessage(toMobile: string, content: string, tem
 export async function sendSMSMSG91(toMobile: string, content: string): Promise<{ success: boolean; response: string }> {
   try {
     const authKey = process.env.MSG91_AUTHKEY || process.env.MSG91_AUTH_KEY;
-    const senderId = process.env.MSG91_SENDER_ID || "BSFAMS";
+    const senderId = process.env.MSG91_SENDER_ID || "BARSWF";
 
     if (authKey && authKey !== "your_msg91_authkey" && authKey !== "YOUR_NEW_MSG91_AUTHKEY") {
       const res = await fetch("https://control.msg91.com/api/v5/flow/", {

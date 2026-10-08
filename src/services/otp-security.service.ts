@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { getDbPool } from "../config/db";
 
-type Challenge = { memberId:number; requestedAt:number; expiresAt:number; attempts:number; verified:boolean };
+type Challenge = { memberId:number; requestedAt:number; expiresAt:number; attempts:number; verified:boolean; otpHash?:string };
 
 export class OtpSecurityService {
   static readonly RESEND_COOLDOWN_SECONDS = 30;
@@ -32,14 +32,24 @@ export class OtpSecurityService {
     await Promise.all([this.releaseLimit(this.hash("phone",phone),"send_phone"),this.releaseLimit(this.hash("ip",ip||"unknown"),"send_ip")]);
   }
 
-  async recordChallenge(phone:string,memberId:number,providerRequestId?:string) {
+  async recordChallenge(phone:string,memberId:number,providerRequestId?:string,otp?:string) {
     const phoneHash=this.hash("phone",phone); const now=this.clock(); const expiresAt=now+OtpSecurityService.OTP_VALIDITY_SECONDS*1000;
+    const otpHash=otp?this.hash("otp",otp):null;
     const pool=await this.poolFactory();
     await pool.query(`INSERT INTO otp_login_challenges
-      (phone_hash,member_id,requested_at,expires_at,verify_attempts,verified_at,provider_request_id)
-      VALUES (?,?,FROM_UNIXTIME(?/1000),FROM_UNIXTIME(?/1000),0,NULL,?)
-      ON DUPLICATE KEY UPDATE member_id=VALUES(member_id),requested_at=VALUES(requested_at),expires_at=VALUES(expires_at),verify_attempts=0,verified_at=NULL,provider_request_id=VALUES(provider_request_id)`,
-      [phoneHash,memberId,now,expiresAt,providerRequestId||null]);
+      (phone_hash,member_id,requested_at,expires_at,verify_attempts,verified_at,provider_request_id,otp_hash)
+      VALUES (?,?,FROM_UNIXTIME(?/1000),FROM_UNIXTIME(?/1000),0,NULL,?,?)
+      ON DUPLICATE KEY UPDATE member_id=VALUES(member_id),requested_at=VALUES(requested_at),expires_at=VALUES(expires_at),verify_attempts=0,verified_at=NULL,provider_request_id=VALUES(provider_request_id),otp_hash=VALUES(otp_hash)`,
+      [phoneHash,memberId,now,expiresAt,providerRequestId||null,otpHash]);
+  }
+
+  /** Constant-time comparison of a submitted code against the stored hash for this phone. */
+  async checkOtp(phone:string,otp:string):Promise<boolean>{
+    const challenge=await this.getChallenge(this.hash("phone",phone));
+    if(!challenge?.otpHash) return false;
+    const expected=Buffer.from(challenge.otpHash,"hex");
+    const supplied=Buffer.from(this.hash("otp",otp),"hex");
+    return expected.length===supplied.length && crypto.timingSafeEqual(expected,supplied);
   }
 
   async beginVerification(phone:string,ip:string) {
@@ -64,8 +74,8 @@ export class OtpSecurityService {
   }
 
   private async getChallenge(phoneHash:string):Promise<Challenge|undefined>{
-    const pool=await this.poolFactory();const [rows]:any=await pool.query("SELECT member_id,requested_at,expires_at,verify_attempts,verified_at FROM otp_login_challenges WHERE phone_hash=? LIMIT 1",[phoneHash]);const row=rows?.[0];
-    return row?{memberId:Number(row.member_id),requestedAt:new Date(row.requested_at).getTime(),expiresAt:new Date(row.expires_at).getTime(),attempts:Number(row.verify_attempts||0),verified:Boolean(row.verified_at)}:undefined;
+    const pool=await this.poolFactory();const [rows]:any=await pool.query("SELECT member_id,requested_at,expires_at,verify_attempts,verified_at,otp_hash FROM otp_login_challenges WHERE phone_hash=? LIMIT 1",[phoneHash]);const row=rows?.[0];
+    return row?{memberId:Number(row.member_id),requestedAt:new Date(row.requested_at).getTime(),expiresAt:new Date(row.expires_at).getTime(),attempts:Number(row.verify_attempts||0),verified:Boolean(row.verified_at),otpHash:row.otp_hash||undefined}:undefined;
   }
 
   private async consumeLimit(scopeKey:string,action:string,max:number,windowSeconds:number){

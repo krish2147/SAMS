@@ -157,7 +157,7 @@ export class UserService {
       return { success: false, error: "We couldn't send the verification code. Please try again shortly.", code: "OTP_PROVIDER_FAILURE" };
     }
 
-    await this.otpSecurity.recordChallenge(phone, member.id, sendResult.requestId);
+    await this.otpSecurity.recordChallenge(phone, member.id, sendResult.requestId, sendResult.otp);
 
     return {
       success: true,
@@ -197,21 +197,10 @@ export class UserService {
         return { success: false, error: err.message, code: err.code };
       }
 
-      let verifyResult;
-      try {
-        verifyResult = await this.otpProvider.verify(phone, otpCode);
-      } catch (err: any) {
-        verifyResult = { success: false as const, reason: "provider" as const };
-      }
-
-      if (!verifyResult.success) {
-        const code = verifyResult.reason === "expired" ? "OTP_EXPIRED" : verifyResult.reason === "invalid" ? "OTP_INVALID" : "OTP_PROVIDER_FAILURE";
-        const error = code === "OTP_EXPIRED"
-          ? "The verification code has expired. Please request a new one."
-          : code === "OTP_INVALID"
-            ? "The verification code is invalid. Please try again."
-            : "We couldn't verify this code right now. Please try again.";
-        return { success: false, error, code };
+      // Expiry/attempt/cooldown checks already ran in beginVerification above; this only
+      // compares the submitted code against the hash stored when the SMS was sent.
+      if (!(await this.otpSecurity.checkOtp(phone, otpCode))) {
+        return { success: false, error: "The verification code is invalid. Please try again.", code: "OTP_INVALID" };
       }
 
       await this.otpSecurity.markVerified(verification.phoneHash);

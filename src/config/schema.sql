@@ -221,11 +221,12 @@ CREATE TABLE IF NOT EXISTS otp_verifications (
   INDEX idx_otp_mobile (mobile)
 ) ENGINE=InnoDB;
 
--- 9a. OTP LOGIN CHALLENGES (provider-managed MSG91 OTP login, see OtpSecurityService)
+-- 9a. OTP LOGIN CHALLENGES (MSG91-delivered OTP login, see OtpSecurityService)
 CREATE TABLE IF NOT EXISTS otp_login_challenges (
   phone_hash CHAR(64) NOT NULL PRIMARY KEY,
   member_id INT UNSIGNED NOT NULL,
   provider_request_id VARCHAR(120) NULL,
+  otp_hash CHAR(64) NULL,
   requested_at DATETIME NOT NULL,
   expires_at DATETIME NOT NULL,
   verify_attempts INT UNSIGNED NOT NULL DEFAULT 0,
