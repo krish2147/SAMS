@@ -17,10 +17,10 @@ export function NavItem({ item, active, collapsed, onSelect }: NavItemProps) {
       onClick={() => onSelect(item.id)}
       aria-current={active ? "page" : undefined}
       title={collapsed ? item.label : undefined}
-      className={`group relative flex min-h-11 w-full items-center rounded-lg text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2 ${collapsed ? "justify-center px-2" : "gap-3 px-3"} ${active ? "bg-cyan-50 font-semibold text-slate-950" : "font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-950"}`}
+      className={`group relative flex min-h-11 w-full items-center rounded-xl text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-aqua-400 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900 ${collapsed ? "justify-center px-2" : "gap-3 px-3"} ${active ? "bg-white/10 font-semibold text-white" : "font-medium text-ink-200 hover:bg-white/5 hover:text-white"}`}
     >
-      {active && <span className="absolute bottom-2.5 left-0 top-2.5 w-0.5 rounded-r-full bg-cyan-600" />}
-      <Icon className={`h-[19px] w-[19px] shrink-0 ${active ? "text-cyan-700" : "text-slate-400 group-hover:text-slate-600"}`} />
+      {active && <span className="absolute bottom-2 left-0 top-2 w-[3px] rounded-r-full bg-aqua-400" />}
+      <Icon className={`h-[19px] w-[19px] shrink-0 ${active ? "text-aqua-300" : "text-ink-400 group-hover:text-ink-200"}`} />
       {!collapsed && <span className="truncate">{item.label}</span>}
     </button>
   );

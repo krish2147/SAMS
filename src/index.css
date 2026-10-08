@@ -6,11 +6,48 @@
   --font-display: "Sora", sans-serif;
   --font-serif: "Playfair Display", serif;
   --font-mono: "JetBrains Mono", monospace;
+
+  /* Member portal palette: deep navy chrome, near-white canvas, aqua accent.
+     Change these and the whole member portal follows. */
+  --color-ink-50: #f2f6fb;
+  --color-ink-100: #e2eaf4;
+  --color-ink-200: #c4d3e6;
+  --color-ink-400: #7e96b5;
+  --color-ink-600: #3c577a;
+  --color-ink-700: #27405f;
+  --color-ink-800: #182d47;
+  --color-ink-900: #0f2038;
+  --color-ink-950: #0a1627;
+
+  --color-aqua-300: #6fd9e6;
+  --color-aqua-400: #38c5d8;
+  --color-aqua-500: #16a9c4;
+  --color-aqua-600: #0d87a3;
+
+  /* Canvas and card surfaces */
+  --color-canvas: #f6f8fc;
+
+  /* Elevation: soft and wide rather than hard drop shadows */
+  --shadow-card: 0 1px 2px rgba(15, 32, 56, 0.04), 0 8px 24px -12px rgba(15, 32, 56, 0.12);
+  --shadow-card-hover: 0 1px 2px rgba(15, 32, 56, 0.05), 0 16px 36px -16px rgba(15, 32, 56, 0.18);
+  --shadow-panel: 0 24px 60px -32px rgba(10, 22, 39, 0.45);
 }
 
 /* Custom visual styles for luxury feel */
 html {
   scroll-behavior: smooth;
+}
+
+/* Member portal: offsets the content beside the fixed sidebar. Widths must match
+   MemberSidebar's expanded/collapsed values. Below lg the sidebar is hidden and the
+   bottom navigation takes over, so no offset applies. */
+@media (min-width: 1024px) {
+  .member-app-frame {
+    padding-left: 248px;
+  }
+  .member-app-frame--collapsed {
+    padding-left: 72px;
+  }
 }
 
 /* Custom scrollbars for clean dashboards */

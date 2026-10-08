@@ -43,7 +43,7 @@ export function AccountMenu({ userName, avatar, membershipStatus, collapsed = fa
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className={`group flex min-h-11 items-center outline-none transition-colors focus-visible:ring-2 focus-visible:ring-cyan-500 ${placement === "sidebar" ? `w-full rounded-xl border border-slate-200 bg-slate-50/80 p-2 hover:border-slate-300 hover:bg-white ${collapsed ? "justify-center" : "gap-2.5"}` : "gap-2 rounded-lg px-1.5 py-1 hover:bg-slate-100 sm:pr-2"}`}
+        className={`group flex min-h-11 items-center outline-none transition-colors focus-visible:ring-2 focus-visible:ring-aqua-400 ${placement === "sidebar" ? `w-full rounded-xl border border-white/10 bg-white/5 p-2 hover:border-white/20 hover:bg-white/10 ${collapsed ? "justify-center" : "gap-2.5"}` : "gap-2 rounded-lg px-1.5 py-1 hover:bg-slate-100 sm:pr-2"}`}
         aria-haspopup="menu"
         aria-expanded={open}
         title={collapsed ? `${firstName} account` : undefined}
@@ -52,15 +52,15 @@ export function AccountMenu({ userName, avatar, membershipStatus, collapsed = fa
         {!collapsed && (
           <>
             <span className="min-w-0 flex-1 text-left">
-              <span className="block truncate text-sm font-semibold text-slate-900">{firstName}</span>
+              <span className={`block truncate text-sm font-semibold ${placement === "sidebar" ? "text-white" : "text-ink-900"}`}>{firstName}</span>
               {placement === "sidebar" && (
-                <span className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-slate-500">
+                <span className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-ink-200">
                   {membershipStatus && <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${membershipStatus.toLowerCase() === "active" ? "bg-emerald-500" : "bg-amber-500"}`} />}
                   {membershipStatus || "Status unavailable"}
                 </span>
               )}
             </span>
-            <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
+            <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${placement === "sidebar" ? "text-ink-400" : "text-ink-400"} ${open ? "rotate-180" : ""}`} />
           </>
         )}
       </button>

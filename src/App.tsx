@@ -14,7 +14,7 @@ import { PaymentCheckoutPage } from "./components/PaymentCheckoutPage";
 
 // Sub Dashboards
 import { ParentDashboard } from "./components/ParentDashboard";
-import { MemberDashboard } from "./components/MemberDashboard";
+import { MemberDashboardShell } from "./components/MemberDashboardShell";
 import { CoachDashboard } from "./components/CoachDashboard";
 import { ReceptionistDashboard } from "./components/ReceptionistDashboard";
 import { AdminDashboard } from "./components/AdminDashboard";
@@ -137,7 +137,7 @@ export default function App() {
       case "parent":
         return <ParentDashboard academyId={selectedAcademyId!} userName={userSession.name} />;
       case "member":
-        return <MemberDashboard academyId={selectedAcademyId!} userName={userSession.name} onLogout={handleLogout} />;
+        return <MemberDashboardShell userName={userSession.name} avatar={userSession.avatar} onLogout={handleLogout} />;
       case "coach":
         return <CoachDashboard academyId={selectedAcademyId!} userName={userSession.name} onLogout={handleLogout} userSession={userSession} />;
       case "staff":
@@ -152,8 +152,11 @@ export default function App() {
   };
 
   const isAdminStaffRole = userSession && ["admin", "super_admin", "staff", "receptionist", "coach"].includes(userSession.role);
+  // The member portal ships its own sidebar, branding, account menu and logout, so it renders
+  // full-screen like the staff dashboards rather than inside the public shell's navbar/tab frame.
+  const isFullScreenDashboard = Boolean(isAdminStaffRole || (userSession && userSession.role === "member"));
   const isOnAcademyExplore = Boolean(
-    selectedAcademyId && !isAdminStaffRole && !isRegisterPageActive &&
+    selectedAcademyId && !isFullScreenDashboard && !isRegisterPageActive &&
     (!userSession || activeDashboardTab === "explore")
   );
 
@@ -163,10 +166,10 @@ export default function App() {
   }
 
   return (
-    <div className={isAdminStaffRole ? `h-screen h-[100dvh] overflow-hidden ${bgApp} transition-colors duration-1000 select-none` : `min-h-screen ${bgApp} transition-colors duration-1000 overflow-x-hidden select-none`}>
+    <div className={isFullScreenDashboard ? `h-screen h-[100dvh] overflow-hidden ${bgApp} transition-colors duration-1000 select-none` : `min-h-screen ${bgApp} transition-colors duration-1000 overflow-x-hidden select-none`}>
       
       {/* 1. Universal Adaptive Navbar */}
-      {selectedAcademyId && !isAdminStaffRole && (
+      {selectedAcademyId && !isFullScreenDashboard && (
         <Navbar
           selectedAcademyId={selectedAcademyId}
           onSelectAcademy={handleSelectAcademy}
@@ -214,11 +217,11 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.8 }}
-            className={isAdminStaffRole ? "h-screen h-[100dvh] w-full overflow-hidden" : ""}
+            className={isFullScreenDashboard ? "h-screen h-[100dvh] w-full overflow-hidden" : ""}
           >
             {/* If user is logged in, show beautiful dashboard toggles */}
             {userSession ? (
-              isAdminStaffRole ? (
+              isFullScreenDashboard ? (
                 <div className="w-full h-full overflow-hidden">
                   {renderDashboard()}
                 </div>
@@ -350,7 +353,7 @@ export default function App() {
       )}
 
       {/* 4. Luxury Credit Footer for selected academy pages */}
-      {selectedAcademyId && !isAdminStaffRole && (
+      {selectedAcademyId && !isFullScreenDashboard && (
         <footer className={`mt-10 border-t py-8 px-4 md:px-8 relative z-10 ${
           isSwim 
             ? "bg-white border-slate-100 text-slate-500" 
