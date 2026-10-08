@@ -152,6 +152,10 @@ export default function App() {
   };
 
   const isAdminStaffRole = userSession && ["admin", "super_admin", "staff", "receptionist", "coach"].includes(userSession.role);
+  const isOnAcademyExplore = Boolean(
+    selectedAcademyId && !isAdminStaffRole && !isRegisterPageActive &&
+    (!userSession || activeDashboardTab === "explore")
+  );
 
   const paymentOrderId = new URLSearchParams(window.location.search).get("order_id");
   if (window.location.pathname === "/pay" && paymentOrderId) {
@@ -170,6 +174,7 @@ export default function App() {
           userSession={userSession}
           onLogout={handleLogout}
           isRegisterPageActive={isRegisterPageActive}
+          isPhotoBackdrop={isOnAcademyExplore}
         />
       )}
 

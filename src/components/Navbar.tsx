@@ -11,6 +11,7 @@ interface NavbarProps {
   userSession: UserSession | null;
   onLogout: () => void;
   isRegisterPageActive?: boolean;
+  isPhotoBackdrop?: boolean;
 }
 
 export function Navbar({
@@ -19,7 +20,8 @@ export function Navbar({
   onOpenLogin,
   userSession,
   onLogout,
-  isRegisterPageActive = false
+  isRegisterPageActive = false,
+  isPhotoBackdrop = false
 }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -27,6 +29,9 @@ export function Navbar({
   const getNavStyle = () => {
     if (!selectedAcademyId) {
       return "bg-slate-950/60 border-slate-900/50 text-white backdrop-blur-xl";
+    }
+    if (isPhotoBackdrop) {
+      return "bg-white/10 border-white/20 text-white backdrop-blur-xl shadow-lg";
     }
     if (selectedAcademyId === "swim") {
       return "bg-white/70 border-sky-100/50 text-slate-800 backdrop-blur-xl shadow-sm";
@@ -61,10 +66,10 @@ export function Navbar({
               <span className="text-lg">🌊</span>
             </div>
             <div className="flex flex-col justify-center">
-              <span className="text-sm font-extrabold tracking-tight leading-none text-slate-800">
+              <span className={`text-sm font-extrabold tracking-tight leading-none ${isPhotoBackdrop ? "text-white drop-shadow-md" : "text-slate-800"}`}>
                 Baroda Swim Front
               </span>
-              <span className="text-[10px] font-mono tracking-widest uppercase font-semibold text-slate-400 mt-1">
+              <span className={`text-[10px] font-mono tracking-widest uppercase font-semibold mt-1 ${isPhotoBackdrop ? "text-sky-200" : "text-slate-400"}`}>
                 Swimming Academy
               </span>
             </div>
@@ -100,9 +105,11 @@ export function Navbar({
         {userSession ? (
           <div className="flex items-center gap-4">
             <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border ${
-              selectedAcademyId === "swim"
-                ? "bg-slate-50 border-slate-200"
-                : "bg-emerald-900/20 border-emerald-800/30"
+              isPhotoBackdrop
+                ? "bg-white/10 border-white/20"
+                : selectedAcademyId === "swim"
+                  ? "bg-slate-50 border-slate-200"
+                  : "bg-emerald-900/20 border-emerald-800/30"
             }`}>
               {userSession.avatar ? (
                 <img src={userSession.avatar} alt={userSession.name} className="h-5 w-5 rounded-full object-cover" />
