@@ -11,7 +11,7 @@ interface OverviewSummaryCardsProps {
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
-    <article className="flex min-h-[196px] flex-col rounded-2xl border border-ink-100 bg-white p-6 shadow-card transition-shadow duration-200 hover:shadow-card-hover">
+    <article className="flex min-h-[172px] flex-col rounded-2xl border border-ink-100 bg-white p-5 shadow-card sm:min-h-[196px] sm:p-6 transition-shadow duration-200 hover:shadow-card-hover">
       {children}
     </article>
   );
@@ -32,7 +32,7 @@ function CardHeading({ icon: Icon, eyebrow }: { icon: React.ComponentType<{ clas
 /** The one number or phrase each card exists to communicate. */
 function Figure({ children, muted = false }: { children: React.ReactNode; muted?: boolean }) {
   return (
-    <p className={`mt-3 font-display text-[26px] font-bold leading-[1.15] tracking-[-0.02em] ${muted ? "text-ink-400" : "text-ink-950"}`}>
+    <p className={`mt-3 font-display text-[22px] font-bold leading-[1.15] tracking-[-0.02em] sm:text-[26px] ${muted ? "text-ink-400" : "text-ink-950"}`}>
       {children}
     </p>
   );

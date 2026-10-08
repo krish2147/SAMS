@@ -166,7 +166,7 @@ export default function App() {
   }
 
   return (
-    <div className={isFullScreenDashboard ? `h-screen h-[100dvh] overflow-hidden ${bgApp} transition-colors duration-1000 select-none` : `min-h-screen ${bgApp} transition-colors duration-1000 overflow-x-hidden select-none`}>
+    <div className={isAdminStaffRole ? `h-screen h-[100dvh] overflow-hidden ${bgApp} transition-colors duration-1000 select-none` : `min-h-screen ${bgApp} transition-colors duration-1000 overflow-x-hidden select-none`}>
       
       {/* 1. Universal Adaptive Navbar */}
       {selectedAcademyId && !isFullScreenDashboard && (
@@ -217,14 +217,17 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.8 }}
-            className={isFullScreenDashboard ? "h-screen h-[100dvh] w-full overflow-hidden" : ""}
+            className={isAdminStaffRole ? "h-screen h-[100dvh] w-full overflow-hidden" : ""}
           >
             {/* If user is logged in, show beautiful dashboard toggles */}
             {userSession ? (
-              isFullScreenDashboard ? (
+              isAdminStaffRole ? (
                 <div className="w-full h-full overflow-hidden">
                   {renderDashboard()}
                 </div>
+              ) : isFullScreenDashboard ? (
+                // Member portal: full-bleed, but scrolls with the document.
+                renderDashboard()
               ) : (
                 <div className="max-w-7xl mx-auto px-4 md:px-8 pt-28 pb-10">
                   

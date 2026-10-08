@@ -4,6 +4,8 @@ import fs from "fs";
 import path from "path";
 import { uploadsDir } from "../config/multer";
 import { getObject, objectStorageEnabled, uploadObject } from "./object-storage.service";
+import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-logo";
+import { BSF_SIGNATURE_DATA_URI } from "../assets/baroda-swim-front-signature";
 
 export interface InvoiceData {
   paymentId: number;
@@ -60,7 +62,9 @@ export class PdfInvoiceService {
         })
       : new Date().toLocaleDateString("en-IN");
 
-    const gstin = data.gstin || "24AAACB1234F1Z0";
+    // No GSTIN fallback: printing a made-up number on a document headed "invoice" is a
+    // compliance problem. If the academy supplies one it is shown; otherwise nothing is.
+    const gstin = (data.gstin || "").trim();
     const statusText = (data.status || "PAID").toUpperCase();
 
     // 3. Generate Verification QR Code Data URL
@@ -78,265 +82,215 @@ Txn ID: ${data.razorpayPaymentId || "N/A"}`;
     } catch (_) {}
 
     // 4. Create A4 jsPDF Document (210mm x 297mm)
-    const doc = new jsPDF({
-      orientation: "portrait",
-      unit: "mm",
-      format: "a4"
-    });
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
-    const pageWidth = 210;
+    const PAGE_W = 210;
+    const M = 20;                       // page margin
+    const RIGHT = PAGE_W - M;
+    const INK: [number, number, number] = [17, 24, 39];
+    const MUTED: [number, number, number] = [120, 128, 138];
+    const RULE: [number, number, number] = [214, 219, 226];
 
-    // --- HEADER BANNER ---
-    doc.setFillColor(15, 23, 42); // Navy slate (#0f172a)
-    doc.rect(0, 0, pageWidth, 32, "F");
+    const money = (value: number) =>
+      "INR " + Number(value || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-    // Header Title
-    doc.setTextColor(255, 255, 255);
+    const label = (text: string, x: number, y: number) => {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(...MUTED);
+      doc.text(text, x, y);
+    };
+    const value = (text: string, x: number, y: number, bold = false) => {
+      doc.setFont("helvetica", bold ? "bold" : "normal");
+      doc.setFontSize(9.5);
+      doc.setTextColor(...INK);
+      doc.text(text, x, y);
+    };
+    const rule = (y: number, from = M, to = RIGHT) => {
+      doc.setDrawColor(...RULE);
+      doc.setLineWidth(0.2);
+      doc.line(from, y, to, y);
+    };
+
+    // ---------- Masthead: logo left, INVOICE right ----------
+    try {
+      doc.addImage(BARODA_SWIM_FRONT_LOGO_DATA_URI, "PNG", M, 18, 20, 20, undefined, "FAST");
+    } catch (_) {}
+
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(20);
-    doc.text("BARODA SWIM FRONT ACADEMY", 15, 15);
+    doc.setFontSize(11.5);
+    doc.setTextColor(...INK);
+    doc.text("Baroda", M + 25, 25);
+    doc.text("Swim Front", M + 25, 30.5);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(...MUTED);
+    doc.text("Swim for life", M + 25, 35);
 
-    doc.setTextColor(56, 189, 248); // Cyan sky (#38bdf8)
-    doc.setFontSize(9);
-    doc.text("OFFICIAL MEMBERSHIP TAX INVOICE & RECEIPT", 15, 22);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(30);
+    doc.setTextColor(...INK);
+    doc.text("INVOICE", RIGHT, 30, { align: "right" });
 
-    doc.setTextColor(203, 213, 225);
+    // ---------- Meta row ----------
+    let y = 48;
+    label("Billed to", M, y);
+    label("Academy", M + 62, y);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.setTextColor(...INK);
+    doc.text(`#${data.invoiceNo}`, RIGHT, y, { align: "right" });
+
+    y += 6;
+    value(data.memberName || "-", M, y, true);
+    value("Baroda Swim Front", M + 62, y, true);
+    doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
+    doc.setTextColor(...MUTED);
+    doc.text(invDateStr, RIGHT, y, { align: "right" });
+
+    y += 5;
+    value(data.membershipNo || "-", M, y);
+    value("Vadodara, Gujarat", M + 62, y);
     doc.setFont("helvetica", "normal");
-    doc.text(`GSTIN: ${gstin} | Vadodara, Gujarat, India`, 15, 27);
+    doc.setFontSize(8);
+    doc.setTextColor(...MUTED);
+    doc.text(`Receipt ${data.receiptNo || "-"}`, RIGHT, y, { align: "right" });
 
-    // --- PAID BADGE ---
-    doc.setFillColor(16, 185, 129); // Emerald (#10b981)
-    doc.roundedRect(pageWidth - 45, 10, 30, 12, 2, 2, "F");
-    doc.setTextColor(255, 255, 255);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.text(statusText, pageWidth - 30, 17.5, { align: "center" });
+    y += 5;
+    value(data.mobileNo || "-", M, y);
+    if (data.email) { y += 5; value(data.email, M, y); }
+    if (data.address) {
+      const addr = doc.splitTextToSize(String(data.address), 55) as string[];
+      addr.slice(0, 2).forEach((line) => { y += 5; value(line, M, y); });
+    }
 
-    // --- INVOICE META & MEMBER INFO GRID ---
-    let startY = 42;
-
-    // Box 1: Invoice Details (Left)
-    doc.setFillColor(248, 250, 252); // Light bg (#f8fafc)
-    doc.setDrawColor(226, 232, 240);
-    doc.roundedRect(15, startY, 88, 48, 3, 3, "FD");
-
-    doc.setTextColor(15, 23, 42);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.text("INVOICE DETAILS", 20, startY + 8);
-
-    doc.setFontSize(8.5);
+    // ---------- Description ----------
+    y = Math.max(y, 74) + 16;
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(71, 85, 105);
-    
-    doc.text("Invoice Number:", 20, startY + 16);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(15, 23, 42);
-    doc.text(data.invoiceNo, 52, startY + 16);
+    doc.setFontSize(17);
+    doc.setTextColor(...INK);
+    doc.text("Description", M, y);
 
+    y += 7;
+    rule(y);
+    y += 9;
+
+    const items: Array<[string, number]> = [];
+    if (Number(data.registrationFee) > 0) items.push(["Registration fee", Number(data.registrationFee)]);
+    items.push([data.planName || "Membership fee", Number(data.renewalFee || data.totalAmount || 0)]);
+
+    for (const [name, amount] of items) {
+      value(name, M, y);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9.5);
+      doc.setTextColor(...INK);
+      doc.text(money(amount), RIGHT, y, { align: "right" });
+      y += 8;
+    }
+
+    // ---------- Totals ----------
+    y += 4;
+    const totalsX = M + 95;
+    rule(y, totalsX);
+    y += 8;
+
+    const subtotal = items.reduce((sum, [, amount]) => sum + amount, 0);
+    label("Subtotal", totalsX, y);
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(71, 85, 105);
-    doc.text("Receipt Number:", 20, startY + 22);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(15, 23, 42);
-    doc.text(data.receiptNo, 52, startY + 22);
+    doc.setFontSize(9.5);
+    doc.setTextColor(...INK);
+    doc.text(money(subtotal), RIGHT, y, { align: "right" });
 
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(71, 85, 105);
-    doc.text("Invoice Date:", 20, startY + 28);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(15, 23, 42);
-    doc.text(invDateStr, 52, startY + 28);
-
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(71, 85, 105);
-    doc.text("Payment Mode:", 20, startY + 34);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(15, 23, 42);
-    doc.text(data.paymentMethod || "Razorpay Gateway", 52, startY + 34);
-
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(71, 85, 105);
-    doc.text("Razorpay Txn ID:", 20, startY + 40);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(2, 132, 199);
-    doc.text(data.razorpayPaymentId || "N/A", 52, startY + 40);
-
-    // Box 2: Member Details (Right)
-    doc.setFillColor(248, 250, 252);
-    doc.roundedRect(107, startY, 88, 48, 3, 3, "FD");
-
-    doc.setTextColor(15, 23, 42);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.text("MEMBER DETAILS", 112, startY + 8);
-
-    doc.setFontSize(8.5);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(71, 85, 105);
-
-    doc.text("Member Name:", 112, startY + 16);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(15, 23, 42);
-    doc.text(data.memberName, 144, startY + 16);
-
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(71, 85, 105);
-    doc.text("Membership No:", 112, startY + 22);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(15, 23, 42);
-    doc.text(data.membershipNo || "N/A", 144, startY + 22);
-
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(71, 85, 105);
-    doc.text("Mobile Number:", 112, startY + 28);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(15, 23, 42);
-    doc.text(data.mobileNo || "N/A", 144, startY + 28);
-
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(71, 85, 105);
-    doc.text("Email Address:", 112, startY + 34);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(15, 23, 42);
-    const displayEmail = data.email && data.email.length > 22 ? data.email.substring(0, 20) + "..." : (data.email || "N/A");
-    doc.text(displayEmail, 144, startY + 34);
-
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(71, 85, 105);
-    doc.text("Membership Plan:", 112, startY + 40);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(15, 23, 42);
-    doc.text(data.planName || "Standard Plan", 144, startY + 40);
-
-    // --- PAYMENT BREAKDOWN TABLE ---
-    startY = startY + 56;
-
-    // Table Header
-    doc.setFillColor(15, 23, 42);
-    doc.rect(15, startY, 180, 10, "F");
-
-    doc.setTextColor(255, 255, 255);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.text("DESCRIPTION / ITEM", 20, startY + 6.5);
-    doc.text("FEE TYPE", 110, startY + 6.5);
-    doc.text("AMOUNT (INR)", 190, startY + 6.5, { align: "right" });
-
-    // Row 1: Registration Fee
-    startY = startY + 10;
-    doc.setFillColor(255, 255, 255);
-    doc.setDrawColor(226, 232, 240);
-    doc.rect(15, startY, 180, 12, "D");
-
-    doc.setTextColor(15, 23, 42);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.text(`${data.planName} - Registration Fee`, 20, startY + 7.5);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(71, 85, 105);
-    doc.text(data.paymentType || "Registration", 110, startY + 7.5);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(15, 23, 42);
-    doc.text(`INR ${data.registrationFee.toFixed(2)}`, 190, startY + 7.5, { align: "right" });
-
-    // Row 2: Renewal Fee / Monthly Membership Fee
-    startY = startY + 12;
-    doc.rect(15, startY, 180, 12, "D");
-
-    doc.setFont("helvetica", "bold");
-    doc.text(`${data.planName} - Membership Subscription Fee`, 20, startY + 7.5);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(71, 85, 105);
-    doc.text(data.paymentType || "Renewal", 110, startY + 7.5);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(15, 23, 42);
-    doc.text(`INR ${data.renewalFee.toFixed(2)}`, 190, startY + 7.5, { align: "right" });
-
-    // Table Summary Banner (Total)
-    startY = startY + 12;
-    doc.setFillColor(241, 245, 249);
-    doc.rect(15, startY, 180, 14, "FD");
-
-    doc.setTextColor(15, 23, 42);
+    y += 7;
+    label("Total", totalsX, y);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
-    doc.text("TOTAL PAID AMOUNT", 20, startY + 9);
+    doc.setTextColor(...INK);
+    doc.text(money(data.totalAmount), RIGHT, y, { align: "right" });
 
-    doc.setTextColor(2, 132, 199); // Sky blue
-    doc.setFontSize(14);
-    doc.text(`INR ${data.totalAmount.toFixed(2)}`, 190, startY + 9.5, { align: "right" });
-
-    // --- THANK YOU & QR CODE & SIGNATURE ---
-    startY = startY + 24;
-
-    // Thank you box (Left)
-    doc.setFillColor(240, 253, 244); // Light emerald (#f0fdf4)
-    doc.setDrawColor(187, 247, 208);
-    doc.roundedRect(15, startY, 110, 36, 3, 3, "FD");
-
-    doc.setTextColor(22, 101, 52);
+    y += 7;
+    rule(y, totalsX);
+    y += 7;
+    label("Status", totalsX, y);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.text("Thank You for Your Payment! 🎉", 20, startY + 9);
+    doc.setFontSize(9.5);
+    doc.setTextColor(...INK);
+    doc.text(statusText, RIGHT, y, { align: "right" });
+
+    y += 6;
+    label("Paid via", totalsX, y);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(...INK);
+    doc.text(data.paymentMethod || "Razorpay", RIGHT, y, { align: "right" });
+
+    // ---------- Payment reference & terms ----------
+    const blockY = Math.max(y + 22, 196);
+    rule(blockY - 10);
 
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(8.5);
-    doc.setTextColor(22, 101, 52);
-    doc.text("Your Baroda Swim Front membership is now active.", 20, startY + 16);
-    doc.text("Please keep this official tax invoice & receipt for your records.", 20, startY + 22);
-    doc.text("Show your QR ID pass at the pool reception entry gate.", 20, startY + 28);
+    doc.setFontSize(13);
+    doc.setTextColor(...INK);
+    doc.text("Payment reference", M, blockY);
+    doc.text("Terms", M + 95, blockY);
 
-    // QR Code (Center-Right)
+    let refY = blockY + 8;
+    label("Transaction", M, refY);
+    value(data.razorpayPaymentId || "-", M + 26, refY);
+    refY += 5.5;
+    label("Type", M, refY);
+    value(data.paymentType || "Registration", M + 26, refY);
+    refY += 5.5;
+    label("Plan", M, refY);
+    const planLines = doc.splitTextToSize(String(data.planName || "-"), 46) as string[];
+    planLines.slice(0, 2).forEach((line, i) => value(line, M + 26, refY + i * 5));
+
+    const terms = doc.splitTextToSize(
+      "This receipt confirms payment received against the membership stated above. Membership is " +
+      "non-transferable. Please retain this document for your records and present your member QR pass " +
+      "at the reception gate.",
+      70
+    ) as string[];
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...MUTED);
+    terms.forEach((line, i) => doc.text(line, M + 95, blockY + 8 + i * 4.4));
+
+    // ---------- QR + signature ----------
+    const signY = 246;
     if (qrDataUrl) {
       try {
-        doc.addImage(qrDataUrl, "PNG", 132, startY, 32, 32);
-        doc.setTextColor(100, 116, 139);
-        doc.setFontSize(6.5);
-        doc.text("Scan to Verify Invoice", 148, startY + 35, { align: "center" });
+        doc.addImage(qrDataUrl, "PNG", M, signY - 6, 24, 24, undefined, "FAST");
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7);
+        doc.setTextColor(...MUTED);
+        doc.text("Scan to verify", M, signY + 22);
       } catch (_) {}
     }
 
-    // Authorized Signature Box (Right)
-    const sigX = 168;
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(15, 23, 42);
-    doc.setFontSize(8.5);
-
-    // Stamp / Sign placeholder line
-    doc.setDrawColor(148, 163, 184);
-    doc.line(166, startY + 22, 198, startY + 22);
-
-    doc.text("Authorized Signatory", 182, startY + 26, { align: "center" });
+    try {
+      doc.addImage(BSF_SIGNATURE_DATA_URI, "PNG", RIGHT - 42, signY - 4, 42, 25, undefined, "FAST");
+    } catch (_) {}
+    doc.setDrawColor(...RULE);
+    doc.setLineWidth(0.2);
+    doc.line(RIGHT - 48, signY + 22, RIGHT, signY + 22);
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(100, 116, 139);
-    doc.setFontSize(7.5);
-    doc.text("Baroda Swim Front", 182, startY + 30, { align: "center" });
-
-    // --- FOOTER ---
-    const footerY = 280;
-    doc.setDrawColor(226, 232, 240);
-    doc.line(15, footerY - 5, pageWidth - 15, footerY - 5);
-
-    doc.setTextColor(100, 116, 139);
-    doc.setFont("helvetica", "italic");
     doc.setFontSize(8);
-    doc.text(
-      "This is a computer-generated invoice and does not require a physical signature.",
-      pageWidth / 2,
-      footerY,
-      { align: "center" }
-    );
+    doc.setTextColor(...INK);
+    doc.text("Sanjay Mehta", RIGHT, signY + 27, { align: "right" });
+    doc.setFontSize(7);
+    doc.setTextColor(...MUTED);
+    doc.text("Authorised signatory", RIGHT, signY + 31, { align: "right" });
 
+    // ---------- Footer ----------
+    rule(282);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(7.5);
-    doc.text(
-      "Baroda Swim Front Academy • Akota, Vadodara, Gujarat 390020 • Support: +91 98765 43210 • info@barodaswimfront.in",
-      pageWidth / 2,
-      footerY + 5,
-      { align: "center" }
-    );
+    doc.setFontSize(7);
+    doc.setTextColor(...MUTED);
+    doc.text("Baroda Swim Front, Vadodara, Gujarat", M, 287);
+    doc.text(`Invoice ${data.invoiceNo}`, RIGHT, 287, { align: "right" });
+
 
     // 5. Output Buffer & Save File
     const arrayBuffer = doc.output("arraybuffer");

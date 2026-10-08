@@ -28,7 +28,7 @@ export function MemberLayout({ activeSection, userName, avatar, membershipStatus
         <main className="pb-[calc(96px+env(safe-area-inset-bottom))] lg:pb-10">
           <div className="mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 sm:py-7 lg:px-8 lg:py-8">
             <div className={`mb-6 hidden lg:block ${showSectionIntro ? "" : "lg:hidden"}`}>
-              <h1 className="font-display text-[32px] font-bold leading-[1.1] tracking-[-0.03em] text-ink-950">{currentSection.label}</h1>
+              <h1 className="font-display text-[24px] font-bold leading-[1.15] tracking-[-0.025em] text-ink-950 sm:text-[32px] sm:leading-[1.1] sm:tracking-[-0.03em]">{currentSection.label}</h1>
               <p className="mt-2 text-[15px] leading-6 text-ink-600">{currentSection.description}</p>
             </div>
             <div className={`mb-5 lg:hidden ${showSectionIntro ? "" : "hidden"}`}>

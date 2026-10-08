@@ -62,7 +62,7 @@ export function MemberOverview({ sessionName, onNavigate }: MemberOverviewProps)
 
   return <div className="space-y-6 lg:space-y-7">
     <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div><h1 className="text-2xl font-bold tracking-[-0.025em] text-slate-950 sm:text-[30px]">{greetingForHour(new Date().getHours())}, {greetingName}</h1><p className="mt-1.5 text-sm leading-6 text-slate-500 sm:text-[15px]">Manage your membership, batch and payments from one place.</p></div>
+      <div><h1 className="font-display text-[22px] font-bold leading-[1.15] tracking-[-0.02em] text-ink-950 sm:text-[30px]">{greetingForHour(new Date().getHours())}, {greetingName}</h1><p className="mt-1.5 text-sm leading-6 text-ink-600 sm:text-[15px]">Manage your membership, batch and payments from one place.</p></div>
       <div className="flex flex-wrap gap-2"><button type="button" onClick={() => onNavigate("membership")} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50">View membership</button>{receiptUrl && <a href={receiptUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800"><ReceiptText className="h-4 w-4" />View receipt</a>}</div>
     </header>
 
