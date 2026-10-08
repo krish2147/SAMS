@@ -3,6 +3,7 @@ import { requireAuth } from "../middleware/authMiddleware";
 import { getDbPool } from "../config/db";
 import { PaymentService } from "../services/payment.service";
 import { normalizeIndianMobile } from "../utils/phone";
+import { calendarDaysBetween, calendarToday, toDateOnlyString } from "../utils/membership-date";
 
 
 const router = Router();
@@ -94,33 +95,19 @@ router.get("/member/dashboard", requireAuth(["member", "parent"]), async (req: a
       }
     }
 
-    // Default coach assignment for swimming academy
-    const coachName = member.gender === "female" ? "Coach Hetvi Shah" : "Coach Sanjay Mehta";
+    // No coach is derived here. Assigning one by gender invented a name and showed it to the
+    // member as though it were their actual coach. Until coaches are linked to batches in the
+    // database this stays empty and the UI omits it.
+    const coachName = "";
 
-    // Calculate plan expiry & days remaining
-    let expiryDate: string | null = null;
-    let daysRemaining = 0;
-    if (member.membership_status === "Active" && member.plan_name) {
-      const regOrPayDate = member.paymentDate || member.registrationDate || new Date().toISOString();
-      try {
-        let baseDate = new Date(regOrPayDate);
-        if (isNaN(baseDate.getTime())) {
-          // Try parse Indian format DD/MM/YYYY
-          const parts = regOrPayDate.split("/");
-          if (parts.length === 3) {
-            baseDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-          }
-        }
-        if (!isNaN(baseDate.getTime())) {
-          baseDate.setMonth(baseDate.getMonth() + (member.plan_duration || 1));
-          expiryDate = baseDate.toISOString().split("T")[0];
-          const diffTime = baseDate.getTime() - Date.now();
-          daysRemaining = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-        }
-      } catch (e) {
-        // Safe fallback
-      }
-    }
+    // Expiry comes from the stored membership_end_date, which activation already calculated
+    // with the inclusive-end-date rule. This previously recomputed it from the payment date
+    // with setMonth(), which is the anniversary-style calculation the project deliberately
+    // removed, and it disagreed with the date on the member's own invoice.
+    const expiryDate = toDateOnlyString(member.membership_end_date);
+    const daysRemaining = expiryDate
+      ? Math.max(0, calendarDaysBetween(calendarToday(), expiryDate))
+      : 0;
 
     // Fetch upcoming events from MySQL
     const [events]: any = await pool.query(
@@ -150,19 +137,21 @@ router.get("/member/dashboard", requireAuth(["member", "parent"]), async (req: a
       },
       membership: {
         status: member.membership_status || "Inactive",
+        // Previously absent, so the portal fell back to the literal string "Status pending"
+        // for every member, including fully paid ones.
+        paymentStatus: member.payment_status || "Pending",
         planName: member.plan_name || "No Active Plan",
+        startDate: member.membership_start_date || null,
         expiryDate,
         daysRemaining
       },
+      // null rather than a stand-in batch: a member with no allocation must not be shown
+      // a time and batch name they could turn up for.
       todayBatch: member.batch_name ? {
         batchTime: `${member.start_time} - ${member.end_time}`,
         batchName: member.batch_name,
         coachName
-      } : {
-        batchTime: "07:00 AM - 08:00 AM",
-        batchName: "Morning Sunrise Batch (A)",
-        coachName
-      },
+      } : null,
       upcomingEvent: upcomingEvents[0],
       upcomingHoliday: upcomingHolidays[0],
       recentNotifications: recentNotifications.slice(0, 3)

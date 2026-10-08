@@ -7,6 +7,9 @@ import { getObject, objectStorageEnabled, uploadObject } from "./object-storage.
 import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-logo";
 import { BSF_SIGNATURE_DATA_URI } from "../assets/baroda-swim-front-signature";
 
+/** Name printed under the signature on member invoices. */
+export const INVOICE_SIGNATORY_NAME = "Sanjay Kumar";
+
 export interface InvoiceData {
   paymentId: number;
   invoiceNo: string;
@@ -278,7 +281,7 @@ Txn ID: ${data.razorpayPaymentId || "N/A"}`;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(...INK);
-    doc.text("Sanjay Mehta", RIGHT, signY + 27, { align: "right" });
+    doc.text(INVOICE_SIGNATORY_NAME, RIGHT, signY + 27, { align: "right" });
     doc.setFontSize(7);
     doc.setTextColor(...MUTED);
     doc.text("Authorised signatory", RIGHT, signY + 31, { align: "right" });
