@@ -8,6 +8,24 @@ import { sendPaymentReminder, sendPaymentSuccessWhatsApp, sendPaymentInvoiceWhat
 import { enqueuePaymentWhatsApp } from "./notification-worker.service";
 import { calculateActivationMembershipPeriod } from "../utils/membership-date";
 
+export type PostPaymentStage = "invoice_generation" | "payment_success_whatsapp" | "invoice_whatsapp";
+
+/** Give up after this many tries so a permanently bad row stops being retried forever. */
+export const POST_PAYMENT_MAX_ATTEMPTS = 5;
+/** A stage left in Processing this long is assumed to belong to a crashed worker. */
+export const POST_PAYMENT_STALE_MINUTES = 5;
+
+// members has no whatsappNumber column - the WhatsApp destination is mobileNo. Selecting
+// m.whatsappNumber here would throw at runtime, which is what the regression test guards.
+export const POST_PAYMENT_PIPELINE_SELECT = `SELECT p.id, p.amount, p.receipt_no, p.invoice_no, p.invoice_path,
+        p.approved_by, p.invoice_generation_status, p.payment_success_whatsapp_status, p.invoice_whatsapp_status,
+        m.fullName AS member_name, m.membershipNo, m.mobileNo AS whatsappNumber,
+        m.membership_start_date, m.membership_end_date
+   FROM payments p
+   LEFT JOIN members m ON p.member_id = m.id
+  WHERE p.id = ?
+  LIMIT 1`;
+
 let razorpayInstance: Razorpay | null = null;
 
 function getRazorpay(): Razorpay {
@@ -851,19 +869,6 @@ export class PaymentService {
             email: member.email
           }, invoiceVars, payload.approvedBy || "Razorpay Gateway").catch(err => console.error("Invoice dispatch notification error:", err));
 
-          if (member.mobileNo) {
-            sendPaymentInvoiceWhatsApp({
-              phoneNumber: member.mobileNo,
-              memberName: member.fullName,
-              invoiceNo: invNo,
-              amount: payment.amount,
-              startDate: startDateStr,
-              endDate: expiryDateStr,
-              pdfFilePath: pdfResult.filePath,
-              pdfBuffer: pdfResult.pdfBuffer
-            }).catch(err => console.error("[PaymentService] payment_invoice WhatsApp dispatch error:", err?.response?.data || err?.message || err));
-          }
-
           ActivityService.logActivity(
             member.fullName,
             `Invoice (${invNo}) Sent via WhatsApp to ${member.mobileNo || "N/A"}`,
@@ -898,18 +903,6 @@ export class PaymentService {
           invoiceUrl: generatedInvoiceUrl
         }).catch(err => console.error("Payment verify notification error:", err));
 
-        if (member.mobileNo) {
-          sendPaymentSuccessWhatsApp({
-            phoneNumber: member.mobileNo,
-            memberName: member.fullName,
-            amount: payment.amount,
-            membershipNo: member.membershipNo,
-            receiptNo,
-            startDate: startDateStr,
-            endDate: expiryDateStr
-          }).catch(err => console.error("[PaymentService] payment_success WhatsApp dispatch error:", err?.response?.data || err?.message || err));
-        }
-
         sendEventNotification("membership_activated", {
           id: member.id,
           memberName: member.fullName,
@@ -921,6 +914,10 @@ export class PaymentService {
           expiryDate: expiryDateStr
         }).catch(err => console.error("Activation verify notification error:", err));
       }
+
+      // Immediate attempt; the post-payment worker retries whatever this leaves unfinished,
+      // so a transient provider failure can no longer lose a member's invoice silently.
+      void this.processPostPaymentPipeline(payment.id).catch(() => {});
 
       return {
         success: true,
@@ -1854,6 +1851,113 @@ export class PaymentService {
       },
       transactions
     };
+  }
+
+  /**
+   * Claims one pipeline stage for this payment. Returns false when another worker
+   * already owns it, so two app instances can never dispatch the same message twice.
+   * A stage stuck in Processing for over 5 minutes is treated as abandoned.
+   */
+  private async claimPipelineStage(paymentId: number, stage: PostPaymentStage): Promise<boolean> {
+    const pool = await getDbPool();
+    const [result]: any = await pool.query(
+      `UPDATE payments
+          SET ${stage}_status = 'Processing',
+              ${stage}_attempts = ${stage}_attempts + 1,
+              ${stage}_processing_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+          AND ${stage}_attempts < ?
+          AND (${stage}_status = 'Pending'
+               OR (${stage}_status = 'Processing'
+                   AND ${stage}_processing_at < DATE_SUB(CURRENT_TIMESTAMP, INTERVAL ? MINUTE)))`,
+      [paymentId, POST_PAYMENT_MAX_ATTEMPTS, POST_PAYMENT_STALE_MINUTES]
+    );
+    return Number(result?.affectedRows || 0) > 0;
+  }
+
+  private async settlePipelineStage(paymentId: number, stage: PostPaymentStage, error?: unknown) {
+    const pool = await getDbPool();
+    if (!error) {
+      const sentAtColumn = stage === "invoice_generation" ? "" : `, ${stage}_sent_at = CURRENT_TIMESTAMP`;
+      await pool.query(
+        `UPDATE payments SET ${stage}_status = 'Done'${sentAtColumn} WHERE id = ?`,
+        [paymentId]
+      );
+      return;
+    }
+    const detail = String(
+      (error as any)?.response?.data ? JSON.stringify((error as any).response.data) : (error as any)?.message || error
+    ).slice(0, 2000);
+    const errorColumn = stage === "invoice_generation" ? `${stage}_error` : `${stage}_response`;
+    // Back to Pending so the worker retries, until the attempt cap flips it to Failed.
+    await pool.query(
+      `UPDATE payments
+          SET ${stage}_status = IF(${stage}_attempts >= ?, 'Failed', 'Pending'),
+              ${errorColumn} = ?
+        WHERE id = ?`,
+      [POST_PAYMENT_MAX_ATTEMPTS, detail, paymentId]
+    );
+    console.error(`[POST_PAYMENT] ${stage} failed for payment ${paymentId}: ${detail.slice(0, 180)}`);
+  }
+
+  /**
+   * Generates the invoice and sends the payment-success and invoice WhatsApp messages,
+   * each as an independently retryable stage. Previously these were fired and forgotten
+   * inside verifyPayment, so a transient MSG91 failure meant the member silently never
+   * received their invoice. Safe to call repeatedly: completed stages are skipped.
+   */
+  async processPostPaymentPipeline(paymentId: number): Promise<void> {
+    const pool = await getDbPool();
+    const [rows]: any = await pool.query(POST_PAYMENT_PIPELINE_SELECT, [paymentId]);
+    const row = rows?.[0];
+    if (!row) return;
+
+    if (await this.claimPipelineStage(paymentId, "invoice_generation")) {
+      try {
+        await this.ensureAndGetInvoicePDF(paymentId, row.approved_by || "Razorpay Gateway");
+        await this.settlePipelineStage(paymentId, "invoice_generation");
+      } catch (error) {
+        await this.settlePipelineStage(paymentId, "invoice_generation", error);
+      }
+    }
+
+    if (row.whatsappNumber && await this.claimPipelineStage(paymentId, "payment_success_whatsapp")) {
+      try {
+        await sendPaymentSuccessWhatsApp({
+          phoneNumber: row.whatsappNumber,
+          memberName: row.member_name,
+          amount: row.amount,
+          membershipNo: row.membershipNo,
+          receiptNo: row.receipt_no,
+          startDate: row.membership_start_date,
+          endDate: row.membership_end_date
+        });
+        await this.settlePipelineStage(paymentId, "payment_success_whatsapp");
+      } catch (error) {
+        await this.settlePipelineStage(paymentId, "payment_success_whatsapp", error);
+      }
+    }
+
+    // Re-read so this stage sees the invoice produced above rather than a stale row.
+    const [afterInvoice]: any = await pool.query(POST_PAYMENT_PIPELINE_SELECT, [paymentId]);
+    const current = afterInvoice?.[0];
+    if (current?.whatsappNumber && current.invoice_no && current.invoice_generation_status === "Done"
+        && await this.claimPipelineStage(paymentId, "invoice_whatsapp")) {
+      try {
+        await sendPaymentInvoiceWhatsApp({
+          phoneNumber: current.whatsappNumber,
+          memberName: current.member_name,
+          invoiceNo: current.invoice_no,
+          amount: current.amount,
+          startDate: current.membership_start_date,
+          endDate: current.membership_end_date,
+          pdfFilePath: current.invoice_path || undefined
+        });
+        await this.settlePipelineStage(paymentId, "invoice_whatsapp");
+      } catch (error) {
+        await this.settlePipelineStage(paymentId, "invoice_whatsapp", error);
+      }
+    }
   }
 
   /**

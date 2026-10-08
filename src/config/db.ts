@@ -141,7 +141,22 @@ const statements = cleanedSql
       "ALTER TABLE members ADD COLUMN membership_end_date DATE NULL",
       "ALTER TABLE members ADD COLUMN next_renewal_date DATE NULL",
       "ALTER TABLE members ADD COLUMN last_payment_id INT UNSIGNED NULL",
-      "ALTER TABLE otp_login_challenges ADD COLUMN otp_hash CHAR(64) NULL"
+      "ALTER TABLE otp_login_challenges ADD COLUMN otp_hash CHAR(64) NULL",
+      // Post-payment delivery pipeline: each stage retries independently (see PaymentService)
+      "ALTER TABLE payments ADD COLUMN invoice_generation_status VARCHAR(20) NOT NULL DEFAULT 'Pending'",
+      "ALTER TABLE payments ADD COLUMN invoice_generation_attempts INT UNSIGNED NOT NULL DEFAULT 0",
+      "ALTER TABLE payments ADD COLUMN invoice_generation_processing_at TIMESTAMP NULL DEFAULT NULL",
+      "ALTER TABLE payments ADD COLUMN invoice_generation_error TEXT NULL",
+      "ALTER TABLE payments ADD COLUMN payment_success_whatsapp_status VARCHAR(20) NOT NULL DEFAULT 'Pending'",
+      "ALTER TABLE payments ADD COLUMN payment_success_whatsapp_attempts INT UNSIGNED NOT NULL DEFAULT 0",
+      "ALTER TABLE payments ADD COLUMN payment_success_whatsapp_processing_at TIMESTAMP NULL DEFAULT NULL",
+      "ALTER TABLE payments ADD COLUMN payment_success_whatsapp_sent_at TIMESTAMP NULL DEFAULT NULL",
+      "ALTER TABLE payments ADD COLUMN payment_success_whatsapp_response TEXT NULL",
+      "ALTER TABLE payments ADD COLUMN invoice_whatsapp_status VARCHAR(20) NOT NULL DEFAULT 'Pending'",
+      "ALTER TABLE payments ADD COLUMN invoice_whatsapp_attempts INT UNSIGNED NOT NULL DEFAULT 0",
+      "ALTER TABLE payments ADD COLUMN invoice_whatsapp_processing_at TIMESTAMP NULL DEFAULT NULL",
+      "ALTER TABLE payments ADD COLUMN invoice_whatsapp_sent_at TIMESTAMP NULL DEFAULT NULL",
+      "ALTER TABLE payments ADD COLUMN invoice_whatsapp_response TEXT NULL"
     ];
 
     for (const alterSql of alterColumns) {
