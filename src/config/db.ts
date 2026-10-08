@@ -162,6 +162,21 @@ const statements = cleanedSql
     for (const alterSql of alterColumns) {
       try {
         await pool.query(alterSql);
+        // These pipeline columns default to 'Pending', so the moment they are first added
+        // every historical Paid payment looks unprocessed and the post-payment worker would
+        // re-send its invoice and WhatsApp messages. Backfilling at creation time - and only
+        // then, since the ALTER throws once the column exists - keeps already-delivered
+        // payments from being dispatched a second time.
+        // Keyed to the LAST pipeline column so all three status columns exist by now.
+        if (alterSql.includes("invoice_whatsapp_response")) {
+          await pool.query(
+            `UPDATE payments
+                SET invoice_generation_status = 'Done',
+                    payment_success_whatsapp_status = 'Done',
+                    invoice_whatsapp_status = 'Done'
+              WHERE payment_status = 'Paid'`
+          );
+        }
       } catch (_) {}
     }
 
