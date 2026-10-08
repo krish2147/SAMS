@@ -38,7 +38,7 @@ interface FormState {
   emergencyContactNumber: string;
   relationship: string;
   memberType: string;
-  batchCategory: "Learners" | "General" | "Family_4" | "Family_3" | "Guest" | "Group" | "";
+  batchCategory: "Learners" | "General" | "Family_4" | "Family_3" | "";
   frequency: "6_days" | "3_days" | "hourly" | "fixed" | "";
   planDuration: "1_month" | "3_months" | "6_months" | "9_months" | "annual" | "hourly" | "one_time" | "";
   batch: string;
@@ -113,16 +113,8 @@ const BATCH_TYPES = [
     name: "Family Membership (2 Adults + 1 Kid)", 
     desc: "Privileged family pool access pass (6 days / week)." 
   },
-  { 
-    id: "Guest", 
-    name: "Guest Entry (Anyone without Membership)", 
-    desc: "Hourly pool entry pass (₹300 Mon-Fri / ₹350 Sat-Sun + Costume charges)." 
-  },
-  { 
-    id: "Group", 
-    name: "Group Booking (Max 50 Members)", 
-    desc: "Private 2-hour group pool reservation for events & clubs (₹25,000)." 
-  }
+  // Guest (single-day entry) and Group bookings are handled at the pool, not online.
+  // Their plans still exist in membership_plans for staff to record offline.
 ];
 
 const FREQUENCY_OPTIONS = [
@@ -184,16 +176,6 @@ const OFFICIAL_PRICING_MATRIX: Record<string, Record<string, Array<{ id: string;
       { id: "3_months", label: "3 Months", price: 22500, formattedPrice: "₹22,500" },
     ]
   },
-  Guest: {
-    "hourly": [
-      { id: "hourly", label: "1 Hour Entry", price: 300, formattedPrice: "₹300 (Mon-Fri) / ₹350 (Sat-Sun)" }
-    ]
-  },
-  Group: {
-    "fixed": [
-      { id: "one_time", label: "2 Hour Slot (Max 50 members)", price: 25000, formattedPrice: "₹25,000 (One Time)" }
-    ]
-  }
 };
 
 /**
@@ -204,10 +186,6 @@ const OFFICIAL_PRICING_MATRIX: Record<string, Record<string, Array<{ id: string;
 const toPlanSelection = (category: string, frequency: string, duration: string) => {
   if (category === "Family_4" || category === "Family_3") {
     return { membershipType: "Family", variant: category, duration };
-  }
-  if (category === "Guest") {
-    // Guest plans are identified by the entry type; they carry no separate duration.
-    return { membershipType: "Guest", variant: frequency || "hourly", duration: "" };
   }
   return { membershipType: category, variant: frequency, duration };
 };
@@ -272,8 +250,8 @@ export function RegisterPage({ academyId, onRegisterSuccess, onCancel }: Registe
   };
 
   // Sequential membership selection: Type -> Duration -> Weekly Frequency -> total price.
-  // Categories with only one duration/frequency variant (Guest, Group) are auto-resolved
-  // immediately so the dropdown for that step never needs to appear.
+  // A category offering only one frequency (the family plans) resolves it immediately so
+  // that dropdown never needs to appear.
   const handleCategorySelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const categoryId = e.target.value;
     if (!categoryId) {
@@ -1288,8 +1266,8 @@ export function RegisterPage({ academyId, onRegisterSuccess, onCancel }: Registe
                   // Mirrors membership_plans.registration_fee: the rate-card plans charge ₹300,
                   // while guest entries and group bookings carry none. Showing a flat ₹300 here
                   // made the quoted total disagree with the amount actually charged.
-                  const registrationFee =
-                    form.batchCategory === "Guest" || form.batchCategory === "Group" ? 0 : 300;
+                  // Mirrors membership_plans.registration_fee for every plan bookable online.
+                  const registrationFee = 300;
                   const grandTotal = basePrice + registrationFee;
 
                   return (
