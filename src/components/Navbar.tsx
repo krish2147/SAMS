@@ -31,7 +31,7 @@ export function Navbar({
       return "bg-slate-950/60 border-slate-900/50 text-white backdrop-blur-xl";
     }
     if (isPhotoBackdrop) {
-      return "bg-white/10 border-white/20 text-white backdrop-blur-xl shadow-lg";
+      return "bg-slate-950/40 border-white/15 text-white shadow-lg";
     }
     if (selectedAcademyId === "swim") {
       return "bg-white/70 border-sky-100/50 text-slate-800 backdrop-blur-xl shadow-sm";

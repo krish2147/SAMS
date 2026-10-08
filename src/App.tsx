@@ -214,7 +214,7 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.8 }}
-            className={isAdminStaffRole ? "h-screen h-[100dvh] w-full overflow-hidden" : "pt-2"}
+            className={isAdminStaffRole ? "h-screen h-[100dvh] w-full overflow-hidden" : ""}
           >
             {/* If user is logged in, show beautiful dashboard toggles */}
             {userSession ? (
