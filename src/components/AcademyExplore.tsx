@@ -53,22 +53,27 @@ export function AcademyExplore({
   };
 
   return (
-    <div className={`min-h-screen w-full flex flex-col justify-between pt-24 pb-6 px-6 md:pt-28 md:pb-12 md:px-12 ${
-      isSwim 
-        ? "bg-sky-100/50 text-slate-800" 
-        : "bg-emerald-950 text-emerald-50"
-    } transition-colors duration-500 font-sans`}>
-      
+    <div className="min-h-screen w-full flex flex-col justify-between pt-24 pb-6 px-6 md:pt-28 md:pb-12 md:px-12 relative isolate text-white transition-colors duration-500 font-sans">
+      {/* Atmospheric photo backdrop, same world as the login/registration screens */}
+      <div
+        className="absolute inset-0 bg-cover bg-center -z-10"
+        style={{
+          backgroundImage: `url(${isSwim
+            ? "https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&q=80&w=1600"
+            : "https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&q=80&w=1600"})`
+        }}
+      />
+      <div className="absolute inset-0 -z-10 bg-slate-950/70" />
+      <div className={`absolute top-[-10%] left-1/2 -translate-x-1/2 -z-10 w-[720px] h-[720px] rounded-full blur-[130px] pointer-events-none ${
+        isSwim ? "bg-sky-300/25" : "bg-amber-300/20"
+      }`} />
+
       {/* Header with Back Button */}
       <header className="max-w-xl w-full mx-auto flex items-center justify-start pt-2 pb-1">
-        <button 
+        <button
           id="btn-explore-back"
           onClick={() => onSelectAcademy(null)}
-          className={`group flex items-center gap-2 px-4 py-2 rounded-full border text-xs font-semibold cursor-pointer transition-all duration-200 ${
-            isSwim 
-              ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:border-slate-300 shadow-sm" 
-              : "border-emerald-800 bg-emerald-900/40 text-emerald-200 hover:bg-emerald-900/80 hover:border-emerald-700"
-          }`}
+          className="group flex items-center gap-2 px-4 py-2 rounded-full border border-white/20 bg-white/10 backdrop-blur-md text-white text-xs font-semibold cursor-pointer transition-all duration-200 hover:bg-white/20"
         >
           <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
           <span>Back to Sports Selection</span>
@@ -77,40 +82,30 @@ export function AcademyExplore({
 
       {/* Main Welcome Content */}
       <main className="flex-1 flex items-center justify-center py-2">
-        <div className={`max-w-xl w-full p-8 md:p-10 rounded-3xl border ${
-          isSwim 
-            ? "bg-white border-slate-200/80 shadow-xl shadow-slate-100" 
-            : "bg-emerald-900/20 border-emerald-800/30 shadow-2xl"
-        } text-center space-y-8`}>
-          
+        <div className="max-w-xl w-full p-8 md:p-10 text-center space-y-8">
+
           {/* Friendly Icon / Badge */}
           <div className="flex justify-center">
-            <div className={`h-16 w-16 rounded-2xl flex items-center justify-center text-3xl shadow-sm ${
-              isSwim ? "bg-sky-50 border border-sky-100" : "bg-emerald-900/50 border border-emerald-800"
-            }`}>
+            <div className="h-16 w-16 rounded-2xl flex items-center justify-center text-3xl bg-white/10 backdrop-blur-md border border-white/20 shadow-lg">
               {isSwim ? "🏊" : "🏏"}
             </div>
           </div>
 
           {/* Heading */}
           <div className="space-y-3">
-            <span className={`text-[10px] font-mono tracking-widest uppercase ${
-              isSwim ? "text-sky-600" : "text-amber-400"
+            <span className={`text-[10px] font-mono tracking-widest uppercase drop-shadow-md ${
+              isSwim ? "text-sky-300" : "text-amber-300"
             }`}>
               {isSwim ? "Swimming Academy" : "Cricket Academy"}
             </span>
-            <h1 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${
-              isSwim ? "text-slate-900" : "text-white"
-            }`}>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]">
               {isSwim ? "Welcome to Baroda Swim Front" : "Welcome to Elite Cricket Academy"}
             </h1>
           </div>
 
           {/* Short, Human-Friendly Description */}
-          <p className={`text-sm sm:text-base leading-relaxed font-light ${
-            isSwim ? "text-slate-600" : "text-emerald-100/80"
-          }`}>
-            {isSwim 
+          <p className="text-sm sm:text-base leading-relaxed font-light text-white/85 drop-shadow-[0_1px_6px_rgba(0,0,0,0.6)]">
+            {isSwim
               ? "Welcome to our friendly swimming pool community! Whether you want to learn to swim, enjoy open lap swim slots, or sign up your kids for private lessons, we are here to support you with clean facilities and friendly coaches."
               : "Welcome to our professional cricket training arena! Whether you want to practice your batting on our quality turf pitches, book a slot with our bowling machines, or get coaching for your child, our gates are open for players of all ages."
             }
@@ -121,9 +116,9 @@ export function AcademyExplore({
             <button
               id="btn-explore-login"
               onClick={onOpenLogin}
-              className={`flex-1 py-4 px-6 rounded-2xl text-xs uppercase tracking-wider font-extrabold flex items-center justify-center gap-2 cursor-pointer shadow-md transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] ${
-                isSwim 
-                  ? "bg-slate-900 text-white hover:bg-slate-800" 
+              className={`flex-1 py-4 px-6 rounded-2xl text-xs uppercase tracking-wider font-extrabold flex items-center justify-center gap-2 cursor-pointer shadow-lg transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] ${
+                isSwim
+                  ? "bg-white text-slate-900 hover:bg-sky-50"
                   : "bg-amber-400 text-slate-950 hover:bg-amber-300"
               }`}
             >
@@ -134,11 +129,7 @@ export function AcademyExplore({
             <button
               id="btn-explore-register"
               onClick={onOpenRegister}
-              className={`flex-1 py-4 px-6 rounded-2xl text-xs uppercase tracking-wider font-extrabold flex items-center justify-center gap-2 cursor-pointer shadow-sm border transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] ${
-                isSwim 
-                  ? "border-slate-200 text-slate-800 hover:bg-slate-50" 
-                  : "border-emerald-700 text-emerald-100 hover:bg-emerald-900/40"
-              }`}
+              className="flex-1 py-4 px-6 rounded-2xl text-xs uppercase tracking-wider font-extrabold flex items-center justify-center gap-2 cursor-pointer shadow-sm border border-white/40 bg-white/10 backdrop-blur-md text-white transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] hover:bg-white/20"
             >
               <UserPlus className="h-4 w-4" />
               <span>Register New Member</span>
@@ -161,11 +152,7 @@ export function AcademyExplore({
             setIsHelpOpen(true);
             setActiveTab("video");
           }}
-          className={`group flex items-center gap-2 px-5 py-2.5 rounded-full border text-xs font-semibold tracking-wide cursor-pointer shadow-sm transition-all duration-300 ${
-            isSwim
-              ? "border-sky-200 bg-white text-sky-700 hover:bg-sky-50 hover:border-sky-300 hover:shadow-sky-200/50"
-              : "border-emerald-800 bg-emerald-900/40 text-emerald-200 hover:bg-emerald-900/80 hover:border-emerald-700 hover:shadow-emerald-900/20"
-          }`}
+          className="group flex items-center gap-2 px-5 py-2.5 rounded-full border border-white/30 bg-white/10 backdrop-blur-md text-white text-xs font-semibold tracking-wide cursor-pointer shadow-sm transition-all duration-300 hover:bg-white/20"
         >
           <HelpCircle className="h-4 w-4 text-sky-400 animate-pulse" />
           <span>Need Help?</span>

@@ -119,6 +119,7 @@ const statements = cleanedSql
     // Dynamically ensure new payments columns exist
     const alterColumns = [
       "ALTER TABLE payments ADD COLUMN payment_type VARCHAR(50) NOT NULL DEFAULT 'Registration'",
+      "ALTER TABLE payments ADD COLUMN razorpay_payment_link_id VARCHAR(100) NULL",
       "ALTER TABLE payments ADD COLUMN registration_fee DECIMAL(10,2) NOT NULL DEFAULT 0.00",
       "ALTER TABLE payments ADD COLUMN renewal_fee DECIMAL(10,2) NOT NULL DEFAULT 0.00",
       "ALTER TABLE payments ADD COLUMN razorpay_signature VARCHAR(255) NULL",

@@ -122,10 +122,9 @@ export class MemberController {
         const memberName = approved.fullName || approved.name || "Member";
 
         const paymentService = new PaymentService();
-        const paymentResult = await paymentService.sendPaymentLink({
+        const paymentResult = await paymentService.sendApprovalPaymentLinkWhatsApp({
           memberId: approved.id,
           membershipNo: approved.membershipNo,
-          channel: "whatsapp",
           approvedBy: (req as any).user?.name || (req as any).user?.fullName || "Admin"
         });
 

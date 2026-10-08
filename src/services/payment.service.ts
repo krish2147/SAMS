@@ -4,7 +4,7 @@ import { getDbPool, isMockDatabase } from "../config/db";
 import { ActivityService } from "./activity.service";
 import { sendEventNotification } from "./communication.service";
 import { PdfInvoiceService } from "./pdf-invoice.service";
-import { sendPaymentReminder } from "./whatsapp.service";
+import { sendPaymentReminder, sendPaymentSuccessWhatsApp, sendPaymentInvoiceWhatsApp } from "./whatsapp.service";
 import { enqueuePaymentWhatsApp } from "./notification-worker.service";
 import { calculateActivationMembershipPeriod } from "../utils/membership-date";
 
@@ -851,6 +851,19 @@ export class PaymentService {
             email: member.email
           }, invoiceVars, payload.approvedBy || "Razorpay Gateway").catch(err => console.error("Invoice dispatch notification error:", err));
 
+          if (member.mobileNo) {
+            sendPaymentInvoiceWhatsApp({
+              phoneNumber: member.mobileNo,
+              memberName: member.fullName,
+              invoiceNo: invNo,
+              amount: payment.amount,
+              startDate: startDateStr,
+              endDate: expiryDateStr,
+              pdfFilePath: pdfResult.filePath,
+              pdfBuffer: pdfResult.pdfBuffer
+            }).catch(err => console.error("[PaymentService] payment_invoice WhatsApp dispatch error:", err?.response?.data || err?.message || err));
+          }
+
           ActivityService.logActivity(
             member.fullName,
             `Invoice (${invNo}) Sent via WhatsApp to ${member.mobileNo || "N/A"}`,
@@ -884,6 +897,18 @@ export class PaymentService {
           receiptNo: receiptNo,
           invoiceUrl: generatedInvoiceUrl
         }).catch(err => console.error("Payment verify notification error:", err));
+
+        if (member.mobileNo) {
+          sendPaymentSuccessWhatsApp({
+            phoneNumber: member.mobileNo,
+            memberName: member.fullName,
+            amount: payment.amount,
+            membershipNo: member.membershipNo,
+            receiptNo,
+            startDate: startDateStr,
+            endDate: expiryDateStr
+          }).catch(err => console.error("[PaymentService] payment_success WhatsApp dispatch error:", err?.response?.data || err?.message || err));
+        }
 
         sendEventNotification("membership_activated", {
           id: member.id,
@@ -974,6 +999,29 @@ export class PaymentService {
           approvedBy: "Razorpay Webhook"
         });
       }
+    } else if (event === "payment_link.paid") {
+      // Payment Links auto-generate their own Order under the hood, which we never created
+      // or stored ourselves -- the internal_payment_id we set as a note when creating the
+      // link is what ties this event back to our own payments row.
+      const pEntity = eventPayload.payload?.payment?.entity;
+      if (pEntity) {
+        const internalPaymentId = pEntity.notes?.internal_payment_id;
+
+        await ActivityService.logActivity(
+          "Webhook Service",
+          `Webhook Event Received: payment_link.paid (${pEntity.id})`,
+          "Webhook Received",
+          "Razorpay Webhook"
+        );
+
+        return await this.verifyPayment({
+          razorpay_order_id: pEntity.order_id,
+          razorpay_payment_id: pEntity.id,
+          razorpay_signature: "verified_webhook",
+          paymentId: internalPaymentId ? Number(internalPaymentId) : undefined,
+          approvedBy: "Razorpay Webhook"
+        });
+      }
     } else if (event === "payment.failed") {
       const pEntity = eventPayload.payload?.payment?.entity;
       if (pEntity) {
@@ -1036,6 +1084,182 @@ export class PaymentService {
     }
 
     return { success: true, event, message: "Webhook event received and logged" };
+  }
+
+  /**
+   * Create a real, hosted Razorpay Payment Link (razorpay.paymentLink.create), not just a
+   * Razorpay Order. Orders have no public URL of their own -- they're meant for our own
+   * embedded Checkout widget -- so a URL built from an Order ID only works from a browser
+   * that can reach this server directly. A Payment Link is Razorpay's own shareable checkout
+   * page (a public rzp.io short URL), which is what makes it clickable when shared over
+   * WhatsApp/SMS and reachable from any phone regardless of this server's own reachability.
+   * Reuses an existing pending link for the member rather than creating a duplicate.
+   */
+  async createRazorpayPaymentLink(payload: { memberId: number; membershipNo?: string }) {
+    const pool = await getDbPool();
+    const razorpay = getRazorpay();
+
+    const [memberRows]: any = await pool.query(
+      "SELECT * FROM members WHERE id = ? OR membershipNo = ?",
+      [payload.memberId || 0, payload.membershipNo || ""]
+    );
+    const member = memberRows[0];
+    if (!member) {
+      throw new Error(`Member with ID or MembershipNo ${payload.membershipNo || payload.memberId} not found.`);
+    }
+
+    const [existing]: any = await pool.query(
+      `SELECT * FROM payments
+       WHERE member_id = ? AND payment_status = 'Pending' AND razorpay_payment_link_id IS NOT NULL
+       ORDER BY id DESC LIMIT 1`,
+      [member.id]
+    );
+    if (existing[0]) {
+      const p = existing[0];
+      return {
+        success: true,
+        reused: true,
+        paymentId: p.id,
+        paymentLinkId: p.razorpay_payment_link_id,
+        paymentLink: p.payment_link_url,
+        amount: Number(p.amount),
+        member
+      };
+    }
+
+    const pricing = await this.calculatePayableAmount(member.membership_plan_id, "Registration");
+    const amountInINR = pricing.totalAmount;
+    const amountInPaise = Math.round(amountInINR * 100);
+    const receiptNo = await this.generateSequentialNumber("REC");
+    const invoiceNo = await this.generateSequentialNumber("INV");
+
+    const [insertResult]: any = await pool.query(
+      `INSERT INTO payments
+        (member_id, membership_plan_id, payment_type, amount, registration_fee, renewal_fee, payment_status, payment_method, approved_by, receipt_no, invoice_no)
+       VALUES (?, ?, 'Registration', ?, ?, ?, 'Pending', 'Razorpay', ?, ?, ?)`,
+      [member.id, member.membership_plan_id || 1, amountInINR, pricing.registrationFee, pricing.renewalFee, "System Admin", receiptNo, invoiceNo]
+    );
+    const paymentId = insertResult?.insertId;
+
+    let plink: any;
+    try {
+      plink = await razorpay.paymentLink.create({
+        amount: amountInPaise,
+        currency: "INR",
+        description: `Baroda Swim Front membership fee - ${member.fullName}`,
+        customer: {
+          name: member.fullName,
+          contact: (member.mobileNo || "").replace(/\D/g, ""),
+          email: member.email || undefined
+        },
+        notify: { sms: false, email: false },
+        reminder_enable: false,
+        notes: {
+          member_id: String(member.id),
+          membership_no: member.membershipNo || "",
+          internal_payment_id: String(paymentId)
+        }
+      });
+    } catch (err: any) {
+      const e: any = new Error(`Razorpay payment link creation failed: ${err?.message || "Gateway unavailable"}`);
+      e.status = 502;
+      throw e;
+    }
+
+    await pool.query(
+      "UPDATE payments SET razorpay_payment_link_id = ?, payment_link_url = ? WHERE id = ?",
+      [plink.id, plink.short_url, paymentId]
+    );
+
+    return {
+      success: true,
+      reused: false,
+      paymentId,
+      paymentLinkId: plink.id,
+      paymentLink: plink.short_url,
+      amount: amountInINR,
+      member
+    };
+  }
+
+  /**
+   * Create a real Razorpay Payment Link for a just-approved member and dispatch it over
+   * WhatsApp. Used by the admin-approval flow specifically -- the renewal and registration
+   * self-checkout flows keep using Razorpay Orders + the embedded Checkout widget, which is
+   * a different, already-working mechanism this deliberately does not touch.
+   */
+  async sendApprovalPaymentLinkWhatsApp(payload: { memberId: number; membershipNo?: string; approvedBy?: string }) {
+    const pool = await getDbPool();
+    const linkResult = await this.createRazorpayPaymentLink({ memberId: payload.memberId, membershipNo: payload.membershipNo });
+    const member = linkResult.member;
+
+    const targetPhone = member.mobileNo || member.whatsappNumber || member.mobile || member.emergencyContactNumber || "";
+    let whatsappResponse: any = null;
+    let whatsappStatus = "Pending";
+    let whatsappErrorDetail = "";
+
+    if (targetPhone) {
+      try {
+        whatsappResponse = await sendPaymentReminder(
+          targetPhone,
+          member.fullName || "Member",
+          member.membershipNo || "",
+          linkResult.amount,
+          linkResult.paymentLink
+        );
+        whatsappStatus = "Delivered";
+      } catch (waErr: any) {
+        whatsappStatus = "Failed";
+        whatsappErrorDetail = JSON.stringify(waErr?.response?.data || waErr?.message || String(waErr)).slice(0, 500);
+        console.error("[PaymentService] WhatsApp payment-link dispatch error:", waErr?.response?.data || waErr?.message || waErr);
+        try {
+          await enqueuePaymentWhatsApp(linkResult.paymentId, {
+            phoneNumber: targetPhone,
+            customerName: member.fullName || "Member",
+            membershipNo: member.membershipNo || "",
+            amount: linkResult.amount,
+            paymentLink: linkResult.paymentLink
+          });
+          if (!isMockDatabase()) whatsappStatus = "Queued";
+        } catch (queueErr) {
+          console.error("[PaymentService] Could not queue WhatsApp retry:", queueErr);
+        }
+      }
+    }
+
+    await ActivityService.logActivity(
+      member.fullName,
+      `Razorpay Payment Link Created (${linkResult.paymentLinkId}) & WhatsApp ${whatsappStatus} for ${targetPhone || member.mobileNo}`,
+      "Payment Link Generated",
+      payload.approvedBy || "Admin"
+    );
+
+    try {
+      await pool.query(
+        "INSERT INTO notifications (member_id, title, message, type) VALUES (?, ?, ?, 'WhatsApp Debug')",
+        [
+          member.id,
+          `WhatsApp payment-link ${whatsappStatus}`,
+          whatsappStatus === "Delivered"
+            ? `MSG91 accepted: ${JSON.stringify(whatsappResponse)}`
+            : `MSG91/send error: ${whatsappErrorDetail}`
+        ]
+      );
+    } catch (_) {}
+
+    return {
+      success: true,
+      paymentId: linkResult.paymentId,
+      orderId: linkResult.paymentLinkId,
+      paymentLink: linkResult.paymentLink,
+      payment_link_url: linkResult.paymentLink,
+      amount: linkResult.amount,
+      memberName: member.fullName,
+      mobileNo: targetPhone || member.mobileNo,
+      email: member.email || "",
+      whatsappStatus,
+      whatsappResponse
+    };
   }
 
   /**
@@ -1122,23 +1346,27 @@ export class PaymentService {
     const targetPhone = member.mobileNo || member.whatsappNumber || member.mobile || member.emergencyContactNumber || "";
     let whatsappResponse: any = null;
     let whatsappStatus = "Pending";
+    let whatsappErrorDetail = "";
 
     if (targetPhone) {
       try {
         whatsappResponse = await sendPaymentReminder(
           targetPhone,
           member.fullName || "Member",
+          member.membershipNo || "",
           payment.amount,
           paymentLink
         );
         whatsappStatus = "Delivered";
       } catch (waErr: any) {
         whatsappStatus = "Failed";
+        whatsappErrorDetail = JSON.stringify(waErr?.response?.data || waErr?.message || String(waErr)).slice(0, 500);
         console.error("[PaymentService] WhatsApp reminder dispatch error:", waErr?.response?.data || waErr?.message || waErr);
         try {
           await enqueuePaymentWhatsApp(payment.id, {
             phoneNumber: targetPhone,
             customerName: member.fullName || "Member",
+            membershipNo: member.membershipNo || "",
             amount: payment.amount,
             paymentLink
           });
@@ -1173,10 +1401,24 @@ export class PaymentService {
 
     await ActivityService.logActivity(
       member.fullName,
-      `Payment Link Generated (${payment.razorpay_order_id}) & sent to ${targetPhone || member.mobileNo}`,
+      `Payment Link Generated (${payment.razorpay_order_id}) & WhatsApp ${whatsappStatus} for ${targetPhone || member.mobileNo}`,
       "Payment Link Generated",
       payload.approvedBy || "Admin"
     );
+
+    // Diagnostic record with the full MSG91 response/error, queryable without server terminal access.
+    try {
+      await pool.query(
+        "INSERT INTO notifications (member_id, title, message, type) VALUES (?, ?, ?, 'WhatsApp Debug')",
+        [
+          member.id,
+          `WhatsApp payment-link ${whatsappStatus}`,
+          whatsappStatus === "Delivered"
+            ? `MSG91 accepted: ${JSON.stringify(whatsappResponse)}`
+            : `MSG91/send error: ${whatsappErrorDetail}`
+        ]
+      );
+    } catch (_) {}
 
     return {
       success: true,

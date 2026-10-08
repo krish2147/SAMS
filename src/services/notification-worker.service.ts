@@ -4,6 +4,7 @@ import { sendPaymentReminder } from "./whatsapp.service";
 interface PaymentWhatsAppJob {
   phoneNumber: string;
   customerName: string;
+  membershipNo?: string;
   amount: string | number;
   paymentLink: string;
 }
@@ -62,7 +63,7 @@ async function processNextJob(): Promise<boolean> {
   try {
     const payload = typeof job.payload === "string" ? JSON.parse(job.payload) : job.payload;
     if (job.job_type !== "payment_whatsapp") throw new Error(`Unsupported outbound job type: ${job.job_type}`);
-    await sendPaymentReminder(payload.phoneNumber, payload.customerName, payload.amount, payload.paymentLink);
+    await sendPaymentReminder(payload.phoneNumber, payload.customerName, payload.membershipNo || "", payload.amount, payload.paymentLink);
     await pool.query(
       "UPDATE outbound_jobs SET status = 'Completed', completed_at = CURRENT_TIMESTAMP, last_error = NULL WHERE id = ?",
       [job.id]

@@ -140,6 +140,7 @@ CREATE TABLE IF NOT EXISTS payments (
   payment_method VARCHAR(50) NULL DEFAULT 'Razorpay',
   razorpay_order_id VARCHAR(100) NULL,
   razorpay_payment_id VARCHAR(100) NULL,
+  razorpay_payment_link_id VARCHAR(100) NULL,
   razorpay_signature VARCHAR(255) NULL,
   payment_link_url VARCHAR(500) NULL,
   failure_reason TEXT NULL,

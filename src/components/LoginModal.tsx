@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
-  X, ShieldAlert, Smartphone, Key, Lock, Mail, CheckCircle, 
-  Sparkles, Eye, EyeOff, User, BellRing, ChevronRight, Clock 
+  X, ShieldAlert, Smartphone, Lock, Mail, CheckCircle,
+  Sparkles, Eye, EyeOff, User, BellRing, ChevronRight
 } from "lucide-react";
 import { AcademyId, UserRole, UserSession } from "../types";
 
@@ -44,6 +44,7 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
   const [isVerifying, setIsVerifying] = useState(false);
   const [countdown, setCountdown] = useState(30);
   const [canResend, setCanResend] = useState(false);
+  const otpBoxRefs = useRef<Array<HTMLInputElement | null>>([]);
 
   useEffect(() => {
     if (isOpen) {
@@ -390,6 +391,42 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
     });
   };
 
+  const OTP_LENGTH = 6;
+
+  // Individual OTP box handlers: typing a digit advances focus, backspace on an
+  // empty box moves back, and pasting a full code fills every box at once.
+  const handleOtpBoxChange = (index: number, rawValue: string) => {
+    const digit = rawValue.replace(/\D/g, "").slice(-1);
+    const next = otpCode.split("");
+    while (next.length < OTP_LENGTH) next.push("");
+    next[index] = digit;
+    setOtpCode(next.join("").slice(0, OTP_LENGTH));
+    if (digit && index < OTP_LENGTH - 1) {
+      otpBoxRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpBoxKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    // On an empty box, backspace clears the previous box and moves focus there in one
+    // deterministic step (preventDefault avoids the browser also applying its own default
+    // backspace action to whichever box ends up focused after the .focus() call).
+    if (e.key === "Backspace" && !otpCode[index] && index > 0) {
+      e.preventDefault();
+      const next = otpCode.split("");
+      next[index - 1] = "";
+      setOtpCode(next.join(""));
+      otpBoxRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, OTP_LENGTH);
+    if (!pasted) return;
+    e.preventDefault();
+    setOtpCode(pasted);
+    otpBoxRefs.current[Math.min(pasted.length, OTP_LENGTH - 1)]?.focus();
+  };
+
   // Step 3: Verify OTP Code
   const handleVerifyOTP = (e: React.FormEvent) => {
     e.preventDefault();
@@ -521,33 +558,53 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
         )}
       </AnimatePresence>
 
-      {/* Dimmed backdrop */}
-      <div 
-        className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity duration-300"
+      {/* Atmospheric backdrop photo, dimmed, with a warm spotlight glow behind the card */}
+      <div
+        className="absolute inset-0 bg-cover bg-center"
+        style={{
+          backgroundImage: `url(${isSwim
+            ? "https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&q=80&w=1600"
+            : "https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&q=80&w=1600"})`
+        }}
+      />
+      <div
+        className="absolute inset-0 bg-slate-950/75 backdrop-blur-[2px] transition-opacity duration-300"
         onClick={onClose}
       />
+      <div className={`absolute top-[-15%] left-1/2 -translate-x-1/2 w-[720px] h-[720px] rounded-full blur-[130px] pointer-events-none ${
+        isSwim ? "bg-sky-300/25" : "bg-amber-300/20"
+      }`} />
 
-      {/* Login Card dialog */}
+      {/* Login Card dialog: frosted glass over the atmospheric photo */}
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 15 }}
         transition={{ cubicBezier: [0.16, 1, 0.3, 1], duration: 0.6 }}
-        className={`relative w-full max-w-lg overflow-hidden rounded-3xl border shadow-2xl z-20 ${
-          isSwim 
-            ? "bg-white border-sky-100 text-slate-950" 
-            : "bg-emerald-950 border-emerald-900/50 text-emerald-100"
+        className={`relative w-full max-w-lg overflow-hidden rounded-3xl border shadow-2xl z-20 backdrop-blur-2xl ${
+          isSwim
+            ? "bg-white/85 border-white/60 text-slate-950"
+            : "bg-emerald-950/85 border-emerald-400/20 text-emerald-100"
         }`}
       >
+        {/* Decorative wavy lines, swim theme only, echoing the poster reference */}
+        {isSwim && (
+          <svg className="absolute top-0 right-0 w-40 h-40 opacity-[0.15] pointer-events-none" viewBox="0 0 160 160" fill="none">
+            <path d="M-10 30 Q 15 15, 40 30 T 90 30 T 140 30 T 190 30" stroke="#0ea5e9" strokeWidth="3" />
+            <path d="M-10 55 Q 15 40, 40 55 T 90 55 T 140 55 T 190 55" stroke="#0ea5e9" strokeWidth="3" />
+            <path d="M-10 80 Q 15 65, 40 80 T 90 80 T 140 80 T 190 80" stroke="#f59e0b" strokeWidth="2.5" />
+          </svg>
+        )}
+
         {/* Subtle accent border bottom */}
         <div className={`absolute top-0 inset-x-0 h-1 bg-gradient-to-r ${isSwim ? "from-sky-400 to-cyan-400" : "from-emerald-400 to-amber-400"}`} />
 
         {/* Modal Header */}
-        <div className="p-6 md:p-8 flex items-center justify-between border-b border-current/5">
+        <div className="relative p-6 md:p-8 flex items-center justify-between border-b border-current/5">
           <div>
             <span className="text-[10px] font-mono tracking-widest uppercase opacity-60">ACADEMY MEMBER PORTAL</span>
-            <h2 className={`text-xl font-bold mt-1 ${isSwim ? "text-slate-900" : "text-white font-serif"}`}>
-              {step === "role" && "Welcome to the Academy"}
+            <h2 className={`text-2xl font-black mt-1 ${isSwim ? "text-slate-900" : "text-white font-serif"}`}>
+              {step === "role" && "Welcome Back"}
               {step === "auth" && `Sign in as ${selectedRole.toUpperCase()}`}
               {step === "otp" && "Verification Code"}
             </h2>
@@ -555,7 +612,7 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
           <button
             id="btn-login-close"
             onClick={onClose}
-            className="p-2 rounded-xl hover:bg-current/5 transition-colors cursor-pointer"
+            className="p-2 rounded-full hover:bg-current/10 transition-colors cursor-pointer"
           >
             <X className="h-5 w-5" />
           </button>
@@ -655,16 +712,16 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-mono uppercase tracking-wider opacity-60">Full Name *</label>
                     <div className="relative">
-                      <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 opacity-40" />
+                      <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 opacity-90" />
                       <input
                         type="text"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
                         placeholder="Mithil"
-                        className={`w-full py-3.5 pl-12 pr-4 rounded-2xl border text-sm font-medium focus:outline-none transition-all ${
-                          isSwim 
-                            ? "bg-slate-50 border-slate-200 text-slate-900 focus:bg-white focus:border-sky-400" 
-                            : "bg-emerald-900/20 border-emerald-900/40 text-emerald-50 focus:bg-emerald-900/30 focus:border-amber-400"
+                        className={`w-full py-3.5 pl-12 pr-4 rounded-full border text-sm font-medium focus:outline-none transition-all ${
+                          isSwim
+                          ? "bg-white/75 backdrop-blur-md border-white/80 text-slate-900 placeholder-slate-600 focus:bg-white/90 focus:border-sky-400"
+                          : "bg-emerald-950/30 backdrop-blur-md border-emerald-400/20 text-emerald-50 placeholder-emerald-300/50 focus:bg-emerald-950/40 focus:border-amber-400"
                         }`}
                         required
                       />
@@ -673,13 +730,16 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
 
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-mono uppercase tracking-wider opacity-60">Mobile Number *</label>
-                    <div className="relative flex items-center">
-                      <div className="absolute left-4 flex items-center gap-1.5 pointer-events-none">
-                        <Smartphone className="h-5 w-5 opacity-40" />
-                        <span className={`text-sm font-semibold ${isSwim ? "text-slate-500" : "text-emerald-300"}`}>
-                          +91
-                        </span>
-                      </div>
+                    <div className={`flex items-center rounded-full border overflow-hidden transition-all ${
+                      isSwim
+                        ? "bg-white/90 border-white/80 focus-within:border-sky-400"
+                        : "bg-emerald-950/50 border-emerald-400/20 focus-within:border-amber-400"
+                    }`}>
+                      <span className={`shrink-0 text-sm font-bold pl-4 pr-3 py-3.5 ${
+                        isSwim ? "text-slate-900" : "text-emerald-100"
+                      }`}>
+                        +91
+                      </span>
                       <input
                         type="tel"
                         value={phoneNumber}
@@ -687,11 +747,11 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
                           const clean = e.target.value.replace(/\D/g, "").slice(0, 10);
                           setPhoneNumber(clean);
                         }}
-                        placeholder="98765 43210"
-                        className={`w-full py-3.5 pl-20 pr-4 rounded-2xl border text-sm font-medium focus:outline-none transition-all ${
-                          isSwim 
-                            ? "bg-slate-50 border-slate-200 text-slate-900 focus:bg-white focus:border-sky-400" 
-                            : "bg-emerald-900/20 border-emerald-900/40 text-emerald-50 focus:bg-emerald-900/30 focus:border-amber-400"
+                        placeholder="XXXXX XXXXX"
+                        className={`flex-1 min-w-0 py-3.5 pr-4 bg-transparent border-0 text-sm font-medium focus:outline-none ${
+                          isSwim
+                          ? "text-slate-900 placeholder-slate-600"
+                          : "text-emerald-50 placeholder-emerald-300/50"
                         }`}
                         required
                       />
@@ -708,10 +768,10 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
                         placeholder="24"
                         min="5"
                         max="100"
-                        className={`w-full py-3.5 px-4 rounded-2xl border text-sm font-medium focus:outline-none transition-all ${
-                          isSwim 
-                            ? "bg-slate-50 border-slate-200 text-slate-900 focus:bg-white focus:border-sky-400" 
-                            : "bg-emerald-900/20 border-emerald-900/40 text-emerald-50 focus:bg-emerald-900/30 focus:border-amber-400"
+                        className={`w-full py-3.5 px-4 rounded-full border text-sm font-medium focus:outline-none transition-all ${
+                          isSwim
+                          ? "bg-white/75 backdrop-blur-md border-white/80 text-slate-900 placeholder-slate-600 focus:bg-white/90 focus:border-sky-400"
+                          : "bg-emerald-950/30 backdrop-blur-md border-emerald-400/20 text-emerald-50 placeholder-emerald-300/50 focus:bg-emerald-950/40 focus:border-amber-400"
                         }`}
                         required
                       />
@@ -722,10 +782,10 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
                       <select
                         value={registerGender}
                         onChange={(e) => setRegisterGender(e.target.value)}
-                        className={`w-full py-3.5 px-4 rounded-2xl border text-sm font-medium focus:outline-none transition-all ${
-                          isSwim 
-                            ? "bg-slate-50 border-slate-200 text-slate-900 focus:bg-white focus:border-sky-400" 
-                            : "bg-emerald-900/20 border-emerald-900/40 text-emerald-50 focus:bg-emerald-900/30 focus:border-amber-400"
+                        className={`w-full py-3.5 px-4 rounded-full border text-sm font-medium focus:outline-none transition-all ${
+                          isSwim
+                          ? "bg-white/75 backdrop-blur-md border-white/80 text-slate-900 placeholder-slate-600 focus:bg-white/90 focus:border-sky-400"
+                          : "bg-emerald-950/30 backdrop-blur-md border-emerald-400/20 text-emerald-50 placeholder-emerald-300/50 focus:bg-emerald-950/40 focus:border-amber-400"
                         }`}
                       >
                         <option value="male">Male</option>
@@ -747,10 +807,10 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
                     <select
                       value={registerMembership}
                       onChange={(e) => setRegisterMembership(e.target.value)}
-                      className={`w-full py-3.5 px-4 rounded-2xl border text-sm font-medium focus:outline-none transition-all ${
+                      className={`w-full py-3.5 px-4 rounded-full border text-sm font-medium focus:outline-none transition-all ${
                         isSwim 
-                          ? "bg-slate-50 border-slate-200 text-slate-900 focus:bg-white focus:border-sky-400" 
-                          : "bg-emerald-900/20 border-emerald-900/40 text-emerald-50 focus:bg-emerald-900/30 focus:border-amber-400"
+                          ? "bg-white/75 backdrop-blur-md border-white/80 text-slate-900 placeholder-slate-600 focus:bg-white/90 focus:border-sky-400" 
+                          : "bg-emerald-950/30 backdrop-blur-md border-emerald-400/20 text-emerald-50 placeholder-emerald-300/50 focus:bg-emerald-950/40 focus:border-amber-400"
                       }`}
                     >
                       <option value="Monthly Elite">Monthly Elite Plan (1 Month Access)</option>
@@ -764,10 +824,10 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
                     <select
                       value={preferredSlot}
                       onChange={(e) => setPreferredSlot(e.target.value)}
-                      className={`w-full py-3.5 px-4 rounded-2xl border text-sm font-medium focus:outline-none transition-all ${
+                      className={`w-full py-3.5 px-4 rounded-full border text-sm font-medium focus:outline-none transition-all ${
                         isSwim 
-                          ? "bg-slate-50 border-slate-200 text-slate-900 focus:bg-white focus:border-sky-400" 
-                          : "bg-emerald-900/20 border-emerald-900/40 text-emerald-50 focus:bg-emerald-900/30 focus:border-amber-400"
+                          ? "bg-white/75 backdrop-blur-md border-white/80 text-slate-900 placeholder-slate-600 focus:bg-white/90 focus:border-sky-400" 
+                          : "bg-emerald-950/30 backdrop-blur-md border-emerald-400/20 text-emerald-50 placeholder-emerald-300/50 focus:bg-emerald-950/40 focus:border-amber-400"
                       }`}
                     >
                       <option value="06:00 AM - 07:00 AM">06:00 AM - 07:00 AM (All Age Group)</option>
@@ -799,10 +859,10 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
                         value={emergencyName}
                         onChange={(e) => setEmergencyName(e.target.value)}
                         placeholder="Emergency Contact Name"
-                        className={`w-full py-3.5 px-4 rounded-2xl border text-sm font-medium focus:outline-none transition-all ${
-                          isSwim 
-                            ? "bg-slate-50 border-slate-200 text-slate-900 focus:bg-white focus:border-sky-400" 
-                            : "bg-emerald-900/20 border-emerald-900/40 text-emerald-50 focus:bg-emerald-900/30 focus:border-amber-400"
+                        className={`w-full py-3.5 px-4 rounded-full border text-sm font-medium focus:outline-none transition-all ${
+                          isSwim
+                          ? "bg-white/75 backdrop-blur-md border-white/80 text-slate-900 placeholder-slate-600 focus:bg-white/90 focus:border-sky-400"
+                          : "bg-emerald-950/30 backdrop-blur-md border-emerald-400/20 text-emerald-50 placeholder-emerald-300/50 focus:bg-emerald-950/40 focus:border-amber-400"
                         }`}
                         required
                       />
@@ -815,10 +875,10 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
                         value={emergencyPhone}
                         onChange={(e) => setEmergencyPhone(e.target.value)}
                         placeholder="Contact Phone Number"
-                        className={`w-full py-3.5 px-4 rounded-2xl border text-sm font-medium focus:outline-none transition-all ${
-                          isSwim 
-                            ? "bg-slate-50 border-slate-200 text-slate-900 focus:bg-white focus:border-sky-400" 
-                            : "bg-emerald-900/20 border-emerald-900/40 text-emerald-50 focus:bg-emerald-900/30 focus:border-amber-400"
+                        className={`w-full py-3.5 px-4 rounded-full border text-sm font-medium focus:outline-none transition-all ${
+                          isSwim
+                          ? "bg-white/75 backdrop-blur-md border-white/80 text-slate-900 placeholder-slate-600 focus:bg-white/90 focus:border-sky-400"
+                          : "bg-emerald-950/30 backdrop-blur-md border-emerald-400/20 text-emerald-50 placeholder-emerald-300/50 focus:bg-emerald-950/40 focus:border-amber-400"
                         }`}
                         required
                       />
@@ -846,16 +906,16 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
                 <button
                   type="button"
                   onClick={() => setStep("role")}
-                  className={`flex-grow py-3.5 rounded-2xl text-xs uppercase tracking-wider font-semibold border transition-all cursor-pointer ${
+                  className={`flex-grow py-3.5 rounded-full text-xs uppercase tracking-wider font-semibold border transition-all cursor-pointer ${
                     isSwim ? "border-slate-200 text-slate-800 hover:bg-slate-50" : "border-emerald-800 text-emerald-100"
                   }`}
                 >
-                  Identity Menu
+                  Back
                 </button>
                 <button
                   type="submit"
                   disabled={isVerifying}
-                  className={`flex-grow py-3.5 rounded-2xl text-xs uppercase tracking-wider font-extrabold transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 ${
+                  className={`flex-grow py-3.5 rounded-full text-xs uppercase tracking-wider font-extrabold transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 ${
                     isSwim ? "bg-sky-500 text-white hover:opacity-95" : "bg-amber-400 text-slate-950 hover:bg-amber-500"
                   }`}
                 >
@@ -910,13 +970,16 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
               
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-mono uppercase tracking-wider opacity-60">Mobile Telephone Number</label>
-                <div className="relative flex items-center">
-                  <div className="absolute left-4 flex items-center gap-1.5 pointer-events-none">
-                    <Smartphone className="h-5 w-5 opacity-40" />
-                    <span className={`text-sm font-semibold ${isSwim ? "text-slate-500" : "text-emerald-300"}`}>
-                      +91
-                    </span>
-                  </div>
+                <div className={`flex items-center rounded-full border overflow-hidden transition-all ${
+                  isSwim
+                    ? "bg-white/90 border-white/80 focus-within:border-sky-400"
+                    : "bg-emerald-950/50 border-emerald-400/20 focus-within:border-amber-400"
+                }`}>
+                  <span className={`shrink-0 text-sm font-bold pl-4 pr-3 py-4 ${
+                    isSwim ? "text-slate-900" : "text-emerald-100"
+                  }`}>
+                    +91
+                  </span>
                   <input
                     type="tel"
                     value={phoneNumber}
@@ -924,11 +987,11 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
                       const clean = e.target.value.replace(/\D/g, "").slice(0, 10);
                       setPhoneNumber(clean);
                     }}
-                    placeholder="98765 43210"
-                    className={`w-full py-4 pl-20 pr-4 rounded-2xl border text-sm font-medium focus:outline-none transition-all ${
-                      isSwim 
-                        ? "bg-slate-50 border-slate-200 text-slate-900 focus:bg-white focus:border-sky-400" 
-                        : "bg-emerald-900/20 border-emerald-900/40 text-emerald-50 focus:bg-emerald-900/30 focus:border-amber-400"
+                    placeholder="XXXXX XXXXX"
+                    className={`flex-1 min-w-0 py-4 pr-4 bg-transparent border-0 text-sm font-medium focus:outline-none ${
+                      isSwim
+                        ? "text-slate-900 placeholder-slate-600"
+                        : "text-emerald-50 placeholder-emerald-300/50"
                     }`}
                     required
                   />
@@ -943,20 +1006,20 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
                   type="button"
                   id="btn-login-back-to-roles"
                   onClick={() => setStep("role")}
-                  className={`flex-grow py-3.5 rounded-2xl text-xs uppercase tracking-wider font-semibold border transition-all cursor-pointer ${
+                  className={`flex-grow py-3.5 rounded-full text-xs uppercase tracking-wider font-semibold border transition-all cursor-pointer ${
                     isSwim ? "border-slate-200 text-slate-800 hover:bg-slate-50" : "border-emerald-800 text-emerald-100 hover:bg-emerald-900/30"
                   }`}
                 >
-                  Identity Menu
+                  Back
                 </button>
                 <button
                   type="submit"
                   id="btn-login-submit-client"
-                  className={`flex-grow py-3.5 rounded-2xl text-xs uppercase tracking-wider font-extrabold transition-all shadow-md cursor-pointer ${
+                  className={`flex-grow py-3.5 rounded-full text-xs uppercase tracking-wider font-extrabold transition-all shadow-md cursor-pointer ${
                     isSwim ? "bg-sky-500 text-white hover:opacity-95" : "bg-amber-400 text-slate-950 hover:bg-amber-500"
                   }`}
                 >
-                  Dispatch OTP
+                  Send OTP
                 </button>
               </div>
             </form>
@@ -969,16 +1032,16 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-mono uppercase tracking-wider opacity-60">Corporate/Staff Email Address</label>
                 <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 opacity-40" />
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 opacity-90" />
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="name@academy.sams"
-                    className={`w-full py-3.5 pl-12 pr-4 rounded-2xl border text-sm font-medium focus:outline-none transition-all ${
+                    className={`w-full py-3.5 pl-12 pr-4 rounded-full border text-sm font-medium focus:outline-none transition-all ${
                       isSwim 
-                        ? "bg-slate-50 border-slate-200 text-slate-900 focus:bg-white focus:border-sky-400" 
-                        : "bg-emerald-900/20 border-emerald-900/40 text-emerald-50 focus:bg-emerald-900/30 focus:border-amber-400"
+                        ? "bg-white/75 backdrop-blur-md border-white/80 text-slate-900 placeholder-slate-600 focus:bg-white/90 focus:border-sky-400" 
+                        : "bg-emerald-950/30 backdrop-blur-md border-emerald-400/20 text-emerald-50 placeholder-emerald-300/50 focus:bg-emerald-950/40 focus:border-amber-400"
                     }`}
                     required
                   />
@@ -988,16 +1051,16 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-mono uppercase tracking-wider opacity-60">Security Passcode</label>
                 <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 opacity-40" />
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 opacity-90" />
                   <input
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className={`w-full py-3.5 pl-12 pr-12 rounded-2xl border text-sm font-medium focus:outline-none transition-all ${
+                    className={`w-full py-3.5 pl-12 pr-12 rounded-full border text-sm font-medium focus:outline-none transition-all ${
                       isSwim 
-                        ? "bg-slate-50 border-slate-200 text-slate-900 focus:bg-white focus:border-sky-400" 
-                        : "bg-emerald-900/20 border-emerald-900/40 text-emerald-50 focus:bg-emerald-900/30 focus:border-amber-400"
+                        ? "bg-white/75 backdrop-blur-md border-white/80 text-slate-900 placeholder-slate-600 focus:bg-white/90 focus:border-sky-400" 
+                        : "bg-emerald-950/30 backdrop-blur-md border-emerald-400/20 text-emerald-50 placeholder-emerald-300/50 focus:bg-emerald-950/40 focus:border-amber-400"
                     }`}
                     required
                   />
@@ -1017,17 +1080,17 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
                   type="button"
                   id="btn-login-back-to-roles-staff"
                   onClick={() => setStep("role")}
-                  className={`flex-grow py-3 rounded-2xl text-xs uppercase tracking-wider font-semibold border transition-all cursor-pointer ${
+                  className={`flex-grow py-3 rounded-full text-xs uppercase tracking-wider font-semibold border transition-all cursor-pointer ${
                     isSwim ? "border-slate-200 text-slate-800 hover:bg-slate-50" : "border-emerald-800 text-emerald-100 hover:bg-emerald-900/30"
                   }`}
                 >
-                  Identity Menu
+                  Back
                 </button>
                 <button
                   type="submit"
                   id="btn-login-submit-staff"
                   disabled={isVerifying}
-                  className={`flex-grow py-3 rounded-2xl text-xs uppercase tracking-wider font-extrabold transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 ${
+                  className={`flex-grow py-3 rounded-full text-xs uppercase tracking-wider font-extrabold transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 ${
                     isSwim ? "bg-sky-500 text-white hover:opacity-95" : "bg-amber-400 text-slate-950 hover:bg-amber-500"
                   }`}
                 >
@@ -1037,7 +1100,7 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
                       <span>Processing...</span>
                     </>
                   ) : (
-                    <span>Access Portal</span>
+                    <span>Log In</span>
                   )}
                 </button>
               </div>
@@ -1046,63 +1109,73 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
 
           {/* STEP 3: OTP VERIFICATION FORM */}
           {step === "otp" && (
-            <form onSubmit={handleVerifyOTP} className="flex flex-col gap-5 text-left animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-mono uppercase tracking-wider opacity-60">Enter the 6-digit verification code</label>
-                <div className="relative">
-                  <Key className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 opacity-40" />
+            <form onSubmit={handleVerifyOTP} className="flex flex-col gap-6 text-center items-center animate-in fade-in slide-in-from-bottom-2 duration-300">
+              {/* Friendly icon badge */}
+              <div className={`relative h-20 w-20 rounded-full flex items-center justify-center ${
+                isSwim ? "bg-sky-50" : "bg-emerald-900/40"
+              }`}>
+                <Smartphone className={`h-9 w-9 ${isSwim ? "text-sky-500" : "text-emerald-300"}`} />
+                <div className={`absolute -bottom-1 -right-1 h-7 w-7 rounded-full flex items-center justify-center border-2 ${
+                  isSwim ? "bg-emerald-500 border-white" : "bg-amber-400 border-emerald-950"
+                }`}>
+                  <CheckCircle className="h-4 w-4 text-white" strokeWidth={2.5} />
+                </div>
+                <Sparkles className={`absolute -top-2 -left-2 h-4 w-4 ${isSwim ? "text-amber-400" : "text-amber-300"}`} />
+              </div>
+
+              <div>
+                <h3 className={`text-xl font-black ${isSwim ? "text-slate-900" : "text-white"}`}>Verify with OTP</h3>
+                <p className="text-sm opacity-60 mt-1">
+                  Sent to <span className="font-semibold">+91 {phoneNumber}</span>
+                </p>
+              </div>
+
+              {/* Individual OTP digit boxes */}
+              <div className="flex items-center justify-center gap-2.5" onPaste={handleOtpPaste}>
+                {Array.from({ length: OTP_LENGTH }).map((_, i) => (
                   <input
+                    key={i}
+                    ref={(el) => { otpBoxRefs.current[i] = el; }}
                     type="text"
-                    maxLength={6}
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
-                    placeholder="••••••"
-                    className={`w-full py-4 pl-12 pr-4 rounded-2xl border text-center text-lg font-black tracking-[0.4em] focus:outline-none transition-all ${
-                      isSwim 
-                        ? "bg-slate-50 border-slate-200 text-slate-900 focus:bg-white focus:border-sky-400" 
-                        : "bg-emerald-900/20 border-emerald-900/40 text-emerald-50 focus:bg-emerald-900/30 focus:border-amber-400"
-                    }`}
-                    required
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={otpCode[i] || ""}
+                    onChange={(e) => handleOtpBoxChange(i, e.target.value)}
+                    onKeyDown={(e) => handleOtpBoxKeyDown(i, e)}
                     disabled={isVerifying}
+                    className={`h-14 w-11 rounded-2xl border text-center text-xl font-black focus:outline-none transition-all ${
+                      isSwim
+                        ? "bg-white/75 backdrop-blur-md border-white/80 text-slate-900 focus:bg-white/90 focus:border-sky-400"
+                        : "bg-emerald-950/30 backdrop-blur-md border-emerald-400/20 text-emerald-50 focus:bg-emerald-950/40 focus:border-amber-400"
+                    }`}
                   />
-                </div>
-                <span className="text-[10px] opacity-60 leading-relaxed font-light mt-1 block">
-                  We've sent a verification code to your registered mobile number.
-                </span>
+                ))}
               </div>
 
-              {/* Timer and Resend Row */}
-              <div className="flex items-center justify-between text-xs font-medium px-1">
-                <div className="flex items-center gap-1.5 opacity-70">
-                  <Clock className="h-4 w-4 animate-pulse" />
-                  {countdown > 0 ? (
-                    <span>Resend code in <strong className="font-mono">{countdown}s</strong></span>
-                  ) : (
-                    <span>Didn't receive code?</span>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={handleResendOTP}
-                  disabled={!canResend || isVerifying}
-                  className={`text-xs font-bold transition-all uppercase tracking-wider cursor-pointer ${
-                    canResend && !isVerifying
-                      ? isSwim 
-                        ? "text-sky-500 hover:text-sky-600 hover:underline" 
-                        : "text-amber-400 hover:text-amber-300 hover:underline"
-                      : "opacity-40 cursor-not-allowed"
-                  }`}
-                >
-                  Resend Code
-                </button>
+              {/* Resend row, simple copy */}
+              <div className="text-sm">
+                {countdown > 0 ? (
+                  <span className="opacity-60">
+                    Resend OTP in: <strong className={isSwim ? "text-slate-900" : "text-white"}>00:{String(countdown).padStart(2, "0")}</strong>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleResendOTP}
+                    disabled={isVerifying}
+                    className={`font-bold cursor-pointer ${isSwim ? "text-sky-500 hover:underline" : "text-amber-400 hover:underline"}`}
+                  >
+                    Resend OTP
+                  </button>
+                )}
               </div>
 
-              <div className="flex gap-3 mt-2">
+              <div className="flex gap-3 mt-1 w-full">
                 <button
                   type="button"
                   id="btn-login-back-to-phone"
                   onClick={() => setStep("auth")}
-                  className={`flex-grow py-3.5 rounded-2xl text-xs uppercase tracking-wider font-semibold border transition-all ${
+                  className={`flex-grow py-3.5 rounded-full text-xs uppercase tracking-wider font-semibold border transition-all ${
                     isSwim ? "border-slate-200 text-slate-800 hover:bg-slate-50" : "border-emerald-800 text-emerald-100"
                   }`}
                 >
@@ -1111,8 +1184,8 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
                 <button
                   type="submit"
                   id="btn-login-submit-otp"
-                  disabled={isVerifying}
-                  className={`flex-grow py-3.5 rounded-2xl text-xs uppercase tracking-wider font-extrabold transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 ${
+                  disabled={isVerifying || otpCode.length !== OTP_LENGTH}
+                  className={`flex-grow py-3.5 rounded-full text-xs uppercase tracking-wider font-extrabold transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 ${
                     isSwim ? "bg-sky-500 text-white hover:opacity-95" : "bg-amber-400 text-slate-950 hover:bg-amber-500"
                   }`}
                 >
@@ -1122,7 +1195,7 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
                       <span>Verifying...</span>
                     </>
                   ) : (
-                    <span>Confirm & Enter</span>
+                    <span>Verify & Continue</span>
                   )}
                 </button>
               </div>

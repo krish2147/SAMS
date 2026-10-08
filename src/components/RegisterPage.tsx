@@ -7,6 +7,12 @@ import {
   PhoneCall, ShieldAlert, HeartPulse, Sparkle, X
 } from "lucide-react";
 import { AcademyId, UserSession } from "../types";
+import swimmerImage from "../assets/registration-swimmer.jpg";
+// Same cricket photo already used for the Elite Cricket Academy card in AcademySelector.tsx, for visual consistency.
+const CRICKET_HERO_IMAGE = "https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&q=80&w=1200";
+
+// Torn-paper zigzag edge for the hero photo panel, left side jagged, right side straight.
+const TORN_EDGE_CLIP_PATH = "polygon(100% 0%, 100% 100%, 0% 100%, 5% 95%, 0% 90%, 6% 85%, 1% 80%, 7% 75%, 2% 70%, 8% 65%, 3% 60%, 9% 55%, 4% 50%, 10% 45%, 5% 40%, 9% 35%, 3% 30%, 8% 25%, 2% 20%, 7% 15%, 1% 10%, 6% 5%, 0% 0%)";
 
 interface RegisterPageProps {
   academyId: AcademyId;
@@ -213,6 +219,9 @@ function getCategoryDurationOptions(categoryId: string): Array<{ id: string; lab
 
 export function RegisterPage({ academyId, onRegisterSuccess, onCancel }: RegisterPageProps) {
   const isSwim = academyId === "swim";
+  const heroImage = isSwim ? swimmerImage : CRICKET_HERO_IMAGE;
+  const heroImageAlt = isSwim ? "Swimmer diving into the pool" : "Cricket player in action";
+  const heroHeadline = isSwim ? "DIVE IN" : "STEP UP";
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState<FormState>(INITIAL_FORM_STATE);
@@ -661,14 +670,39 @@ export function RegisterPage({ academyId, onRegisterSuccess, onCancel }: Registe
   }
 
   return (
-    <div className={`min-h-screen w-full flex flex-col justify-start items-center pt-32 pb-20 px-4 md:px-8 relative z-10 transition-colors duration-500 ${
+    <div className={`min-h-screen w-full relative transition-colors duration-500 ${
       isSwim ? "bg-slate-50 text-slate-800" : "bg-[#011a12] text-emerald-50"
     }`}>
       {/* Visual background atmospheric glowing accents */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-full max-w-6xl h-96 bg-gradient-to-tr from-sky-400/10 to-teal-400/5 blur-3xl pointer-events-none rounded-full" />
-      
+
+      {/* Mobile-only hero banner (the sticky side panel below is desktop-only) */}
+      <div className="lg:hidden relative w-full h-56 overflow-hidden">
+        <img src={heroImage} alt={heroImageAlt} className="w-full h-full object-cover object-center" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+        <div className="absolute bottom-5 left-5 right-5 text-white">
+          <h2 className="text-3xl font-black tracking-tight leading-none">{heroHeadline}</h2>
+          <p className="text-sm font-bold opacity-90 mt-1">{isSwim ? "Baroda Swim Front" : "SAMS Elite Club"} Membership</p>
+        </div>
+      </div>
+
+      {/* Desktop sticky photo panel with a torn-paper edge, swimmer replacing the reference mockup's boat */}
+      <div
+        className="hidden lg:block fixed top-0 right-0 h-screen w-[380px] xl:w-[440px] z-[5]"
+        style={{ clipPath: TORN_EDGE_CLIP_PATH }}
+      >
+        <img src={heroImage} alt={heroImageAlt} className="w-full h-full object-cover object-center" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-black/5" />
+        <div className="absolute bottom-16 left-16 right-10 text-white">
+          <h2 className="text-5xl font-black tracking-tight leading-[0.95]">{heroHeadline}</h2>
+          <p className="text-base font-bold opacity-90 mt-2 uppercase tracking-wide">{isSwim ? "Baroda Swim Front" : "SAMS Elite Club"}</p>
+          <p className="text-sm opacity-70 mt-1">Membership Registration</p>
+        </div>
+      </div>
+
+      <div className="relative z-10 flex flex-col justify-start items-center pt-10 lg:pt-32 pb-20 px-4 md:px-8 lg:pr-[400px] xl:pr-[460px]">
       <div className="w-full max-w-4xl relative">
-        
+
         {/* Portal Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
           <div>
@@ -844,7 +878,7 @@ export function RegisterPage({ academyId, onRegisterSuccess, onCancel }: Registe
                           }
                         }}
                         className={`${inputStyle} pl-14`}
-                        placeholder="98765 43210"
+                        placeholder="XXXXX XXXXX"
                       />
                     </div>
                     {errors.mobileNumber && (
@@ -1525,6 +1559,7 @@ export function RegisterPage({ academyId, onRegisterSuccess, onCancel }: Registe
 
         </form>
 
+      </div>
       </div>
 
       {/* Official Tariff Schedule Modal */}
