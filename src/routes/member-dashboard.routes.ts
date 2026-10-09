@@ -485,8 +485,11 @@ router.get("/member/attendance", requireAuth(["member", "parent"]), async (req: 
     );
     const totalAttendance = totalCountRows[0]?.count || 0;
 
-    // Attendance percentage calculation
-    const attendancePercentage = monthlyAttendance > 0 ? Math.min(100, Math.round((monthlyAttendance / 22) * 100)) : (totalAttendance > 0 ? 80 : 0);
+    // No attendance percentage is returned. A truthful one needs the weekdays each batch
+    // runs on, which the batches table does not record, so any denominator here would be
+    // invented. The previous version divided by a flat 22 days - showing a member on a
+    // 3-days-a-week plan roughly 55% while they attended every session - and fell back to a
+    // literal 80 when there was nothing this month. Counts below are all factual.
 
     // 4. Check today's attendance status
     const [todayRows]: any = await pool.query(
@@ -511,10 +514,24 @@ router.get("/member/attendance", requireAuth(["member", "parent"]), async (req: 
       };
     });
 
+    const [weekRows]: any = await pool.query(
+      "SELECT COUNT(*) as count FROM attendance WHERE member_id = ? AND YEARWEEK(date, 1) = YEARWEEK(CURDATE(), 1)",
+      [member.id]
+    );
+    const [lastRows]: any = await pool.query(
+      "SELECT date FROM attendance WHERE member_id = ? ORDER BY date DESC LIMIT 1",
+      [member.id]
+    );
+    const lastVisit = lastRows?.[0]?.date
+      ? (lastRows[0].date instanceof Date ? lastRows[0].date.toISOString().split("T")[0] : lastRows[0].date)
+      : null;
+
     res.json({
       attendanceHistory,
-      attendancePercentage,
       monthlyAttendance,
+      weeklyAttendance: weekRows[0]?.count || 0,
+      totalAttendance,
+      lastVisit,
       todayStatus
     });
   } catch (err) {

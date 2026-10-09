@@ -8,6 +8,7 @@ import { MyBatchPage } from "../member-dashboard/MyBatchPage";
 import { MemberCalendarPage } from "../member-dashboard/MemberCalendarPage";
 import { MemberProfilePage } from "../member-dashboard/MemberProfilePage";
 import { MemberSecurityPage } from "../member-dashboard/MemberSecurityPage";
+import { MemberAttendancePage } from "../member-dashboard/MemberAttendancePage";
 
 interface MemberDashboardShellProps {
   userName: string;
@@ -37,7 +38,7 @@ export function MemberDashboardShell({ userName, avatar, onLogout }: MemberDashb
 
   return (
     <MemberLayout activeSection={activeSection} userName={userName} avatar={avatar} membershipStatus={membershipStatus} onSelect={setActiveSection} onLogout={onLogout} showSectionIntro={!(["overview", "membership", "payments", "batch", "calendar"] as MemberSection[]).includes(activeSection)}>
-      {activeSection === "overview" ? <MemberOverview sessionName={userName} onNavigate={setActiveSection} /> : activeSection === "membership" ? <MyMembershipPage onNavigate={setActiveSection} /> : activeSection === "payments" ? <PaymentsPage /> : activeSection === "batch" ? <MyBatchPage onNavigate={setActiveSection} /> : activeSection === "calendar" ? <MemberCalendarPage /> : activeSection === "profile" ? <MemberProfilePage /> : activeSection === "security" ? <MemberSecurityPage onLogout={onLogout} /> : <section aria-labelledby="member-content-title" className="max-w-2xl rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      {activeSection === "overview" ? <MemberOverview sessionName={userName} onNavigate={setActiveSection} /> : activeSection === "membership" ? <MyMembershipPage onNavigate={setActiveSection} /> : activeSection === "payments" ? <PaymentsPage /> : activeSection === "batch" ? <MyBatchPage onNavigate={setActiveSection} /> : activeSection === "calendar" ? <MemberCalendarPage /> : activeSection === "attendance" ? <MemberAttendancePage /> : activeSection === "profile" ? <MemberProfilePage /> : activeSection === "security" ? <MemberSecurityPage onLogout={onLogout} /> : <section aria-labelledby="member-content-title" className="max-w-2xl rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
         <h2 id="member-content-title" className="sr-only">{currentSection.label}</h2>
         <div className="flex min-h-[200px] items-center justify-center px-6 py-8">
           <div className="max-w-sm text-center">
