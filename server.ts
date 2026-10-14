@@ -25,6 +25,19 @@ async function startServer() {
     process.exit(1);
   }
 
+  // Health check, registered before the SPA catch-all below so it is not swallowed by it.
+  // Reports unhealthy when the database is unreachable, so a deploy that cannot serve
+  // requests is not rolled out as if it were fine.
+  app.get("/healthz", async (_req, res) => {
+    try {
+      const pool = await getDbPool();
+      await pool.query("SELECT 1");
+      res.json({ status: "ok", uptime: Math.round(process.uptime()) });
+    } catch (error: any) {
+      res.status(503).json({ status: "unavailable", reason: error?.message || "database unreachable" });
+    }
+  });
+
   // 2. Setup Vite Development server or Production Static Fallback
   if (process.env.NODE_ENV !== "production") {
     console.log("🛠️ Starting SAMS in DEVELOPMENT mode (Vite Middleware)...");

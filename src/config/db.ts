@@ -12,14 +12,43 @@ export function isMockDatabase(): boolean {
   return mockDatabaseActive;
 }
 
+/**
+ * Resolves database credentials from whichever convention the host uses.
+ * Explicit DB_* variables win, then a connection URL (DATABASE_URL / MYSQL_URL),
+ * then the MYSQL* variables that managed MySQL add-ons such as Railway inject.
+ * This lets the same build run locally and on a provisioned database without
+ * anyone hand-copying credentials between variable names.
+ */
+function resolveDatabaseCredentials() {
+  const url = process.env.DATABASE_URL || process.env.MYSQL_URL || process.env.MYSQL_PUBLIC_URL;
+  let fromUrl: Partial<Record<"host" | "user" | "password" | "database" | "port", string>> = {};
+  if (url) {
+    try {
+      const parsed = new URL(url);
+      fromUrl = {
+        host: parsed.hostname,
+        user: decodeURIComponent(parsed.username || ""),
+        password: decodeURIComponent(parsed.password || ""),
+        database: parsed.pathname.replace(/^\//, ""),
+        port: parsed.port
+      };
+    } catch {
+      console.warn("⚠️ Database connection URL could not be parsed; falling back to individual variables.");
+    }
+  }
+
+  const host = process.env.DB_HOST || fromUrl.host || process.env.MYSQLHOST;
+  const user = process.env.DB_USER || fromUrl.user || process.env.MYSQLUSER || "root";
+  const password = process.env.DB_PASSWORD ?? fromUrl.password ?? process.env.MYSQLPASSWORD;
+  const database = process.env.DB_NAME || fromUrl.database || process.env.MYSQLDATABASE || "bsfms_db";
+  const port = parseInt(process.env.DB_PORT || fromUrl.port || process.env.MYSQLPORT || "3306", 10);
+  return { host, user, password, database, port };
+}
+
 export async function getDbPool(): Promise<mysql.Pool> {
   if (dbPool) return dbPool!;
 
-  const host = process.env.DB_HOST;
-  const user = process.env.DB_USER || "root";
-  const password = process.env.DB_PASSWORD;
-  const database = process.env.DB_NAME || "bsfms_db";
-  const port = parseInt(process.env.DB_PORT || "3306", 10);
+  const { host, user, password, database, port } = resolveDatabaseCredentials();
 
   if (!host) {
     if (process.env.NODE_ENV === "production" || process.env.ALLOW_MOCK_DB === "false") {
