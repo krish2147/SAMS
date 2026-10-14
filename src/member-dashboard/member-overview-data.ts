@@ -63,6 +63,8 @@ export function formatMemberDate(value?: string | null) {
 
 export function formatBatchTime(value?: string | null) {
   if (!value) return null;
+  // Batches are stored as "05:00 PM"; re-deriving the suffix from the hour read that as 5 AM.
+  if (/\b(am|pm)\b/i.test(value)) return value.trim().replace(/^0(\d)/, "$1").toUpperCase();
   const match = value.match(/^(\d{1,2}):(\d{2})/);
   if (!match) return value;
   const hour = Number(match[1]);

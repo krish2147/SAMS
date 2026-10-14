@@ -3,6 +3,11 @@ import { PaymentController } from "../controllers/payment.controller";
 import { requireAuth } from "../middleware/authMiddleware";
 
 const router = Router();
+
+// Invoices and receipts carry a member's name, phone, email, address and payment. They were
+// served to anyone who could guess a sequential id. Members fetch their own through
+// /api/member/payments/{receipt,invoice}; WhatsApp delivery attaches the PDF and needs no link.
+const STAFF_DOCUMENT_ROLES = ["super_admin", "admin", "staff", "receptionist"];
 const controller = new PaymentController();
 
 // 1. Standard Public Razorpay Checkout Endpoints
@@ -40,12 +45,12 @@ router.get("/payments/reports", requireAuth(["super_admin", "admin"]), controlle
 router.get("/admin/payments/reports", requireAuth(["super_admin", "admin"]), controller.getReports);
 
 // 9. Single Payment / Member Payments / Receipts / Invoices
-router.get("/payments/receipt/:id", controller.getReceipt);
-router.get("/payments/invoice/:id", controller.getInvoice);
-router.get("/payments/:id/receipt", controller.getReceipt);
-router.get("/payments/:id/invoice", controller.getInvoice);
-router.get("/admin/payments/:id/receipt", controller.getReceipt);
-router.get("/admin/payments/:id/invoice", controller.getInvoice);
+router.get("/payments/receipt/:id", requireAuth(STAFF_DOCUMENT_ROLES), controller.getReceipt);
+router.get("/payments/invoice/:id", requireAuth(STAFF_DOCUMENT_ROLES), controller.getInvoice);
+router.get("/payments/:id/receipt", requireAuth(STAFF_DOCUMENT_ROLES), controller.getReceipt);
+router.get("/payments/:id/invoice", requireAuth(STAFF_DOCUMENT_ROLES), controller.getInvoice);
+router.get("/admin/payments/:id/receipt", requireAuth(STAFF_DOCUMENT_ROLES), controller.getReceipt);
+router.get("/admin/payments/:id/invoice", requireAuth(STAFF_DOCUMENT_ROLES), controller.getInvoice);
 
 // 10. Resend Invoice & Receipts
 router.post("/payments/:id/resend-invoice", requireAuth(["super_admin", "admin"]), controller.resendInvoice);
