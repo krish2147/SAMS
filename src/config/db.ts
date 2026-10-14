@@ -4,6 +4,45 @@ import fs from "fs";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "crypto";
 
+/**
+ * The academy's published rate card, effective 1 February 2026.
+ * [plan_code, name, plan_category, frequency_code, duration_code, duration_months, fee]
+ * Registration resolves exactly one plan from category + frequency + duration, so a database
+ * without these rows cannot price any registration. Guest and Group carry no registration fee.
+ */
+export const OFFICIAL_MEMBERSHIP_PLANS: Array<[string, string, string, string, string, number, number]> = [
+  ["learners_6_days_1_month", "Learners 6 Days - 1 Month", "Learners", "6_days", "1_month", 1, 3500],
+  ["learners_6_days_3_months", "Learners 6 Days - 3 Months", "Learners", "6_days", "3_months", 3, 9500],
+  ["learners_6_days_6_months", "Learners 6 Days - 6 Months", "Learners", "6_days", "6_months", 6, 18500],
+  ["learners_6_days_9_months", "Learners 6 Days - 9 Months", "Learners", "6_days", "9_months", 9, 26500],
+  ["learners_6_days_annual", "Learners 6 Days - Annual", "Learners", "6_days", "annual", 12, 33500],
+  ["learners_3_days_1_month", "Learners 3 Days - 1 Month", "Learners", "3_days", "1_month", 1, 3000],
+  ["learners_3_days_3_months", "Learners 3 Days - 3 Months", "Learners", "3_days", "3_months", 3, 8500],
+  ["learners_3_days_6_months", "Learners 3 Days - 6 Months", "Learners", "3_days", "6_months", 6, 16000],
+  ["learners_3_days_9_months", "Learners 3 Days - 9 Months", "Learners", "3_days", "9_months", 9, 22500],
+  ["learners_3_days_annual", "Learners 3 Days - Annual", "Learners", "3_days", "annual", 12, 28500],
+  ["general_6_days_1_month", "General 6 Days - 1 Month", "General", "6_days", "1_month", 1, 3000],
+  ["general_6_days_3_months", "General 6 Days - 3 Months", "General", "6_days", "3_months", 3, 8500],
+  ["general_6_days_6_months", "General 6 Days - 6 Months", "General", "6_days", "6_months", 6, 16000],
+  ["general_6_days_9_months", "General 6 Days - 9 Months", "General", "6_days", "9_months", 9, 22500],
+  ["general_6_days_annual", "General 6 Days - Annual", "General", "6_days", "annual", 12, 28500],
+  ["general_3_days_1_month", "General 3 Days - 1 Month", "General", "3_days", "1_month", 1, 2700],
+  ["general_3_days_3_months", "General 3 Days - 3 Months", "General", "3_days", "3_months", 3, 7500],
+  ["general_3_days_6_months", "General 3 Days - 6 Months", "General", "3_days", "6_months", 6, 14500],
+  ["general_3_days_9_months", "General 3 Days - 9 Months", "General", "3_days", "9_months", 9, 20500],
+  ["general_3_days_annual", "General 3 Days - Annual", "General", "3_days", "annual", 12, 25500],
+  ["family_4_6_days_1_month", "Family 4 - 1 Month", "Family_4", "6_days", "1_month", 1, 10000],
+  ["family_4_6_days_3_months", "Family 4 - 3 Months", "Family_4", "6_days", "3_months", 3, 28500],
+  ["family_3_6_days_1_month", "Family 3 - 1 Month", "Family_3", "6_days", "1_month", 1, 8000],
+  ["family_3_6_days_3_months", "Family 3 - 3 Months", "Family_3", "6_days", "3_months", 3, 22500],
+  ["guest_hourly_weekday", "Guest Weekday - 1 Hour", "Guest", "hourly", "hourly", 0, 300],
+  ["guest_hourly_weekend", "Guest Weekend - 1 Hour", "Guest", "hourly", "weekend_hourly", 0, 350],
+  ["group_fixed_one_time", "Group - 2 Hours (Max 50)", "Group", "fixed", "one_time", 0, 25000]
+];
+
+const OFFICIAL_RATE_CARD_TAG = "OFFICIAL_RATE_CARD_2026";
+const officialRegistrationFee = (category: string) => (category === "Guest" || category === "Group" ? 0 : 300);
+
 let dbPool: mysql.Pool | null = null;
 let connectionError: Error | null = null;
 let mockDatabaseActive = false;
@@ -171,6 +210,12 @@ const statements = cleanedSql
       "ALTER TABLE members ADD COLUMN next_renewal_date DATE NULL",
       "ALTER TABLE members ADD COLUMN last_payment_id INT UNSIGNED NULL",
       "ALTER TABLE otp_login_challenges ADD COLUMN otp_hash CHAR(64) NULL",
+      // Plan selection codes. Databases created before the rate card existed lack them, and
+      // registration cannot price anything without them.
+      "ALTER TABLE membership_plans ADD COLUMN plan_code VARCHAR(80) NULL",
+      "ALTER TABLE membership_plans ADD COLUMN plan_category VARCHAR(30) NULL",
+      "ALTER TABLE membership_plans ADD COLUMN frequency_code VARCHAR(30) NULL",
+      "ALTER TABLE membership_plans ADD COLUMN duration_code VARCHAR(30) NULL",
       // Post-payment delivery pipeline: each stage retries independently (see PaymentService)
       "ALTER TABLE payments ADD COLUMN invoice_generation_status VARCHAR(20) NOT NULL DEFAULT 'Pending'",
       "ALTER TABLE payments ADD COLUMN invoice_generation_attempts INT UNSIGNED NOT NULL DEFAULT 0",
@@ -262,6 +307,24 @@ async function seedDefaultData(pool: mysql.Pool) {
         await pool.query(
           "INSERT INTO membership_plans (id, name, duration_months, registration_fee, renewal_fee, co_charge, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)",
           p
+        );
+      }
+    }
+
+    // Seeded per plan_code rather than on an empty table, so a database that already holds the
+    // legacy plans above still gains the rate card. Existing rows are never overwritten.
+    const [existingPlans]: any = await pool.query("SELECT name, plan_code FROM membership_plans");
+    const existingCodes = new Set(existingPlans.map((p: any) => p.plan_code).filter(Boolean));
+    const existingNames = new Set(existingPlans.map((p: any) => String(p.name).toLowerCase()));
+    const missingPlans = OFFICIAL_MEMBERSHIP_PLANS.filter(([code, name]) =>
+      !existingCodes.has(code) && !existingNames.has(name.toLowerCase())
+    );
+    if (missingPlans.length > 0) {
+      console.log("🌱 Seeding the 2026 membership rate card...");
+      for (const [code, name, category, frequency, duration, months, fee] of missingPlans) {
+        await pool.query(
+          "INSERT INTO membership_plans (name, duration_months, registration_fee, renewal_fee, co_charge, description, is_active, plan_code, plan_category, frequency_code, duration_code) VALUES (?, ?, ?, ?, 0.00, ?, 1, ?, ?, ?, ?)",
+          [name, months, officialRegistrationFee(category), fee, OFFICIAL_RATE_CARD_TAG, code, category, frequency, duration]
         );
       }
     }
@@ -363,7 +426,11 @@ function loadMockDb(): any {
         { id: 3, name: "Yearly", duration_months: 12, registration_fee: 500.00, renewal_fee: 10000.00, co_charge: 0.00, is_active: 1 },
         { id: 4, name: "General", duration_months: 1, registration_fee: 500.00, renewal_fee: 2000.00, co_charge: 0.00, is_active: 1 },
         { id: 5, name: "Learners", duration_months: 1, registration_fee: 500.00, renewal_fee: 3500.00, co_charge: 0.00, is_active: 1 },
-        { id: 6, name: "Family", duration_months: 1, registration_fee: 500.00, renewal_fee: 6000.00, co_charge: 1500.00, is_active: 1 }
+        { id: 6, name: "Family", duration_months: 1, registration_fee: 500.00, renewal_fee: 6000.00, co_charge: 1500.00, is_active: 1 },
+        ...OFFICIAL_MEMBERSHIP_PLANS.map(([plan_code, name, plan_category, frequency_code, duration_code, duration_months, fee], index) => ({
+          id: 7 + index, name, duration_months, registration_fee: officialRegistrationFee(plan_category), renewal_fee: fee,
+          co_charge: 0.00, description: OFFICIAL_RATE_CARD_TAG, is_active: 1, plan_code, plan_category, frequency_code, duration_code
+        }))
       ],
       batches: [
         { id: 1, academy_id: "swim", batch_name: "Morning Batch 1 (06:00 AM - 07:00 AM)", start_time: "06:00 AM", end_time: "07:00 AM", capacity: 30, current_strength: 0, status: "OPEN" },
