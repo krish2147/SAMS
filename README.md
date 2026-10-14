@@ -1,5 +1,8 @@
 # Swimming Academy Membership System (SAMS)
 
+> Picking this project up? Read [HANDOFF.md](HANDOFF.md) first — it records what is actually
+> verified, what is not, and the traps that have cost real time.
+
 SAMS is a React and Express membership application backed by MySQL. New registrations enter admin approval, approval creates a server-priced Razorpay order, and its checkout URL is sent through WhatsApp.
 
 ## Run Locally
@@ -17,7 +20,9 @@ In development, the app can use its local JSON database when MySQL is unavailabl
 - Persistent volume mounted at the path configured by `UPLOAD_DIR`
 - Public HTTPS URL assigned to both `APP_URL` and `APP_BASE_URL`
 - Razorpay webhook URL: `https://YOUR_DOMAIN/api/webhook/razorpay`
-- Razorpay events: `payment.captured`, `payment.failed`, and `refund.processed`
+- Razorpay events: `payment.captured`, `payment.failed`, `refund.processed`, and `payment_link.paid`
+  (`payment_link.paid` confirms the WhatsApp payment-link flow used by registration; without it a
+  paid registration never activates)
 
 The first startup against an empty production database requires `INITIAL_ADMIN_EMAIL` and an `INITIAL_ADMIN_PASSWORD` of at least 12 characters. Remove those bootstrap values after the administrator has been created.
 
@@ -30,7 +35,7 @@ The selected production target is DigitalOcean in the Bangalore region:
 3. Copy `deploy/digitalocean-app.yaml.example`, replace the GitHub repository and MySQL cluster placeholders, and create the App Platform app from that spec.
 4. Add the Razorpay, MSG91, Spaces, SMTP, and initial-administrator values from `.env.example` as encrypted runtime variables in App Platform.
 5. Deploy with one `apps-s-1vcpu-1gb` instance for the pilot. After load testing, set `instance_count: 2` for production redundancy.
-6. Set the Razorpay webhook to `https://YOUR_DOMAIN/api/webhook/razorpay` and subscribe to `payment.captured`, `payment.failed`, and `refund.processed`.
+6. Set the Razorpay webhook to `https://YOUR_DOMAIN/api/webhook/razorpay` and subscribe to `payment.captured`, `payment.failed`, `refund.processed`, and `payment_link.paid`.
 
 App Platform database variables use DigitalOcean bindable references, so database credentials are not committed to the repository. Spaces objects are served through the app's `/uploads` route; local development continues to use the `UPLOAD_DIR` fallback.
 

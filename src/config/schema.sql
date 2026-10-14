@@ -36,8 +36,15 @@ CREATE TABLE IF NOT EXISTS membership_plans (
   co_charge DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   description TEXT DEFAULT NULL,
   is_active TINYINT(1) NOT NULL DEFAULT 1,
+  -- Registration resolves exactly one plan from these three codes. Without them the
+  -- rate card cannot be matched and no registration can be priced.
+  plan_code VARCHAR(80) NULL,
+  plan_category VARCHAR(30) NULL,
+  frequency_code VARCHAR(30) NULL,
+  duration_code VARCHAR(30) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_plan_selection (plan_category, frequency_code, duration_code)
 ) ENGINE=InnoDB;
 
 -- 4. BATCHES
