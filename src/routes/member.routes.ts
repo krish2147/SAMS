@@ -7,8 +7,15 @@ const router = Router();
 const memberController = new MemberController();
 
 // Registration
+// Public self-registration: creates a Pending application that an admin must approve.
 router.post("/register", upload.single("photo"), memberController.register);
-router.post("/members/register", memberController.directRegister);
+// Staff walk-in intake. This creates a member directly and the caller may mark it Approved,
+// so it must never be reachable unauthenticated - it previously was.
+router.post(
+  "/members/register",
+  requireAuth(["admin", "super_admin", "staff", "receptionist"]),
+  memberController.directRegister
+);
 
 // Member Profiles & Lookup
 router.get("/members", requireAuth(["admin", "super_admin", "coach", "staff", "receptionist"]), memberController.getAll);

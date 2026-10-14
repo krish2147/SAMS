@@ -625,35 +625,20 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
       finalPhone = `+91 ${digitsOnly.slice(2, 7)} ${digitsOnly.slice(7)}`;
     }
 
+    // Only what the walk-in form actually collected. Everything else is left blank for staff
+    // to complete from the member's own details. This object previously invented a date of
+    // birth, age, blood group, height, weight, address, email and - most seriously - an
+    // emergency contact of "SAMS Office / +91 99999 88888", which would have been the number
+    // called during an incident at the poolside instead of the member's family.
     const newM = {
       membershipNo: mNo,
       typeOfMembership: newMemPlan,
-      batchSchedule: "MWF",
       batchTiming: newMemTiming,
       startDate: new Date().toISOString().split("T")[0],
-      endDate: "2026-08-30",
       coachRequired: newMemCoach,
       fullName: newMemName.trim(),
       gender: newMemGender,
-      dateOfBirth: "2000-01-01",
-      age: "26",
-      addressLine1: "101, SAMS Arcade Center",
-      addressLine2: "Alkapuri, Vadodara",
       mobileNo: finalPhone,
-      email: `${newMemName.trim().toLowerCase().replace(/\s+/g, ".")}@sams.com`,
-      emergencyName: "SAMS Office",
-      emergencyPhone: "+91 99999 88888",
-      emergencyRelation: "Administrator",
-      hasMedicalCondition: "No",
-      medicalDetails: "",
-      disability: "N/A",
-      bloodGroup: "B+",
-      height: "175",
-      weight: "68",
-      relationToUndertaker: "self",
-      undertakerParentName: "Parent",
-      typedSignature: newMemName.trim(),
-      signatureDataUrl: null,
       academyId,
       status: "Approved",
       paymentStatus: "Unpaid",
@@ -663,6 +648,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
     fetch("/api/members/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
       body: JSON.stringify(newM)
     })
     .then(res => res.ok ? res.json().catch(() => newM) : newM)
@@ -848,16 +834,19 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
   const currentUserRole = loggedInSession?.role || activeUser.role || "admin";
   const currentUserId = loggedInSession?.id || loggedInSession?.userId;
 
-  // Adaptive Styles
-  const bgCard = isSwim ? "bg-white border-slate-100 shadow-md text-slate-800" : "bg-emerald-950/40 border-emerald-900/40 text-emerald-100";
-  const bgSubCard = isSwim ? "bg-slate-50 border border-slate-100" : "bg-emerald-900/10 border border-emerald-900/30";
-  const badgeTheme = isSwim ? "bg-sky-50 text-sky-600 border-sky-100" : "bg-amber-400/10 text-amber-300 border-amber-400/20";
-  const buttonPrimary = isSwim ? "bg-sky-500 hover:bg-sky-600 text-white" : "bg-amber-400 hover:bg-amber-500 text-slate-950";
-  const textTitle = isSwim ? "text-slate-900" : "text-white font-serif";
-  const borderTab = isSwim ? "border-slate-100" : "border-emerald-900/30";
-  const inputStyle = `w-full p-3 text-xs rounded-xl focus:outline-none border font-semibold ${
-    isSwim 
-      ? "bg-white border-slate-200 text-slate-900 focus:border-sky-400" 
+  // Shared surface tokens. Every console tab reads these, so the design system is applied
+  // in one place rather than per screen. Swim uses the ink/aqua palette from index.css;
+  // the cricket academy keeps its own emerald identity.
+  const bgCard = isSwim ? "bg-white border-ink-100 shadow-card text-ink-900" : "bg-emerald-950/40 border-emerald-900/40 text-emerald-100";
+  const bgSubCard = isSwim ? "bg-ink-50 border border-ink-100" : "bg-emerald-900/10 border border-emerald-900/30";
+  const badgeTheme = isSwim ? "bg-aqua-400/10 text-aqua-600 border-aqua-400/25" : "bg-amber-400/10 text-amber-300 border-amber-400/20";
+  const buttonPrimary = isSwim ? "bg-aqua-500 hover:bg-aqua-600 text-white" : "bg-amber-400 hover:bg-amber-500 text-slate-950";
+  const textTitle = isSwim ? "text-ink-950 font-display tracking-[-0.02em]" : "text-white font-serif";
+  const borderTab = isSwim ? "border-ink-100" : "border-emerald-900/30";
+  // min-h-11 keeps inputs at a comfortable touch target on tablets at the reception desk.
+  const inputStyle = `w-full min-h-11 px-3.5 py-2.5 text-sm rounded-xl outline-none border font-medium transition-colors ${
+    isSwim
+      ? "bg-white border-ink-200 text-ink-900 placeholder-ink-400 focus:border-aqua-400 focus-visible:ring-2 focus-visible:ring-aqua-400/30"
       : "bg-emerald-900/20 border-emerald-900/40 text-emerald-50 focus:border-amber-400"
   }`;
 
