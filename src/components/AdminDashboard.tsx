@@ -18,6 +18,7 @@ import { ReportsTab } from "./ReportsTab";
 import { ActivityTab } from "./ActivityTab";
 import { PaymentsTab } from "./PaymentsTab";
 import { ApprovalsTab } from "./ApprovalsTab";
+import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-logo";
 import { SettingsTab } from "./SettingsTab";
 import { NotificationDrawer } from "./NotificationDrawer";
 import { CalendarTab } from "./CalendarTab";
@@ -891,29 +892,31 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
   });
 
   return (
-    <div className="flex flex-col md:flex-row h-screen h-[100dvh] w-full bg-slate-50 text-slate-800 font-sans text-left overflow-hidden relative">
+    <div className="flex flex-col md:flex-row h-screen h-[100dvh] w-full bg-canvas text-ink-900 font-sans text-left overflow-hidden relative">
       
       {/* 1. DESKTOP NAVIGATION SIDEBAR */}
-      <aside className="hidden md:flex flex-col w-64 bg-slate-900 text-slate-300 border-r border-slate-800 shrink-0 h-screen">
+      <aside className="hidden md:flex flex-col w-[248px] bg-ink-900 text-ink-200 shrink-0 h-screen">
         {/* Sidebar Header with Academy Branding */}
-        <div className="h-16 px-6 flex items-center gap-3 border-b border-slate-800 bg-slate-950/40 shrink-0">
-          <div className="flex items-center justify-center rounded-xl bg-gradient-to-br from-sky-50 to-cyan-500 text-white h-9 w-9 shadow-md shrink-0">
-            <span className="text-base">{isSwim ? "🌊" : "🏏"}</span>
-          </div>
+        <div className="h-[72px] px-5 flex items-center gap-3 shrink-0">
+          <img
+            src={BARODA_SWIM_FRONT_LOGO_DATA_URI}
+            alt="Baroda Swim Front"
+            className="h-9 w-9 shrink-0 rounded-xl object-cover ring-1 ring-white/15"
+          />
           <div className="flex flex-col justify-center min-w-0">
-            <span className="text-xs font-black tracking-tight leading-none text-white truncate">
+            <span className="text-sm font-bold tracking-tight leading-none text-white truncate">
               Baroda Swim Front
             </span>
-            <span className="text-[9px] font-mono tracking-widest uppercase font-semibold text-sky-400 mt-1 truncate">
-              SAMS SYSTEM
+            <span className="text-[11px] font-medium tracking-wide text-aqua-300 mt-1 truncate">
+              Staff Console
             </span>
           </div>
         </div>
 
         {/* User Info Capsule */}
-        <div className="p-4 border-b border-slate-800 bg-slate-950/20 shrink-0 flex flex-col gap-2">
+        <div className="mx-3 mb-2 rounded-xl border border-white/10 bg-white/5 p-3 shrink-0 flex flex-col gap-2">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl overflow-hidden bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-sky-400 uppercase shrink-0">
+            <div className="h-9 w-9 rounded-xl overflow-hidden bg-white/10 border border-white/10 flex items-center justify-center font-bold text-aqua-300 uppercase shrink-0">
               {activeUser.avatar ? (
                 <img src={activeUser.avatar} alt="Profile" className="h-full w-full object-cover" />
               ) : (
@@ -921,8 +924,8 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-xs font-bold text-white truncate">{activeUser.name}</div>
-              <div className="text-[9.5px] font-mono text-sky-400 uppercase font-semibold truncate tracking-wider">
+              <div className="text-sm font-semibold text-white truncate">{activeUser.name}</div>
+              <div className="text-[10px] font-semibold text-ink-300 uppercase truncate tracking-[0.1em] mt-0.5">
                 {activeUser.role.replace("_", " ")}
               </div>
             </div>
@@ -930,7 +933,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
         </div>
 
         {/* Sidebar Navigation Items */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+        <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
           {visibleTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -942,13 +945,14 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                   setActiveTab(tab.id);
                   setSelectedMember(null);
                 }}
-                className={`w-full px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-3 transition-all cursor-pointer ${
-                  isActive 
-                    ? "bg-sky-600 text-white font-bold shadow-sm" 
-                    : "text-slate-400 hover:text-white hover:bg-slate-800"
+                className={`group relative w-full min-h-11 px-3 rounded-xl text-sm flex items-center gap-3 outline-none transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-aqua-400 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900 ${
+                  isActive
+                    ? "bg-white/10 font-semibold text-white"
+                    : "font-medium text-ink-200 hover:bg-white/5 hover:text-white"
                 }`}
               >
-                <Icon className="h-4 w-4 shrink-0" />
+                {isActive && <span className="absolute bottom-2 left-0 top-2 w-[3px] rounded-r-full bg-aqua-400" />}
+                <Icon className={`h-[18px] w-[18px] shrink-0 ${isActive ? "text-aqua-300" : "text-ink-400 group-hover:text-ink-200"}`} />
                 <span className="truncate">{tab.label}</span>
               </button>
             );
@@ -956,7 +960,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
         </nav>
 
         {/* Sidebar Footer with Logout */}
-        <div className="p-4 border-t border-slate-800 bg-slate-950/40 shrink-0">
+        <div className="p-3 border-t border-white/8 shrink-0">
           <button
             id="btn-admin-logout"
             onClick={() => onLogout?.()}
@@ -972,7 +976,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
       <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden relative">
         
         {/* MOBILE TOP HEADER (Sticky, Premium, Blur) */}
-        <header className="md:hidden flex h-14 bg-white/95 border-b border-slate-200/80 justify-between items-center px-4 shrink-0 z-30 backdrop-blur-md">
+        <header className="md:hidden flex h-14 bg-white/95 border-b border-ink-100 justify-between items-center px-4 shrink-0 z-30 backdrop-blur-md">
           <div className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-lg bg-sky-500 text-white flex items-center justify-center font-bold text-sm shadow-sm shrink-0">
               {isSwim ? "🌊" : "🏏"}
