@@ -132,6 +132,29 @@ fallback — that silently charged every registration ₹2,500 regardless of wha
   fails. Production should fail closed.
 - Member password change calls `/api/staff/update-password`; confirm role separation.
 
+**Launch plan.** Until a launch date is fixed, the system is shown to the client as a
+walkthrough of screenshots taken on sample data. Before launch, deploy to production as in
+§3 (managed MySQL, real domain, Razorpay live keys) and work through this list.
+
+**Fix before launch (found October 2026)**
+- Reports page: shows 0 active members and ₹0 revenue while its revenue chart rises —
+  the chart looks invented. Check every figure on that page against the database.
+- Staff dashboard "Today's revenue" shows ₹0 while Payments shows the real amount for today.
+- Registration pre-selects "No conditions" for the medical question, and the server stores
+  blood group "O+" when none was given (`member.service.ts`). Both put an invented medical
+  declaration on the record; the member must choose.
+- `POST /api/members/pay` (no screen uses it) defaults the amount to ₹120, invents a
+  `pay_rzp_…` transaction id, and never sets membership start/end dates. Fix or remove it
+  before anything calls it.
+- In development, `uploads/mock-database.json` (including password hashes) is served by the
+  public `/uploads` route. Production refuses the mock database, but member photos under
+  `/uploads` are public too — decide whether they should need a login.
+- One member-dashboard test still fails (calendar routes do not resolve the member).
+
+**Fixed October 2026:** invoices and receipts were downloadable by anyone counting up the
+invoice id; they now need a staff login, and members fetch only their own. The member
+portal's membership, batch and payment screens now read the stored values.
+
 **Known broken**
 - Six test files do not compile, referencing exports that do not exist:
   `batch-management`, `batch-operations`, `member-approval`, `payment`,
