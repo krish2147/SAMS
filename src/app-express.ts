@@ -1,6 +1,7 @@
 import express from "express";
 import apiRoutes from "./routes";
 import { errorHandler } from "./middleware/errorHandler";
+import { requireAuth } from "./middleware/authMiddleware";
 import { uploadsDir } from "./config/multer";
 import { getDbPool, isMockDatabase } from "./config/db";
 import { getObject, objectStorageEnabled } from "./services/object-storage.service";
@@ -39,6 +40,10 @@ app.use(express.json({
   }
 }));
 app.use(express.urlencoded({ extended: true }));
+
+// Generated invoices are personal records; only staff open them directly. Members download
+// their own through /api/member/payments/invoice/:number, which checks ownership.
+app.use("/uploads/invoices", requireAuth(["super_admin", "admin", "staff", "receptionist"]));
 
 // Serve durable Spaces objects in production and local files in development.
 if (objectStorageEnabled()) {

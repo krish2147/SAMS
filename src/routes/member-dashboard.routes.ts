@@ -63,6 +63,50 @@ async function getAuthenticatedMember(req: any): Promise<any> {
   return null;
 }
 
+function memberBatch(member: any) {
+  return member.batch_name
+    ? { name: member.batch_name, startTime: member.start_time ?? null, endTime: member.end_time ?? null }
+    : null;
+}
+
+function membershipSummary(member: any) {
+  const expiryDate = toDateOnlyString(member.membership_end_date);
+  return {
+    status: member.membership_status || "Inactive",
+    paymentStatus: member.payment_status || "Pending",
+    planName: member.plan_name || null,
+    startDate: toDateOnlyString(member.membership_start_date) || null,
+    expiryDate: expiryDate || null,
+    daysRemaining: expiryDate ? Math.max(0, calendarDaysBetween(calendarToday(), expiryDate)) : null,
+    durationMonths: member.plan_duration ?? null,
+    batchName: member.batch_name || null
+  };
+}
+
+const PAID_STATUSES = ["paid", "success", "successful", "completed", "captured"];
+
+// The portal's MemberPayment shape. Receipt and invoice links are offered only for a paid
+// payment that carries the number, and are served by the ownership-checked routes below.
+function presentMemberPayment(row: any) {
+  const paid = PAID_STATUSES.includes(String(row.payment_status || "").toLowerCase());
+  return {
+    id: row.id,
+    amount: Number(row.amount || 0),
+    status: row.payment_status || null,
+    paymentDate: row.payment_date ? toDateOnlyString(row.payment_date) : null,
+    planName: row.plan_name || null,
+    paymentType: row.payment_type || null,
+    receiptNo: row.receipt_no || null,
+    invoiceNo: row.invoice_no || null,
+    hasReceipt: paid && Boolean(row.receipt_no),
+    hasInvoice: paid && Boolean(row.invoice_no),
+    paymentMethod: row.payment_method || null,
+    refundAmount: Number(row.refund_amount || 0),
+    refundStatus: row.refund_status || null,
+    refundDate: row.refund_date ? toDateOnlyString(row.refund_date) : null
+  };
+}
+
 // 1. GET /api/member/profile
 router.get("/member/profile", requireAuth(["member", "parent"]), async (req: any, res: Response, next) => {
   try {
@@ -152,6 +196,7 @@ router.get("/member/dashboard", requireAuth(["member", "parent"]), async (req: a
         batchName: member.batch_name,
         coachName
       } : null,
+      batch: memberBatch(member),
       upcomingEvent: upcomingEvents[0],
       upcomingHoliday: upcomingHolidays[0],
       recentNotifications: recentNotifications.slice(0, 3)
@@ -244,12 +289,7 @@ router.get("/member/payments", requireAuth(["member", "parent"]), async (req: an
       [member.id]
     );
 
-    res.json({
-      payments: payments || [],
-      registrationFee: member.registration_fee || 1500,
-      renewalFee: member.renewal_fee || 2500,
-      membershipFee: member.renewal_fee || 2500
-    });
+    res.json({ payments: (payments || []).map(presentMemberPayment) });
   } catch (err) {
     next(err);
   }
@@ -272,87 +312,70 @@ router.get("/member/notifications", requireAuth(["member", "parent"]), async (re
 });
 
 // 7. GET /api/member/membership
+// Built from stored values only. This used to recompute dates from the registration date,
+// invent an approval date one day before activation, and list plan "benefits" (guest passes,
+// merchandise discounts) the academy never offered.
 router.get("/member/membership", requireAuth(["member", "parent"]), async (req: any, res: Response, next) => {
   try {
     const member = await getAuthenticatedMember(req);
     if (!member) {
       return res.status(404).json({ error: "Authenticated member record not found" });
     }
-
-    // Default start/expiry calculation
-    const startStr = member.paymentDate || member.registrationDate || new Date().toISOString().split("T")[0];
-    let expiryStr: string | null = null;
-    let daysRemaining = 0;
-    
-    try {
-      let baseDate = new Date(startStr);
-      if (isNaN(baseDate.getTime())) {
-        const parts = startStr.split("/");
-        if (parts.length === 3) {
-          baseDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-        }
-      }
-      if (!isNaN(baseDate.getTime())) {
-        baseDate.setMonth(baseDate.getMonth() + (member.plan_duration || 1));
-        expiryStr = baseDate.toISOString().split("T")[0];
-        const diffTime = baseDate.getTime() - Date.now();
-        daysRemaining = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-      }
-    } catch (e) {}
-
-    // Dynamic but realistic benefits based on plan
-    const planNameLower = (member.plan_name || "").toLowerCase();
-    let benefits = [
-      "Access to standard training pool lanes during allocated batch times",
-      "Assigned certified head coach supervision",
-      "Locker room and high-end temperature-controlled shower facilities",
-      "Complimentary entry to Baroda local tournaments"
-    ];
-
-    if (planNameLower.includes("gold") || planNameLower.includes("premium") || planNameLower.includes("annual")) {
-      benefits.push(
-        "Priority personal stroke correction review sessions",
-        "Free guest entry pass once per month",
-        "Discounts on official academy speedo caps & goggles"
-      );
-    }
-
-    // Construct registration, approval, activation timeline
-    const regDate = member.registrationDate || "15/06/2026";
-    let appDate = "16/06/2026";
-    let actDate = "16/06/2026";
-
-    try {
-      let baseDate = new Date(startStr);
-      if (!isNaN(baseDate.getTime())) {
-        const d1 = new Date(baseDate);
-        d1.setDate(d1.getDate() - 1); // Approved 1 day before start
-        appDate = d1.toISOString().split("T")[0];
-        actDate = baseDate.toISOString().split("T")[0];
-      }
-    } catch (e) {}
-
     res.json({
-      summary: {
-        membershipNo: member.membershipNo || `MEM-${String(member.id).padStart(5, "0")}`,
-        status: member.membership_status || "Inactive",
-        planName: member.plan_name || "No Active Plan",
-        startDate: startStr,
-        expiryDate: expiryStr || startStr,
-        daysRemaining: member.membership_status === "Active" ? daysRemaining : 0
-      },
-      benefits,
-      timeline: {
-        registrationDate: regDate,
-        approvalDate: appDate,
-        activationDate: actDate,
-        nextRenewalDate: expiryStr || startStr
-      }
+      member: { id: member.id, fullName: member.fullName, membershipNo: member.membershipNo, photoUrl: member.photoUrl },
+      membership: membershipSummary(member),
+      batch: memberBatch(member)
     });
   } catch (err) {
     next(err);
   }
 });
+
+// 7a. GET /api/member/payments/receipt/:receiptNo and /invoice/:invoiceNo
+// Invoice references are bound to the authenticated member: a number belonging to anyone
+// else, or to an unpaid payment, is reported as not found.
+async function sendOwnPaymentDocument(req: any, res: Response, next: any, paymentRow: (memberId: number) => Promise<any>) {
+  try {
+    const member = await getAuthenticatedMember(req);
+    if (!member) {
+      return res.status(404).json({ error: "Authenticated member record not found" });
+    }
+    const payment = await paymentRow(member.id);
+    if (!payment || !PAID_STATUSES.includes(String(payment.payment_status || "").toLowerCase())) {
+      return res.status(404).json({ error: "Document not found" });
+    }
+    const { pdfResult, invoiceNo } = await new PaymentService().ensureAndGetInvoicePDF(Number(payment.id));
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `${req.query.download === "true" ? "attachment" : "inline"}; filename="${invoiceNo}.pdf"`);
+    res.setHeader("Content-Length", pdfResult.pdfBuffer.length);
+    res.setHeader("Cache-Control", "private, no-store");
+    return res.send(pdfResult.pdfBuffer);
+  } catch (err) {
+    next(err);
+  }
+}
+
+router.get("/member/payments/receipt/:receiptNo", requireAuth(["member", "parent"]), (req: any, res, next) =>
+  sendOwnPaymentDocument(req, res, next, async (memberId) => {
+    const pool = await getDbPool();
+    const [rows]: any = await pool.query(
+      "SELECT id, payment_status FROM payments WHERE member_id = ? AND receipt_no = ? LIMIT 1",
+      [memberId, req.params.receiptNo]
+    );
+    return rows?.[0];
+  })
+);
+
+router.get("/member/payments/invoice/:invoiceNo", requireAuth(["member", "parent"]), (req: any, res, next) =>
+  sendOwnPaymentDocument(req, res, next, async (memberId) => {
+    const pool = await getDbPool();
+    const [rows]: any = await pool.query(
+      "SELECT id, payment_status FROM payments WHERE member_id = ? AND invoice_no = ? LIMIT 1",
+      [memberId, req.params.invoiceNo]
+    );
+    return rows?.[0];
+  })
+);
 
 // 8. GET /api/member/payment-history
 router.get("/member/payment-history", requireAuth(["member", "parent"]), async (req: any, res: Response, next) => {
