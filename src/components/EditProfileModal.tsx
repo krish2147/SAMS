@@ -1,5 +1,7 @@
 import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { CHARACTER_AVATARS } from "../utils/avatars";
+import { PhotoPicker } from "./PhotoPicker";
 import { 
   X, Camera, Phone, User, Heart, Upload, Check, AlertCircle, RefreshCw, MapPin, ShieldAlert, Activity
 } from "lucide-react";
@@ -13,12 +15,7 @@ interface EditProfileModalProps {
 }
 
 // Preset sports avatars for quick pick if user does not wish to upload
-const AVATAR_PRESETS = [
-  "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150", // Female swimmer/athlete feel
-  "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?q=80&w=150", // Male athlete feel
-  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=150", // Professional/athlete feel
-  "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=150", // Active feel
-];
+const AVATAR_PRESETS = CHARACTER_AVATARS;
 
 export function EditProfileModal({ isOpen, onClose, currentProfile, onSave, isSwim }: EditProfileModalProps) {
   const [mobileNo, setMobileNo] = useState(currentProfile?.mobileNo || "");
@@ -275,7 +272,7 @@ export function EditProfileModal({ isOpen, onClose, currentProfile, onSave, isSw
             <div className="flex flex-col md:flex-row gap-5 items-center">
               <div className="relative group select-none shrink-0">
                 <img 
-                  src={photoUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150"} 
+                  src={photoUrl || CHARACTER_AVATARS[0]} 
                   alt="Member Avatar Preview" 
                   className={`w-24 h-24 rounded-2xl object-cover border-2 border-sky-400 shadow-md`}
                 />
@@ -287,25 +284,16 @@ export function EditProfileModal({ isOpen, onClose, currentProfile, onSave, isSw
                 onDragOver={handleDrag}
                 onDragLeave={handleDrag}
                 onDrop={handleDrop}
-                onClick={onButtonClick}
-                className={`flex-1 w-full p-5 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer transition-all border-slate-200 hover:border-sky-400 hover:bg-sky-50/20`}
+                className="flex-1 w-full p-5 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center text-center gap-3 transition-all border-slate-200"
               >
-                <input 
-                  type="file" 
-                  ref={fileInputRef}
-                  onChange={handleFileInputChange}
-                  accept="image/png, image/jpeg, image/webp"
-                  className="hidden" 
-                />
-                <Upload className={`h-6 w-6 text-sky-400 mb-1.5`} />
-                <p className="text-xs font-bold text-slate-700">Drag & drop photo here, or <span className="text-sky-500 underline">browse</span></p>
-                <p className="text-[10px] text-slate-400 mt-0.5">JPEG, PNG, WEBP (Max 4MB)</p>
+                <PhotoPicker onPick={handleFile} className="justify-center" />
+                <p className="text-xs text-slate-400">JPEG, PNG or WEBP, up to 4 MB<span className="hidden sm:inline">. You can also drag a photo here.</span></p>
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-mono uppercase text-slate-400 font-bold">Quick Choice Presets</label>
-              <div className="flex gap-3">
+              <label className="text-xs font-semibold text-slate-500">Or pick a character</label>
+              <div className="flex flex-wrap gap-3">
                 {AVATAR_PRESETS.map((preset, idx) => (
                   <button
                     key={idx}

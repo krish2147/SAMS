@@ -188,7 +188,7 @@ export function PaymentsTab({ getSessionToken, userRole = "admin", username = "A
         currency: "INR",
         name: "Baroda Swim Front",
         description: `${tx.planName} Fee Payment`,
-        image: "https://images.unsplash.com/photo-1530549387789-4c1017266635?w=120&auto=format&fit=crop&q=80",
+        image: `${window.location.origin}/icons/icon-192.png`,
         order_id: orderData.orderId,
         prefill: {
           name: tx.memberName,

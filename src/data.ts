@@ -1,4 +1,5 @@
 import { AcademyTheme, Coach, Student, Booking, SupportQuery } from "./types";
+import { CHARACTER_AVATARS } from "./utils/avatars";
 
 export const academies: { [key: string]: AcademyTheme } = {
   swim: {
@@ -67,7 +68,7 @@ export const swimCoaches: Coach[] = [
     name: "Sanjay",
     specialty: "Aerobic Capacity & Freestyle Stroke",
     rating: 4.9,
-    image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=300&auto=format&fit=crop",
+    image: CHARACTER_AVATARS[5],
     bio: "Elite SAMS coach. 15+ years coaching national-tier athletes with a focus on high-efficiency breathing kinetics."
   },
   {
@@ -75,7 +76,7 @@ export const swimCoaches: Coach[] = [
     name: "Hetvi",
     specialty: "Hydro-Biomechanics & Butterfly Specialists",
     rating: 5.0,
-    image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=300&auto=format&fit=crop",
+    image: CHARACTER_AVATARS[6],
     bio: "Specializes in advanced telemetry and drag-reduction suit feedback to carve milliseconds off sprint finishes."
   }
 ];
@@ -86,7 +87,7 @@ export const cricketCoaches: Coach[] = [
     name: "Sanjay",
     specialty: "Elite Fast Bowling & Seam Dynamics",
     rating: 4.9,
-    image: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?q=80&w=300&auto=format&fit=crop",
+    image: CHARACTER_AVATARS[7],
     bio: "Trained under global speed masters. Specializes in bowling action preservation, injury prevention, and out-swing craftsmanship."
   },
   {
@@ -94,7 +95,7 @@ export const cricketCoaches: Coach[] = [
     name: "Hetvi",
     specialty: "Tactical Match-Play & Spin Artistry",
     rating: 5.0,
-    image: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?q=80&w=300&auto=format&fit=crop",
+    image: CHARACTER_AVATARS[1],
     bio: "Legendary strategist. Leads advanced workshops on pitch evaluation, field settings, and match-deciding batting accelerations."
   }
 ];

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { Download, QrCode, ShieldCheck, Sparkles, CheckCircle2, AlertTriangle, Calendar, User, Clock, Share2, Maximize2, Phone, HeartPulse, X } from "lucide-react";
 import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-logo";
+import { CHARACTER_AVATARS } from "../utils/avatars";
 
 interface DigitalMembershipCardProps {
   member: {
@@ -170,11 +171,11 @@ export function DigitalMembershipCard({ member, compact = false }: DigitalMember
             <div className="col-span-4 flex flex-col items-center">
               <div className="relative w-20 h-20 rounded-2xl p-0.5 bg-gradient-to-tr from-cyan-400 via-blue-500 to-indigo-500 shadow-lg">
                 <img
-                  src={member.photoUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80"}
+                  src={member.photoUrl || CHARACTER_AVATARS[0]}
                   alt={member.fullName}
                   className="w-full h-full object-cover rounded-[14px]"
                   onError={(e) => {
-                    (e.target as HTMLElement).setAttribute("src", "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80");
+                    (e.target as HTMLElement).setAttribute("src", CHARACTER_AVATARS[0]);
                   }}
                 />
                 <div className="absolute -bottom-1 -right-1 p-1 bg-cyan-500 rounded-full text-slate-950 shadow">
@@ -324,7 +325,7 @@ export function DigitalMembershipCard({ member, compact = false }: DigitalMember
             <div className="flex flex-col items-center justify-center space-y-4 py-4">
               <div className="w-32 h-32 rounded-3xl p-1 bg-gradient-to-tr from-cyan-400 to-blue-600 shadow-2xl">
                 <img
-                  src={member.photoUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80"}
+                  src={member.photoUrl || CHARACTER_AVATARS[0]}
                   alt={member.fullName}
                   className="w-full h-full object-cover rounded-[20px]"
                 />

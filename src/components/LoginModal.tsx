@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { AcademyId, UserRole, UserSession } from "../types";
 import { MIN_PASSWORD_LENGTH } from "../utils/password";
+import { CHARACTER_AVATARS } from "../utils/avatars";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -328,12 +329,12 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
             setIsVerifying(false);
             const avatarMap: { [key: string]: string } = {
               coach: isSwim 
-                ? "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=150" 
-                : "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=150",
-              receptionist: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=150",
-              staff: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=150",
-              admin: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=150",
-              super_admin: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?q=80&w=150"
+                ? CHARACTER_AVATARS[5] 
+                : CHARACTER_AVATARS[8],
+              receptionist: CHARACTER_AVATARS[6],
+              staff: CHARACTER_AVATARS[6],
+              admin: CHARACTER_AVATARS[4],
+              super_admin: CHARACTER_AVATARS[7]
             };
             onLoginSuccess({
               id: data.staff.id,
@@ -341,7 +342,7 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
               role: data.staff.role,
               academyId: data.staff.academyId,
               email: data.staff.email,
-              avatar: avatarMap[data.staff.role] || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=150",
+              avatar: avatarMap[data.staff.role] || CHARACTER_AVATARS[4],
               phoneNumber: data.staff.phoneNumber || "",
               token: data.staff.token || ""
             });
@@ -385,12 +386,12 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
             setIsVerifying(false);
             const avatarMap: { [key: string]: string } = {
               coach: isSwim 
-                ? "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=150" 
-                : "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=150",
-              receptionist: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=150",
-              staff: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=150",
-              admin: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=150",
-              super_admin: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?q=80&w=150"
+                ? CHARACTER_AVATARS[5] 
+                : CHARACTER_AVATARS[8],
+              receptionist: CHARACTER_AVATARS[6],
+              staff: CHARACTER_AVATARS[6],
+              admin: CHARACTER_AVATARS[4],
+              super_admin: CHARACTER_AVATARS[7]
             };
             onLoginSuccess({
               id: data.staff.id,
@@ -398,7 +399,7 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
               role: data.staff.role,
               academyId: data.staff.academyId,
               email: data.staff.email,
-              avatar: data.staff.photoUrl || avatarMap[data.staff.role] || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=150",
+              avatar: data.staff.photoUrl || avatarMap[data.staff.role] || CHARACTER_AVATARS[4],
               phoneNumber: data.staff.phoneNumber || "",
               token: data.token || "",
               rememberMe
@@ -527,8 +528,8 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
         academyId,
         phoneNumber,
         avatar: selectedRole === "parent" 
-          ? "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=150" 
-          : "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150",
+          ? CHARACTER_AVATARS[0] 
+          : CHARACTER_AVATARS[0],
         token: data.token || "",
         rememberMe
       });

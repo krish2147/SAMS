@@ -7,6 +7,9 @@ import {
 } from "lucide-react";
 import { MIN_PASSWORD_LENGTH } from "../utils/password";
 import { sessionStore } from "../utils/sessionStore";
+import { PasswordInput } from "./PasswordInput";
+import { CHARACTER_AVATARS } from "../utils/avatars";
+import { PhotoPicker } from "./PhotoPicker";
 
 interface SettingsTabProps {
   activeUser: {
@@ -22,25 +25,26 @@ interface SettingsTabProps {
   onProfileUpdated?: (updatedUser: { name: string; email: string; phoneNumber: string; avatar: string }) => void;
 }
 
-const AVATAR_PRESETS = [
-  "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150",
-  "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?q=80&w=150",
-  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=150",
-  "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=150",
-];
+const AVATAR_PRESETS = CHARACTER_AVATARS;
+
+// "+91 98765 43210", "919876543210" or "9876543210" -> "9876543210"
+const nationalDigits = (phone?: string) => {
+  const d = String(phone || "").replace(/\D/g, "");
+  return d.length > 10 && d.startsWith("91") ? d.slice(-10) : d.slice(0, 10);
+};
 
 export function SettingsTab({ activeUser, buttonPrimary, inputStyle, onProfileUpdated }: SettingsTabProps) {
   // Local states for sections
   const [profileName, setProfileName] = useState(activeUser.name);
   const [profileEmail, setProfileEmail] = useState(activeUser.email || "");
-  const [profilePhone, setProfilePhone] = useState(activeUser.phoneNumber || "");
+  const [profilePhone, setProfilePhone] = useState(nationalDigits(activeUser.phoneNumber));
   const [photoUrl, setPhotoUrl] = useState(activeUser.avatar || "");
 
   // Sync with activeUser prop changes (asynchronous load)
   useEffect(() => {
     setProfileName(activeUser.name || "");
     setProfileEmail(activeUser.email || "");
-    setProfilePhone(activeUser.phoneNumber || "");
+    setProfilePhone(nationalDigits(activeUser.phoneNumber));
     setPhotoUrl(activeUser.avatar || "");
   }, [activeUser]);
 
@@ -53,7 +57,6 @@ export function SettingsTab({ activeUser, buttonPrimary, inputStyle, onProfileUp
   const [notifPush, setNotifPush] = useState(false);
 
   const [appearanceTheme, setAppearanceTheme] = useState("Light Slate");
-  const [appearanceDensity, setAppearanceDensity] = useState("Spacious");
 
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -117,6 +120,12 @@ export function SettingsTab({ activeUser, buttonPrimary, inputStyle, onProfileUp
       setIsSavingProfile(false);
       return;
     }
+    if (profilePhone && !/^[6-9]\d{9}$/.test(profilePhone)) {
+      setErrorMsg("Enter a 10-digit Indian mobile number starting with 6, 7, 8 or 9.");
+      setIsSavingProfile(false);
+      return;
+    }
+    const fullPhone = profilePhone ? `+91 ${profilePhone}` : "";
 
     try {
       const response = await fetch("/api/staff/update-profile", {
@@ -134,7 +143,7 @@ export function SettingsTab({ activeUser, buttonPrimary, inputStyle, onProfileUp
         body: JSON.stringify({
           name: profileName,
           email: profileEmail,
-          phoneNumber: profilePhone,
+          phoneNumber: fullPhone,
           photoUrl: photoUrl
         })
       });
@@ -149,7 +158,7 @@ export function SettingsTab({ activeUser, buttonPrimary, inputStyle, onProfileUp
         onProfileUpdated({
           name: profileName,
           email: profileEmail,
-          phoneNumber: profilePhone,
+          phoneNumber: fullPhone,
           avatar: photoUrl
         });
       }
@@ -255,43 +264,34 @@ export function SettingsTab({ activeUser, buttonPrimary, inputStyle, onProfileUp
             {/* Photo Preview Container */}
             <div className="relative group select-none shrink-0">
               <img 
-                src={photoUrl || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=150"} 
+                src={photoUrl || CHARACTER_AVATARS[4]} 
                 alt="Profile Preview" 
                 className="w-24 h-24 rounded-2xl object-cover border-2 border-sky-400 shadow-md animate-fade-in"
               />
               <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-slate-900 animate-pulse" />
             </div>
 
-            {/* Upload Drag & Drop Box */}
+            {/* Take or choose a photo (drag & drop also works on a computer) */}
             <div 
               onDragEnter={handleDrag}
               onDragOver={handleDrag}
               onDragLeave={handleDrag}
               onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-              className={`flex-1 w-full p-5 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
+              className={`flex-1 w-full p-5 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center text-center gap-3 transition-all ${
                 dragActive 
                   ? "border-sky-500 bg-sky-500/5 scale-[0.99]" 
-                  : "border-slate-200 hover:border-sky-400/50 hover:bg-slate-100/50"
+                  : "border-slate-200"
               }`}
             >
-              <input 
-                type="file" 
-                ref={fileInputRef}
-                onChange={handleFileInputChange}
-                accept="image/png, image/jpeg, image/webp"
-                className="hidden" 
-              />
-              <Upload className="h-5 w-5 text-sky-500 mb-1.5" />
-              <p className="text-xs font-bold text-slate-700">Drag & drop photo here, or <span className="text-sky-500 underline">browse</span></p>
-              <p className="text-[10px] text-slate-400 mt-0.5">JPEG, PNG, WEBP (Max 4MB)</p>
+              <PhotoPicker onPick={handleFile} className="justify-center" />
+              <p className="text-xs text-slate-400">JPEG, PNG or WEBP, up to 4 MB<span className="hidden sm:inline">. You can also drag a photo here.</span></p>
             </div>
           </div>
 
           {/* Quick Avatar Presets selector */}
           <div className="space-y-1.5 pt-1">
-            <label className="text-[10px] font-mono uppercase text-slate-500">Quick Choice Presets</label>
-            <div className="flex gap-3">
+            <label className="text-xs font-semibold text-slate-500">Or pick a character</label>
+            <div className="flex flex-wrap gap-3">
               {AVATAR_PRESETS.map((preset, idx) => (
                 <button
                   key={idx}
@@ -330,13 +330,20 @@ export function SettingsTab({ activeUser, buttonPrimary, inputStyle, onProfileUp
             />
           </div>
           <div className="flex flex-col gap-1.5 md:col-span-2">
-            <label className="text-xs font-extrabold text-slate-500">Contact Number</label>
-            <input
-              type="text"
-              value={profilePhone}
-              onChange={(e) => setProfilePhone(e.target.value)}
-              className={inputStyle}
-            />
+            <label htmlFor="settings-phone" className="text-xs font-extrabold text-slate-500">Contact Number</label>
+            <div className={`${inputStyle} !p-0 flex items-center overflow-hidden focus-within:border-sky-400`}>
+              <span className="shrink-0 pl-3.5 pr-3 py-2.5 text-sm font-semibold text-slate-700 border-r border-slate-200">+91</span>
+              <input
+                id="settings-phone"
+                type="tel"
+                inputMode="numeric"
+                autoComplete="tel-national"
+                value={profilePhone}
+                onChange={(e) => setProfilePhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                placeholder="98765 43210"
+                className="flex-1 min-w-0 px-3 py-2.5 bg-transparent border-0 text-sm font-medium focus:outline-none"
+              />
+            </div>
           </div>
           <div className="md:col-span-2 pt-2">
             <button 
@@ -371,8 +378,7 @@ export function SettingsTab({ activeUser, buttonPrimary, inputStyle, onProfileUp
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-extrabold text-slate-500">Current Password</label>
-              <input
-                type="password"
+              <PasswordInput
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 placeholder="••••••••"
@@ -381,18 +387,16 @@ export function SettingsTab({ activeUser, buttonPrimary, inputStyle, onProfileUp
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-extrabold text-slate-500">New Password</label>
-              <input
-                type="password"
+              <PasswordInput
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Min 6 characters"
+                placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
                 className={inputStyle}
               />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-extrabold text-slate-500">Confirm New Password</label>
-              <input
-                type="password"
+              <PasswordInput
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="••••••••"
@@ -481,18 +485,6 @@ export function SettingsTab({ activeUser, buttonPrimary, inputStyle, onProfileUp
               <option>Light Slate</option>
               <option>High Contrast Oceanic</option>
               <option>Classic Blue</option>
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-extrabold text-slate-500">Interface Layout Density</label>
-            <select
-              value={appearanceDensity}
-              onChange={(e) => setAppearanceDensity(e.target.value)}
-              className="p-3 text-xs rounded-xl focus:outline-none border font-semibold bg-white border-slate-200 text-slate-700"
-            >
-              <option>Spacious</option>
-              <option>Compact</option>
             </select>
           </div>
 

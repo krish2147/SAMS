@@ -1,5 +1,6 @@
 import React from "react";
 import { X, CheckCircle2, UserCheck, CreditCard, Sparkles, Clock, Award, RefreshCw, Calendar } from "lucide-react";
+import { CHARACTER_AVATARS } from "../utils/avatars";
 
 interface MemberTimelineModalProps {
   isOpen: boolean;
@@ -75,7 +76,7 @@ export function MemberTimelineModal({ isOpen, onClose, member }: MemberTimelineM
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl overflow-hidden border-2 border-cyan-400 shrink-0">
               <img
-                src={member.photoUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80"}
+                src={member.photoUrl || CHARACTER_AVATARS[0]}
                 alt={member.fullName}
                 className="w-full h-full object-cover"
               />

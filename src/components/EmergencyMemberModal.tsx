@@ -1,5 +1,6 @@
 import React from "react";
 import { X, ShieldAlert, Phone, HeartPulse, AlertTriangle, User, Droplets, Heart } from "lucide-react";
+import { CHARACTER_AVATARS } from "../utils/avatars";
 
 interface EmergencyMemberModalProps {
   isOpen: boolean;
@@ -52,7 +53,7 @@ export function EmergencyMemberModal({ isOpen, onClose, member }: EmergencyMembe
         <div className="p-6 space-y-6">
           <div className="flex items-center gap-4 p-4 rounded-2xl bg-slate-950 border border-slate-800">
             <img
-              src={member.photoUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80"}
+              src={member.photoUrl || CHARACTER_AVATARS[0]}
               alt={member.fullName}
               className="w-16 h-16 rounded-2xl object-cover border-2 border-rose-500/60"
             />
