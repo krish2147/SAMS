@@ -254,6 +254,15 @@ const statements = cleanedSql
       } catch (_) {}
     }
 
+    // Databases created before October 2026 default these to "O+" and "No", which stores a blood
+    // group and a medical declaration nobody gave. Dropping the default is instant and repeatable.
+    for (const sql of [
+      "ALTER TABLE members ALTER COLUMN bloodGroup DROP DEFAULT",
+      "ALTER TABLE members ALTER COLUMN hasMedicalCondition DROP DEFAULT"
+    ]) {
+      try { await pool.query(sql); } catch (_) {}
+    }
+
     const indexMigrations = [
       "ALTER TABLE payments ADD UNIQUE INDEX uq_payments_razorpay_order (razorpay_order_id)",
       "ALTER TABLE payments ADD UNIQUE INDEX uq_payments_razorpay_payment (razorpay_payment_id)",
@@ -949,7 +958,7 @@ function executeMockQuery(sql: string, params: any[] = []): [any, any] {
       emergencyRelation: params[15],
       hasMedicalCondition: params[16],
       medicalDetails: params[17],
-      bloodGroup: params[18] || "O+",
+      bloodGroup: params[18] || null,
       academyId: params[19] || "swim",
       selected_batch_id: params[20] ? Number(params[20]) : null,
       membership_plan_id: params[21] ? Number(params[21]) : null,

@@ -119,7 +119,8 @@ export function MemberProfilePage() {
     .filter(Boolean)
     .join(", ");
   const emergencyPhone = profile.emergencyPhone || profile.emergencyMobile;
-  const hasMedical = (profile.hasMedicalCondition || "").toLowerCase() === "yes";
+  const medicalAnswer = (profile.hasMedicalCondition || "").toLowerCase();
+  const hasMedical = medicalAnswer === "yes";
 
   return (
     <div className="mx-auto max-w-4xl space-y-5">
@@ -169,7 +170,7 @@ export function MemberProfilePage() {
         <div className="sm:col-span-2">
           <dt className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-400">Declared condition</dt>
           <dd className="mt-1 text-sm font-medium leading-6 text-ink-900">
-            {hasMedical ? profile.medicalDetails || "A medical condition was declared." : "No medical conditions declared."}
+            {hasMedical ? profile.medicalDetails || "A medical condition was declared." : medicalAnswer === "no" ? "No medical conditions declared." : "Not recorded yet. Please tell the academy reception."}
           </dd>
         </div>
       </Panel>

@@ -10,11 +10,19 @@ interface EmergencyMemberModalProps {
 export function EmergencyMemberModal({ isOpen, onClose, member }: EmergencyMemberModalProps) {
   if (!isOpen || !member) return null;
 
-  const emergencyName = member.emergencyContactName || member.emergency_contact_name || member.guardian || "Parent / Emergency Contact";
-  const emergencyPhone = member.emergencyContactNumber || member.emergency_contact_number || "+91 98250 12345";
-  const bloodGroup = member.bloodGroup || member.blood_group || "O+";
-  const medicalDetails = member.medicalDetails || member.medical_details || (member.hasMedicalCondition ? "Declared condition on profile" : "No known medical conditions declared");
-  const allergies = member.allergies || "None reported";
+  // Only what is on the member's record. This card is read during an incident, so a missing
+  // value must look missing: it previously showed a made-up dial-able number, blood group "O+",
+  // and read a "No" medical answer as a declared condition.
+  const emergencyName = member.emergencyName || member.undertakerParentName || member.emergencyContactName || member.emergency_contact_name || null;
+  const emergencyPhone = member.emergencyMobile || member.emergencyPhone || member.undertakerParentPhone || member.emergencyContactNumber || member.emergency_contact_number || null;
+  const bloodGroup = member.bloodGroup || member.blood_group || null;
+  const medicalAnswer = String(member.hasMedicalCondition ?? "").toLowerCase();
+  const medicalDetails = medicalAnswer === "yes" || member.hasMedicalCondition === true
+    ? member.medicalDetails || member.medical_details || "A condition was declared, with no details recorded. Ask the member."
+    : medicalAnswer === "no" || member.hasMedicalCondition === false
+      ? "No medical conditions declared"
+      : "Not recorded. Ask the member or their contact.";
+  const allergies = member.allergies || "Not recorded";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md font-sans">
@@ -56,13 +64,19 @@ export function EmergencyMemberModal({ isOpen, onClose, member }: EmergencyMembe
           </div>
 
           {/* Quick Call Emergency Phone Button */}
-          <a
-            href={`tel:${emergencyPhone}`}
-            className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white font-black text-sm shadow-xl shadow-rose-900/30 flex items-center justify-center gap-3 transition-all active:scale-98 cursor-pointer border border-rose-400/30"
-          >
-            <Phone className="w-5 h-5 animate-bounce" />
-            <span>ONE-CLICK DIAL EMERGENCY CONTACT ({emergencyPhone})</span>
-          </a>
+          {emergencyPhone ? (
+            <a
+              href={`tel:${emergencyPhone}`}
+              className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white font-black text-sm shadow-xl shadow-rose-900/30 flex items-center justify-center gap-3 transition-all active:scale-98 cursor-pointer border border-rose-400/30"
+            >
+              <Phone className="w-5 h-5 animate-bounce" />
+              <span>ONE-CLICK DIAL EMERGENCY CONTACT ({emergencyPhone})</span>
+            </a>
+          ) : (
+            <div className="w-full py-4 px-6 rounded-2xl bg-slate-950 border-2 border-amber-500/60 text-amber-200 font-bold text-sm text-center">
+              No emergency number on record. Use the member's own phone or the paper file.
+            </div>
+          )}
 
           {/* Critical Info Grid */}
           <div className="grid grid-cols-2 gap-3.5 text-xs">
@@ -70,14 +84,14 @@ export function EmergencyMemberModal({ isOpen, onClose, member }: EmergencyMembe
               <div className="flex items-center gap-1.5 text-rose-400 font-bold uppercase text-[10px]">
                 <Droplets className="w-3.5 h-3.5" /> Blood Group
               </div>
-              <p className="text-2xl font-black text-white font-mono">{bloodGroup}</p>
+              <p className="text-2xl font-black text-white font-mono">{bloodGroup || "Not recorded"}</p>
             </div>
 
             <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
               <div className="flex items-center gap-1.5 text-slate-400 font-bold uppercase text-[10px]">
                 <User className="w-3.5 h-3.5 text-cyan-400" /> Guardian / Contact
               </div>
-              <p className="text-sm font-bold text-white truncate">{emergencyName}</p>
+              <p className="text-sm font-bold text-white truncate">{emergencyName || "Not recorded"}</p>
               <p className="text-[11px] font-mono text-slate-400">{member.relationship || "Guardian"}</p>
             </div>
 

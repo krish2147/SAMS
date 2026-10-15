@@ -1498,7 +1498,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                           </div>
                           <div className="col-span-3">
                             <span className="opacity-55 block text-[8px] font-mono uppercase">Disabilities / Medical Illnesses</span>
-                            <span className="font-medium text-slate-600 block">{selectedMember.hasMedicalCondition === "Yes" ? selectedMember.medicalDetails : "None / N/A"}</span>
+                            <span className="font-medium text-slate-600 block">{selectedMember.hasMedicalCondition === "Yes" ? selectedMember.medicalDetails : selectedMember.hasMedicalCondition === "No" ? "None declared" : "Not recorded"}</span>
                           </div>
                         </div>
                       </div>

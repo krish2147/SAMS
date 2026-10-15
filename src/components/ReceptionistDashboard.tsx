@@ -1037,7 +1037,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
                       <p className="flex justify-between"><span className="text-slate-400 font-bold">Gender:</span> <strong className="text-slate-800 uppercase font-mono">{selectedMember.gender || "Not specified"}</strong></p>
                       <p className="flex justify-between"><span className="text-slate-400 font-bold">Date of Birth:</span> <strong className="text-slate-800 font-mono">{selectedMember.dateOfBirth || "N/A"}</strong></p>
                       <p className="flex justify-between"><span className="text-slate-400 font-bold">Age:</span> <strong className="text-slate-800 font-mono">{selectedMember.age || "N/A"} Years</strong></p>
-                      <p className="flex justify-between"><span className="text-slate-400 font-bold">Blood Group:</span> <strong className="text-slate-800 font-mono">{selectedMember.bloodGroup || "O+"}</strong></p>
+                      <p className="flex justify-between"><span className="text-slate-400 font-bold">Blood Group:</span> <strong className="text-slate-800 font-mono">{selectedMember.bloodGroup || "Not recorded"}</strong></p>
                     </div>
                   </div>
 

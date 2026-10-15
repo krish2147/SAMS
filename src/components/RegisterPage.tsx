@@ -42,7 +42,8 @@ interface FormState {
   frequency: "6_days" | "3_days" | "hourly" | "fixed" | "";
   planDuration: "1_month" | "3_months" | "6_months" | "9_months" | "annual" | "hourly" | "one_time" | "";
   batch: string;
-  hasMedicalCondition: boolean;
+  // null until the applicant answers; the declaration is never assumed.
+  hasMedicalCondition: boolean | null;
   medicalDetails: string;
   agreedToRules: boolean;
 }
@@ -69,7 +70,7 @@ const INITIAL_FORM_STATE: FormState = {
   frequency: "6_days",
   planDuration: "1_month",
   batch: "",
-  hasMedicalCondition: false,
+  hasMedicalCondition: null,
   medicalDetails: "",
   agreedToRules: false,
 };
@@ -416,7 +417,9 @@ export function RegisterPage({ academyId, onRegisterSuccess, onCancel }: Registe
     if (!form.memberType) newErrors.memberType = "Please select a membership plan";
     if (!form.batch) newErrors.batch = "Please select a training session batch";
 
-    if (form.hasMedicalCondition && !form.medicalDetails.trim()) {
+    if (form.hasMedicalCondition === null) {
+      newErrors.medicalDetails = "Please tell us whether you have any medical conditions";
+    } else if (form.hasMedicalCondition && !form.medicalDetails.trim()) {
       newErrors.medicalDetails = "Please describe your medical conditions";
     }
 
@@ -1409,7 +1412,7 @@ export function RegisterPage({ academyId, onRegisterSuccess, onCancel }: Registe
                       type="button"
                       onClick={() => handleToggleMedical(true)}
                       className={`py-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                        form.hasMedicalCondition
+                        form.hasMedicalCondition === true
                           ? isSwim 
                             ? "bg-amber-500 text-white border-amber-500" 
                             : "bg-amber-600 text-white border-amber-600"
@@ -1424,7 +1427,7 @@ export function RegisterPage({ academyId, onRegisterSuccess, onCancel }: Registe
                       type="button"
                       onClick={() => handleToggleMedical(false)}
                       className={`py-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                        !form.hasMedicalCondition
+                        form.hasMedicalCondition === false
                           ? isSwim 
                             ? "bg-slate-700 text-white border-slate-700" 
                             : "bg-emerald-800 text-white border-emerald-800"
