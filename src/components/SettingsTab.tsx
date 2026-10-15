@@ -6,6 +6,7 @@ import {
   Camera, Upload, Check, RefreshCw
 } from "lucide-react";
 import { MIN_PASSWORD_LENGTH } from "../utils/password";
+import { sessionStore } from "../utils/sessionStore";
 
 interface SettingsTabProps {
   activeUser: {
@@ -124,7 +125,7 @@ export function SettingsTab({ activeUser, buttonPrimary, inputStyle, onProfileUp
           "Content-Type": "application/json",
           "x-session-token": (() => {
             try {
-              const saved = localStorage.getItem("sams_session");
+              const saved = sessionStore.get();
               if (saved) return JSON.parse(saved)?.token || "";
             } catch (err) {}
             return "";
@@ -185,7 +186,7 @@ export function SettingsTab({ activeUser, buttonPrimary, inputStyle, onProfileUp
           "Content-Type": "application/json",
           "x-session-token": (() => {
             try {
-              const saved = localStorage.getItem("sams_session");
+              const saved = sessionStore.get();
               if (saved) return JSON.parse(saved)?.token || "";
             } catch (err) {}
             return "";

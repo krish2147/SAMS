@@ -200,6 +200,7 @@ CREATE TABLE IF NOT EXISTS user_sessions (
   photo_url LONGTEXT NULL,
   phone_number VARCHAR(20) NULL,
   expires_at DATETIME NOT NULL,
+  remember_me TINYINT(1) NOT NULL DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_sessions_expiry (expires_at),

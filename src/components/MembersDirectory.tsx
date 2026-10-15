@@ -7,6 +7,7 @@ import {
 import type { AcademyId } from "../types";
 import type { MemberPresentationStatus } from "../utils/member-presentation";
 import { buildMemberDirectoryParams, MEMBER_DIRECTORY_PAGE_SIZE } from "../utils/member-directory";
+import { sessionStore } from "../utils/sessionStore";
 
 type DirectoryMember = {
   id: number;
@@ -44,7 +45,7 @@ const statusStyles: Record<MemberPresentationStatus | "Archived", string> = {
 };
 
 function sessionToken() {
-  try { return JSON.parse(localStorage.getItem("sams_session") || "{}")?.token || ""; } catch { return ""; }
+  try { return JSON.parse(sessionStore.get() || "{}")?.token || ""; } catch { return ""; }
 }
 
 function authHeaders(): HeadersInit {

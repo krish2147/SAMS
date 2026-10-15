@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { sessionStore } from "../utils/sessionStore";
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -38,7 +39,7 @@ export function QrScannerModal({ isOpen, onClose, onCheckInSuccess, userName }: 
   // Get session token
   const getSessionToken = () => {
     try {
-      const saved = localStorage.getItem("sams_session");
+      const saved = sessionStore.get();
       if (saved) {
         const parsed = JSON.parse(saved);
         return parsed?.token || "";

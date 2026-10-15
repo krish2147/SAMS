@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { 
-  X, ShieldAlert, Smartphone, Lock, Mail, CheckCircle,
-  Sparkles, Eye, EyeOff, User, BellRing, ChevronRight
+import {
+  X, ShieldAlert, Smartphone, Lock, Eye, EyeOff, BellRing, ChevronRight,
+  ArrowLeft, LogIn, BriefcaseBusiness, ShieldCheck, Waves, UserRound, User
 } from "lucide-react";
 import { AcademyId, UserRole, UserSession } from "../types";
 import { MIN_PASSWORD_LENGTH } from "../utils/password";
@@ -25,6 +25,7 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [fullName, setFullName] = useState("");
   const [isRegistering, setIsRegistering] = useState(true);
   const [isStaffRegistering, setIsStaffRegistering] = useState(false);
@@ -102,6 +103,62 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
   if (!isOpen) return null;
 
   const isSwim = academyId === "swim";
+  const isStaffLogin = selectedRole !== "parent" && selectedRole !== "member";
+
+  // Colours for the two academy themes (light swim / dark green).
+  const ui = isSwim
+    ? {
+        card: "bg-white text-slate-900",
+        title: "text-slate-900",
+        muted: "text-slate-500",
+        label: "text-sm font-semibold text-slate-700",
+        divider: "bg-slate-100",
+        badge: "bg-sky-50 text-sky-600",
+        iconBtn: "bg-slate-100 text-slate-600 hover:bg-slate-200",
+        ghost: "text-slate-500 hover:text-slate-900 hover:bg-slate-100",
+        option: "bg-white border-slate-200 hover:border-sky-300 hover:bg-sky-50/50 hover:shadow-sm",
+        field: "bg-white border-slate-300 focus-within:border-sky-500 focus-within:ring-4 focus-within:ring-sky-500/15 focus:border-sky-500 focus:ring-4 focus:ring-sky-500/15",
+        input: "text-slate-900 placeholder:text-slate-400",
+        icon: "text-slate-400",
+        prefix: "text-slate-700 border-slate-200",
+        primary: "bg-sky-600 text-white hover:bg-sky-700 active:bg-sky-800",
+        link: "text-sky-600",
+        check: "accent-sky-600",
+      }
+    : {
+        card: "bg-[#06261a] text-emerald-50 border border-emerald-400/15",
+        title: "text-white",
+        muted: "text-emerald-100/60",
+        label: "text-sm font-semibold text-emerald-50/90",
+        divider: "bg-emerald-400/10",
+        badge: "bg-amber-400/15 text-amber-300",
+        iconBtn: "bg-white/5 text-emerald-100 hover:bg-white/10",
+        ghost: "text-emerald-100/70 hover:text-white hover:bg-white/5",
+        option: "bg-white/[0.03] border-emerald-400/15 hover:border-amber-300/50 hover:bg-white/[0.06]",
+        field: "bg-emerald-950/60 border-emerald-400/20 focus-within:border-amber-400 focus-within:ring-4 focus-within:ring-amber-400/15 focus:border-amber-400 focus:ring-4 focus:ring-amber-400/15",
+        input: "text-emerald-50 placeholder:text-emerald-200/35",
+        icon: "text-emerald-200/50",
+        prefix: "text-emerald-50 border-emerald-400/20",
+        primary: "bg-amber-400 text-slate-950 hover:bg-amber-300",
+        link: "text-amber-300",
+        check: "accent-amber-400",
+      };
+
+  const rememberBox = (suffix: string) => (
+    <label htmlFor={`login-remember-${suffix}`} className="flex items-start gap-3 cursor-pointer select-none">
+      <input
+        id={`login-remember-${suffix}`}
+        type="checkbox"
+        checked={rememberMe}
+        onChange={(e) => setRememberMe(e.target.checked)}
+        className={`mt-0.5 h-[18px] w-[18px] shrink-0 rounded cursor-pointer ${ui.check}`}
+      />
+      <span className="text-sm leading-snug">
+        <span className={`font-medium ${ui.title}`}>Keep me logged in</span>
+        <span className={`block text-xs mt-0.5 ${ui.muted}`}>Don't tick this on a shared computer.</span>
+      </span>
+    </label>
+  );
   const accentColor = isSwim ? "sky" : "emerald";
 
   // Step 1: Select Role
@@ -128,7 +185,7 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
         return;
       }
       if (!phoneNumber || phoneNumber.replace(/\D/g, "").length !== 10) {
-        setAuthError("Please specify a valid 10-digit mobile number.");
+        setAuthError("Enter your 10-digit mobile number.");
         return;
       }
       if (!registerAge || parseInt(registerAge) <= 0) {
@@ -226,7 +283,7 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
         setStep("otp");
         setCountdown(30);
         setCanResend(false);
-        setSmsNotification("[SAMS SECURE SMS] Verification code sent successfully. Check your server terminal/console logs.");
+        setSmsNotification(`We sent a ${OTP_LENGTH}-digit code to +91 ${phoneNumber}.`);
       })
       .catch((err) => {
         setIsVerifying(false);
@@ -313,6 +370,7 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
           body: JSON.stringify({
             email,
             password,
+            rememberMe,
             role: "admin" // triggers staff path
           })
         })
@@ -342,7 +400,8 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
               email: data.staff.email,
               avatar: data.staff.photoUrl || avatarMap[data.staff.role] || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=150",
               phoneNumber: data.staff.phoneNumber || "",
-              token: data.token || ""
+              token: data.token || "",
+              rememberMe
             });
             onClose();
           })
@@ -376,7 +435,7 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
       setIsVerifying(false);
       setCountdown(30);
       setCanResend(false);
-      setSmsNotification("[SAMS SECURE SMS] Verification code re-sent. Check your server terminal/console logs.");
+      setSmsNotification(`We sent a new code to +91 ${phoneNumber}.`);
     })
     .catch((err) => {
       setIsVerifying(false);
@@ -440,7 +499,7 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
     fetch("/api/members/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phoneNumber: finalMobile, role: selectedRole, otpCode })
+      body: JSON.stringify({ phoneNumber: finalMobile, role: selectedRole, otpCode, rememberMe })
     })
     .then(async (res) => {
       if (!res.ok) {
@@ -470,7 +529,8 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
         avatar: selectedRole === "parent" 
           ? "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=150" 
           : "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150",
-        token: data.token || ""
+        token: data.token || "",
+        rememberMe
       });
       onClose();
     })
@@ -496,7 +556,7 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
             </div>
             <div className="flex-grow text-left">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold font-mono tracking-wider text-amber-300">TELEPHONY NETWORKS</span>
+                <span className="text-xs font-semibold text-sky-300">SAMS</span>
                 <span className="text-[9px] opacity-40">just now</span>
               </div>
               <p className="text-xs font-semibold leading-relaxed mt-1 text-slate-100">{smsNotification}</p>
@@ -505,7 +565,7 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
                 onClick={() => setSmsNotification(null)}
                 className="mt-2 text-[10px] font-bold text-amber-400 hover:underline uppercase tracking-wide cursor-pointer block"
               >
-                Dismiss Notice
+                OK
               </button>
             </div>
             <button
@@ -536,101 +596,106 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
         isSwim ? "bg-sky-300/25" : "bg-amber-300/20"
       }`} />
 
-      {/* Login Card dialog: frosted glass over the atmospheric photo */}
+      {/* Login card */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 15 }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="login-title"
+        initial={{ opacity: 0, scale: 0.97, y: 12 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 15 }}
-        transition={{ cubicBezier: [0.16, 1, 0.3, 1], duration: 0.6 }}
-        className={`relative w-full max-w-lg overflow-hidden rounded-3xl border shadow-2xl z-20 backdrop-blur-2xl ${
-          isSwim
-            ? "bg-white/85 border-white/60 text-slate-950"
-            : "bg-emerald-950/85 border-emerald-400/20 text-emerald-100"
-        }`}
+        exit={{ opacity: 0, scale: 0.97, y: 12 }}
+        transition={{ ease: [0.16, 1, 0.3, 1], duration: 0.45 }}
+        className={`relative w-full max-w-[420px] max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-[28px] shadow-2xl z-20 ${ui.card}`}
       >
-        {/* Decorative wavy lines, swim theme only, echoing the poster reference */}
-        {isSwim && (
-          <svg className="absolute top-0 right-0 w-40 h-40 opacity-[0.15] pointer-events-none" viewBox="0 0 160 160" fill="none">
-            <path d="M-10 30 Q 15 15, 40 30 T 90 30 T 140 30 T 190 30" stroke="#0ea5e9" strokeWidth="3" />
-            <path d="M-10 55 Q 15 40, 40 55 T 90 55 T 140 55 T 190 55" stroke="#0ea5e9" strokeWidth="3" />
-            <path d="M-10 80 Q 15 65, 40 80 T 90 80 T 140 80 T 190 80" stroke="#f59e0b" strokeWidth="2.5" />
-          </svg>
-        )}
-
-        {/* Subtle accent border bottom */}
-        <div className={`absolute top-0 inset-x-0 h-1 bg-gradient-to-r ${isSwim ? "from-sky-400 to-cyan-400" : "from-emerald-400 to-amber-400"}`} />
-
-        {/* Modal Header */}
-        <div className="relative p-6 md:p-8 flex items-center justify-between border-b border-current/5">
-          <div>
-            <span className="text-[10px] font-mono tracking-widest uppercase opacity-60">ACADEMY MEMBER PORTAL</span>
-            <h2 className={`text-2xl font-black mt-1 ${isSwim ? "text-slate-900" : "text-white font-serif"}`}>
-              {step === "role" && "Welcome Back"}
-              {step === "auth" && `Sign in as ${selectedRole.toUpperCase()}`}
-              {step === "otp" && "Verification Code"}
-            </h2>
+        {/* Header */}
+        <div className="relative px-6 pt-6 pb-5 sm:px-8 sm:pt-8">
+          <div className="flex items-center justify-between gap-3 mb-5">
+            {step === "role" ? (
+              <span className={`text-xs font-semibold ${ui.muted}`}>{isSwim ? "Baroda Swim Front" : "Academy portal"}</span>
+            ) : (
+              <button
+                type="button"
+                id="btn-login-header-back"
+                onClick={() => { setAuthError(null); setStep(step === "otp" ? "auth" : "role"); }}
+                className={`-ml-2 inline-flex items-center gap-1.5 rounded-full px-2 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${ui.ghost}`}
+              >
+                <ArrowLeft className="h-4 w-4" /> Back
+              </button>
+            )}
+            <button
+              id="btn-login-close"
+              type="button"
+              aria-label="Close"
+              onClick={onClose}
+              className={`h-9 w-9 shrink-0 rounded-full flex items-center justify-center transition-colors cursor-pointer ${ui.iconBtn}`}
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
-          <button
-            id="btn-login-close"
-            onClick={onClose}
-            className="p-2 rounded-full hover:bg-current/10 transition-colors cursor-pointer"
-          >
-            <X className="h-5 w-5" />
-          </button>
+
+          <div className="flex items-center gap-3.5">
+            <div className={`h-12 w-12 shrink-0 rounded-2xl flex items-center justify-center ${ui.badge}`}>
+              {step === "role" && <LogIn className="h-5 w-5" />}
+              {step === "auth" && (isStaffLogin ? <BriefcaseBusiness className="h-5 w-5" /> : <Smartphone className="h-5 w-5" />)}
+              {step === "otp" && <ShieldCheck className="h-5 w-5" />}
+            </div>
+            <div className="min-w-0">
+              <h2 id="login-title" className={`text-[22px] leading-tight font-bold tracking-tight ${ui.title}`}>
+                {step === "role" && "Welcome back"}
+                {step === "auth" && (isStaffLogin ? "Staff login" : "Member login")}
+                {step === "otp" && "Enter your code"}
+              </h2>
+              <p className={`text-sm mt-0.5 ${ui.muted}`}>
+                {step === "role" && "Choose how you want to sign in."}
+                {step === "auth" && (isStaffLogin ? "For admins, reception staff and coaches." : "We'll text a code to your mobile.")}
+                {step === "otp" && <>Sent to <span className={`font-semibold ${ui.title}`}>+91 {phoneNumber}</span></>}
+              </p>
+            </div>
+          </div>
         </div>
 
-        {/* Modal Contents */}
-        <div className="p-6 md:p-8">
-          
+        <div className={`h-px mx-6 sm:mx-8 ${ui.divider}`} />
+
+        {/* Body */}
+        <div className="px-6 py-6 sm:px-8 sm:pb-8">
+
           {authError && (
-            <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-500 flex items-start gap-3">
+            <div role="alert" className="mb-5 p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-sm text-rose-700 flex items-start gap-2.5">
               <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5" />
-              <p className="font-semibold">{authError}</p>
+              <p className="font-medium leading-snug">{authError}</p>
             </div>
           )}
 
           {/* STEP 1: CHOOSE ROLE */}
           {step === "role" && (
-            <div className="flex flex-col gap-4">
-              <p className="text-xs opacity-70 leading-relaxed mb-2 font-light">
-                Please choose your login portal below to proceed.
-              </p>
-
-              <div className="grid grid-cols-1 gap-4">
-                {/* Member Card */}
+            <div className="flex flex-col gap-3">
+              {[
+                { id: "btn-role-member", role: "member" as UserRole, icon: <Waves className="h-5 w-5" />, title: "Member", text: "Sign in with your mobile number and a one-time code." },
+                { id: "btn-role-admin", role: "admin" as UserRole, icon: <BriefcaseBusiness className="h-5 w-5" />, title: "Staff, coach or admin", text: "Sign in with your email or mobile and password." },
+              ].map((opt) => (
                 <button
-                  id="btn-role-member"
-                  onClick={() => handleRoleSelect("member")}
-                  className={`p-5 rounded-2xl border text-left transition-all cursor-pointer hover:border-current/30 hover:shadow-md ${
-                    isSwim ? "bg-slate-50 hover:bg-slate-100/80 border-slate-200" : "bg-emerald-900/20 hover:bg-emerald-900/40 border-emerald-900/40"
-                  }`}
+                  key={opt.id}
+                  id={opt.id}
+                  type="button"
+                  onClick={() => handleRoleSelect(opt.role)}
+                  className={`group w-full p-4 rounded-2xl border text-left flex items-center gap-3.5 transition-all cursor-pointer ${ui.option}`}
                 >
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className={`h-9 w-9 rounded-xl flex items-center justify-center text-sm ${isSwim ? "bg-sky-50 text-sky-600 border border-sky-100" : "bg-emerald-900/40 text-amber-300 border border-emerald-800/40"}`}>
-                      🏊
-                    </div>
-                    <span className="text-sm font-bold">Register or Sign In as a Member</span>
-                  </div>
-                  <p className="text-[11px] opacity-60 leading-normal font-light">Create a new account or sign in to reserve training slots, view timings, and manage your profile.</p>
+                  <span className={`h-11 w-11 shrink-0 rounded-xl flex items-center justify-center ${ui.badge}`}>{opt.icon}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className={`block text-[15px] font-semibold ${ui.title}`}>{opt.title}</span>
+                    <span className={`block text-xs mt-0.5 leading-snug ${ui.muted}`}>{opt.text}</span>
+                  </span>
+                  <ChevronRight className={`h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5 ${ui.muted}`} />
                 </button>
-
-                {/* Admin Selector */}
-                <button
-                  id="btn-role-admin"
-                  onClick={() => handleRoleSelect("admin")}
-                  className={`p-5 rounded-2xl border text-left transition-all cursor-pointer hover:border-current/30 hover:shadow-md ${
-                    isSwim ? "bg-slate-50 hover:bg-slate-100/80 border-slate-200" : "bg-emerald-900/20 hover:bg-emerald-900/40 border-emerald-900/40"
-                  }`}
-                >
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className={`h-9 w-9 rounded-xl flex items-center justify-center text-sm ${isSwim ? "bg-sky-50 text-sky-600 border border-sky-100" : "bg-emerald-900/40 text-amber-300 border border-emerald-800/40"}`}>
-                      💼
-                    </div>
-                    <span className="text-sm font-bold">Academy Staff & Admins</span>
-                  </div>
-                  <p className="text-[11px] opacity-60 leading-normal font-light">Access internal scheduling, member registrations, and check-in logs.</p>
-                </button>
-              </div>
+              ))}
+              {onOpenRegister && (
+                <p className={`text-sm text-center mt-3 ${ui.muted}`}>
+                  New here?{" "}
+                  <button type="button" onClick={onOpenRegister} className={`font-semibold cursor-pointer hover:underline ${ui.link}`}>
+                    Register as a member
+                  </button>
+                </p>
+              )}
             </div>
           )}
 
@@ -893,276 +958,184 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
             </form>
           )}
 
-          {/* STEP 2B: SIMPLE MOBILE PHONE LOGIN */}
+          {/* STEP 2B: MEMBER MOBILE LOGIN */}
           {step === "auth" && (selectedRole === "parent" || (selectedRole === "member" && !isRegistering)) && (
-            <form onSubmit={handleAuthSubmit} className="flex flex-col gap-5 text-left">
-              
-              {/* Registration vs Login toggle tab */}
-              {selectedRole === "member" && (
-                <div className="flex gap-2 p-1 bg-black/5 rounded-2xl border border-current/10 mb-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (onOpenRegister) {
-                        onOpenRegister();
-                      } else {
-                        setIsRegistering(true);
-                      }
-                      setAuthError(null);
-                    }}
-                    className="flex-grow py-2.5 rounded-xl text-[11px] uppercase tracking-wider font-extrabold opacity-60 hover:opacity-100 text-current cursor-pointer transition-all"
-                  >
-                    Register New Member
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsRegistering(false);
-                      setAuthError(null);
-                    }}
-                    className={`flex-grow py-2.5 rounded-xl text-[11px] uppercase tracking-wider font-extrabold cursor-pointer transition-all ${
-                      isSwim ? "bg-slate-900 text-white" : "bg-amber-400 text-slate-950"
-                    }`}
-                  >
-                    Existing Login
-                  </button>
-                </div>
-              )}
-              
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-mono uppercase tracking-wider opacity-60">Mobile Telephone Number</label>
-                <div className={`flex items-center rounded-full border overflow-hidden transition-all ${
-                  isSwim
-                    ? "bg-white/90 border-white/80 focus-within:border-sky-400"
-                    : "bg-emerald-950/50 border-emerald-400/20 focus-within:border-amber-400"
-                }`}>
-                  <span className={`shrink-0 text-sm font-bold pl-4 pr-3 py-4 ${
-                    isSwim ? "text-slate-900" : "text-emerald-100"
-                  }`}>
-                    +91
-                  </span>
+            <form onSubmit={handleAuthSubmit} noValidate className="flex flex-col gap-5 text-left">
+              <div className="flex flex-col gap-2">
+                <label htmlFor="member-login-phone" className={ui.label}>
+                  Mobile number <span className="text-rose-500" aria-hidden="true">*</span>
+                </label>
+                <div className={`flex items-center rounded-2xl border overflow-hidden transition-colors ${ui.field}`}>
+                  <span className={`shrink-0 pl-4 pr-3 text-[15px] font-semibold border-r ${ui.prefix}`}>+91</span>
                   <input
+                    id="member-login-phone"
                     type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel-national"
                     value={phoneNumber}
-                    onChange={(e) => {
-                      const clean = e.target.value.replace(/\D/g, "").slice(0, 10);
-                      setPhoneNumber(clean);
-                    }}
-                    placeholder="XXXXX XXXXX"
-                    className={`flex-1 min-w-0 py-4 pr-4 bg-transparent border-0 text-sm font-medium focus:outline-none ${
-                      isSwim
-                        ? "text-slate-900 placeholder-slate-600"
-                        : "text-emerald-50 placeholder-emerald-300/50"
-                    }`}
+                    onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                    placeholder="98765 43210"
+                    className={`flex-1 min-w-0 h-12 px-3 bg-transparent border-0 text-[15px] font-medium focus:outline-none ${ui.input}`}
                     required
                   />
                 </div>
-                <span className="text-[10px] opacity-50 leading-relaxed font-light mt-1 block">
-                  A secure 4-digit verification code will be sent to your phone.
-                </span>
+                <p className={`text-xs ${ui.muted}`}>Use the number you registered with.</p>
               </div>
- 
-              <div className="flex gap-3 mt-4">
-                <button
-                  type="button"
-                  id="btn-login-back-to-roles"
-                  onClick={() => setStep("role")}
-                  className={`flex-grow py-3.5 rounded-full text-xs uppercase tracking-wider font-semibold border transition-all cursor-pointer ${
-                    isSwim ? "border-slate-200 text-slate-800 hover:bg-slate-50" : "border-emerald-800 text-emerald-100 hover:bg-emerald-900/30"
-                  }`}
-                >
-                  Back
-                </button>
-                <button
-                  type="submit"
-                  id="btn-login-submit-client"
-                  className={`flex-grow py-3.5 rounded-full text-xs uppercase tracking-wider font-extrabold transition-all shadow-md cursor-pointer ${
-                    isSwim ? "bg-sky-500 text-white hover:opacity-95" : "bg-amber-400 text-slate-950 hover:bg-amber-500"
-                  }`}
-                >
-                  Send OTP
-                </button>
-              </div>
+
+              <button
+                type="submit"
+                id="btn-login-submit-client"
+                className={`w-full h-12 rounded-2xl text-[15px] font-semibold transition-all shadow-sm cursor-pointer ${ui.primary}`}
+              >
+                Send code
+              </button>
+
+              {onOpenRegister && (
+                <p className={`text-sm text-center ${ui.muted}`}>
+                  Not a member yet?{" "}
+                  <button type="button" onClick={() => { setAuthError(null); onOpenRegister(); }} className={`font-semibold cursor-pointer hover:underline ${ui.link}`}>
+                    Register
+                  </button>
+                </p>
+              )}
             </form>
           )}
 
-          {/* STEP 2: STAFF SECURE CREDENTIALS AUTH */}
-          {step === "auth" && selectedRole !== "parent" && selectedRole !== "member" && (
-            <form onSubmit={handleAuthSubmit} className="flex flex-col gap-4 text-left animate-in fade-in duration-300">
-              
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="staff-login-id" className="text-xs font-mono uppercase tracking-wider opacity-60">Email or mobile number <span className="text-rose-500" aria-hidden="true">*</span></label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 opacity-90" />
+          {/* STEP 2: STAFF LOGIN */}
+          {step === "auth" && isStaffLogin && (
+            <form onSubmit={handleAuthSubmit} noValidate className="flex flex-col gap-5 text-left">
+              <div className="flex flex-col gap-2">
+                <label htmlFor="staff-login-id" className={ui.label}>
+                  Email or mobile number <span className="text-rose-500" aria-hidden="true">*</span>
+                </label>
+                <div className={`relative rounded-2xl border transition-colors ${ui.field}`}>
+                  <UserRound className={`absolute left-4 top-1/2 -translate-y-1/2 h-[18px] w-[18px] pointer-events-none ${ui.icon}`} />
                   <input
                     id="staff-login-id"
                     type="text"
                     inputMode="email"
                     autoComplete="username"
+                    autoCapitalize="none"
+                    spellCheck={false}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="name@barodaswimfront.com or 98250 12345"
-                    className={`w-full py-3.5 pl-12 pr-4 rounded-full border text-sm font-medium focus:outline-none transition-all ${
-                      isSwim 
-                        ? "bg-white/75 backdrop-blur-md border-white/80 text-slate-900 placeholder-slate-600 focus:bg-white/90 focus:border-sky-400" 
-                        : "bg-emerald-950/30 backdrop-blur-md border-emerald-400/20 text-emerald-50 placeholder-emerald-300/50 focus:bg-emerald-950/40 focus:border-amber-400"
-                    }`}
+                    placeholder="Email or 10-digit mobile"
+                    className={`w-full h-12 pl-11 pr-4 bg-transparent rounded-2xl text-[15px] font-medium focus:outline-none ${ui.input}`}
                     required
                   />
                 </div>
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-mono uppercase tracking-wider opacity-60">Security Passcode <span className="text-rose-500" aria-hidden="true">*</span></label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 opacity-90" />
+              <div className="flex flex-col gap-2">
+                <label htmlFor="staff-login-password" className={ui.label}>
+                  Password <span className="text-rose-500" aria-hidden="true">*</span>
+                </label>
+                <div className={`relative rounded-2xl border transition-colors ${ui.field}`}>
+                  <Lock className={`absolute left-4 top-1/2 -translate-y-1/2 h-[18px] w-[18px] pointer-events-none ${ui.icon}`} />
                   <input
+                    id="staff-login-password"
                     type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className={`w-full py-3.5 pl-12 pr-12 rounded-full border text-sm font-medium focus:outline-none transition-all ${
-                      isSwim 
-                        ? "bg-white/75 backdrop-blur-md border-white/80 text-slate-900 placeholder-slate-600 focus:bg-white/90 focus:border-sky-400" 
-                        : "bg-emerald-950/30 backdrop-blur-md border-emerald-400/20 text-emerald-50 placeholder-emerald-300/50 focus:bg-emerald-950/40 focus:border-amber-400"
-                    }`}
+                    placeholder="Your password"
+                    className={`w-full h-12 pl-11 pr-12 bg-transparent rounded-2xl text-[15px] font-medium focus:outline-none ${ui.input}`}
                     required
                   />
                   <button
                     type="button"
                     id="btn-login-toggle-pw"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 focus:outline-none"
+                    className={`absolute right-2 top-1/2 -translate-y-1/2 h-9 w-9 rounded-xl flex items-center justify-center cursor-pointer ${ui.ghost}`}
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPassword ? <EyeOff className="h-[18px] w-[18px]" /> : <Eye className="h-[18px] w-[18px]" />}
                   </button>
                 </div>
               </div>
 
-              <div className="flex gap-3 mt-3">
-                <button
-                  type="button"
-                  id="btn-login-back-to-roles-staff"
-                  onClick={() => setStep("role")}
-                  className={`flex-grow py-3 rounded-full text-xs uppercase tracking-wider font-semibold border transition-all cursor-pointer ${
-                    isSwim ? "border-slate-200 text-slate-800 hover:bg-slate-50" : "border-emerald-800 text-emerald-100 hover:bg-emerald-900/30"
-                  }`}
-                >
-                  Back
-                </button>
-                <button
-                  type="submit"
-                  id="btn-login-submit-staff"
-                  disabled={isVerifying}
-                  className={`flex-grow py-3 rounded-full text-xs uppercase tracking-wider font-extrabold transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 ${
-                    isSwim ? "bg-sky-500 text-white hover:opacity-95" : "bg-amber-400 text-slate-950 hover:bg-amber-500"
-                  }`}
-                >
-                  {isVerifying ? (
-                    <>
-                      <div className="h-4 w-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
-                      <span>Processing...</span>
-                    </>
-                  ) : (
-                    <span>Log In</span>
-                  )}
-                </button>
-              </div>
+              {rememberBox("staff")}
+
+              <button
+                type="submit"
+                id="btn-login-submit-staff"
+                disabled={isVerifying}
+                className={`w-full h-12 rounded-2xl text-[15px] font-semibold transition-all shadow-sm cursor-pointer flex items-center justify-center gap-2 disabled:opacity-70 ${ui.primary}`}
+              >
+                {isVerifying ? (
+                  <>
+                    <span className="h-4 w-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                    Signing in…
+                  </>
+                ) : (
+                  "Log in"
+                )}
+              </button>
+
+              <p className={`text-xs text-center ${ui.muted}`}>Forgot your password? Ask the academy admin to reset it.</p>
             </form>
           )}
 
-          {/* STEP 3: OTP VERIFICATION FORM */}
+          {/* STEP 3: OTP */}
           {step === "otp" && (
-            <form onSubmit={handleVerifyOTP} className="flex flex-col gap-6 text-center items-center animate-in fade-in slide-in-from-bottom-2 duration-300">
-              {/* Friendly icon badge */}
-              <div className={`relative h-20 w-20 rounded-full flex items-center justify-center ${
-                isSwim ? "bg-sky-50" : "bg-emerald-900/40"
-              }`}>
-                <Smartphone className={`h-9 w-9 ${isSwim ? "text-sky-500" : "text-emerald-300"}`} />
-                <div className={`absolute -bottom-1 -right-1 h-7 w-7 rounded-full flex items-center justify-center border-2 ${
-                  isSwim ? "bg-emerald-500 border-white" : "bg-amber-400 border-emerald-950"
-                }`}>
-                  <CheckCircle className="h-4 w-4 text-white" strokeWidth={2.5} />
-                </div>
-                <Sparkles className={`absolute -top-2 -left-2 h-4 w-4 ${isSwim ? "text-amber-400" : "text-amber-300"}`} />
-              </div>
-
-              <div>
-                <h3 className={`text-xl font-black ${isSwim ? "text-slate-900" : "text-white"}`}>Verify with OTP</h3>
-                <p className="text-sm opacity-60 mt-1">
-                  Sent to <span className="font-semibold">+91 {phoneNumber}</span>
-                </p>
-              </div>
-
-              {/* Individual OTP digit boxes */}
-              <div className="flex items-center justify-center gap-2.5" onPaste={handleOtpPaste}>
+            <form onSubmit={handleVerifyOTP} className="flex flex-col gap-5 items-stretch">
+              <div className="flex items-center justify-center gap-2 sm:gap-2.5" onPaste={handleOtpPaste}>
                 {Array.from({ length: OTP_LENGTH }).map((_, i) => (
                   <input
                     key={i}
                     ref={(el) => { otpBoxRefs.current[i] = el; }}
                     type="text"
                     inputMode="numeric"
+                    autoComplete={i === 0 ? "one-time-code" : "off"}
+                    aria-label={`Digit ${i + 1}`}
                     maxLength={1}
                     value={otpCode[i] || ""}
                     onChange={(e) => handleOtpBoxChange(i, e.target.value)}
                     onKeyDown={(e) => handleOtpBoxKeyDown(i, e)}
                     disabled={isVerifying}
-                    className={`h-14 w-11 rounded-2xl border text-center text-xl font-black focus:outline-none transition-all ${
-                      isSwim
-                        ? "bg-white/75 backdrop-blur-md border-white/80 text-slate-900 focus:bg-white/90 focus:border-sky-400"
-                        : "bg-emerald-950/30 backdrop-blur-md border-emerald-400/20 text-emerald-50 focus:bg-emerald-950/40 focus:border-amber-400"
-                    }`}
+                    className={`h-14 w-11 sm:w-12 rounded-2xl border text-center text-xl font-bold focus:outline-none transition-colors ${ui.field} ${ui.input}`}
                   />
                 ))}
               </div>
 
-              {/* Resend row, simple copy */}
-              <div className="text-sm">
+              <div className="text-sm text-center">
                 {countdown > 0 ? (
-                  <span className="opacity-60">
-                    Resend OTP in: <strong className={isSwim ? "text-slate-900" : "text-white"}>00:{String(countdown).padStart(2, "0")}</strong>
+                  <span className={ui.muted}>
+                    Didn't get it? Resend in <strong className={ui.title}>0:{String(countdown).padStart(2, "0")}</strong>
                   </span>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={handleResendOTP}
-                    disabled={isVerifying}
-                    className={`font-bold cursor-pointer ${isSwim ? "text-sky-500 hover:underline" : "text-amber-400 hover:underline"}`}
-                  >
-                    Resend OTP
+                  <button type="button" onClick={handleResendOTP} disabled={isVerifying} className={`font-semibold cursor-pointer hover:underline ${ui.link}`}>
+                    Resend code
                   </button>
                 )}
               </div>
 
-              <div className="flex gap-3 mt-1 w-full">
-                <button
-                  type="button"
-                  id="btn-login-back-to-phone"
-                  onClick={() => setStep("auth")}
-                  className={`flex-grow py-3.5 rounded-full text-xs uppercase tracking-wider font-semibold border transition-all ${
-                    isSwim ? "border-slate-200 text-slate-800 hover:bg-slate-50" : "border-emerald-800 text-emerald-100"
-                  }`}
-                >
-                  Change Number
-                </button>
-                <button
-                  type="submit"
-                  id="btn-login-submit-otp"
-                  disabled={isVerifying || otpCode.length !== OTP_LENGTH}
-                  className={`flex-grow py-3.5 rounded-full text-xs uppercase tracking-wider font-extrabold transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 ${
-                    isSwim ? "bg-sky-500 text-white hover:opacity-95" : "bg-amber-400 text-slate-950 hover:bg-amber-500"
-                  }`}
-                >
-                  {isVerifying ? (
-                    <>
-                      <div className="h-4 w-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
-                      <span>Verifying...</span>
-                    </>
-                  ) : (
-                    <span>Verify & Continue</span>
-                  )}
-                </button>
-              </div>
+              {rememberBox("otp")}
+
+              <button
+                type="submit"
+                id="btn-login-submit-otp"
+                disabled={isVerifying || otpCode.length !== OTP_LENGTH}
+                className={`w-full h-12 rounded-2xl text-[15px] font-semibold transition-all shadow-sm cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${ui.primary}`}
+              >
+                {isVerifying ? (
+                  <>
+                    <span className="h-4 w-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                    Checking…
+                  </>
+                ) : (
+                  "Verify and continue"
+                )}
+              </button>
+
+              <button
+                type="button"
+                id="btn-login-back-to-phone"
+                onClick={() => setStep("auth")}
+                className={`text-sm font-semibold cursor-pointer hover:underline ${ui.link}`}
+              >
+                Use a different number
+              </button>
             </form>
           )}
 

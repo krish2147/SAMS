@@ -7,6 +7,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pi
 import { formatCurrency } from "../utils/formatter";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { sessionStore } from "../utils/sessionStore";
 
 interface ReportsTabProps {
   isSwim: boolean;
@@ -30,7 +31,7 @@ export function ReportsTab({ isSwim, members, coaches, userRole = "admin" }: Rep
 
   const getSessionToken = () => {
     try {
-      const saved = localStorage.getItem("sams_session");
+      const saved = sessionStore.get();
       if (saved) {
         const parsed = JSON.parse(saved);
         return parsed?.token || "";

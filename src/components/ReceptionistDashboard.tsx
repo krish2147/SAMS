@@ -13,6 +13,7 @@ import { EmergencyMemberModal } from "./EmergencyMemberModal";
 import { MemberTimelineModal } from "./MemberTimelineModal";
 import { DailyClosingReportModal } from "./DailyClosingReportModal";
 import { NotificationDrawer, SysNotification } from "./NotificationDrawer";
+import { sessionStore } from "../utils/sessionStore";
 
 interface ReceptionistDashboardProps {
   academyId: AcademyId;
@@ -27,7 +28,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
   // Session retrieval
   const [sessionUser, setSessionUser] = useState<any>(() => {
     try {
-      const saved = localStorage.getItem("sams_session");
+      const saved = sessionStore.get();
       if (saved) return JSON.parse(saved);
     } catch (e) {}
     return { name: userName || "Receptionist", role: "receptionist" };
@@ -35,7 +36,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
 
   const getSessionToken = () => {
     try {
-      const saved = localStorage.getItem("sams_session");
+      const saved = sessionStore.get();
       if (saved) {
         const parsed = JSON.parse(saved);
         return parsed?.token || "";
