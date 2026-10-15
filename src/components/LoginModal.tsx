@@ -678,7 +678,7 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
                         type="text"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
-                        placeholder="Mithil"
+                        placeholder="Your full name"
                         className={`w-full py-3.5 pl-12 pr-4 rounded-full border text-sm font-medium focus:outline-none transition-all ${
                           isSwim
                           ? "bg-white/75 backdrop-blur-md border-white/80 text-slate-900 placeholder-slate-600 focus:bg-white/90 focus:border-sky-400"

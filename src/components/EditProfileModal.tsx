@@ -453,7 +453,7 @@ export function EditProfileModal({ isOpen, onClose, currentProfile, onSave, isSw
                   type="text" 
                   value={parentName} 
                   onChange={(e) => setParentName(e.target.value)}
-                  placeholder="E.g., Sanjaybhai Patel"
+                  placeholder="e.g. Rajeshbhai Shah"
                   className={`w-full py-3.5 px-4 rounded-xl border text-xs font-semibold focus:outline-none transition-all ${inputBgClass}`}
                 />
               </div>

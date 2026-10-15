@@ -1926,7 +1926,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                         type="text"
                         value={newStaffName}
                         onChange={(e) => setNewStaffName(e.target.value)}
-                        placeholder="e.g. Sanjay Kumar"
+                        placeholder="e.g. Rahul Mehta"
                         className={inputStyle}
                         required
                       />
@@ -1968,7 +1968,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                         type="email"
                         value={newStaffEmail}
                         onChange={(e) => setNewStaffEmail(e.target.value)}
-                        placeholder="e.g. sanjay@academy.sams"
+                        placeholder="e.g. name@barodaswimfront.com"
                         className={inputStyle}
                         required
                       />
