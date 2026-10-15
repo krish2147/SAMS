@@ -294,12 +294,14 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
             setAuthError(err.message || "Could not register corporate account.");
           });
       } else {
-        if (!email.includes("@")) {
-          setAuthError("Please specify a valid institutional email.");
+        const identifier = email.trim();
+        const isEmail = identifier.includes("@");
+        if (!isEmail && identifier.replace(/\D/g, "").replace(/^91(?=\d{10}$)/, "").length !== 10) {
+          setAuthError("Enter your email, or your 10-digit mobile number.");
           return;
         }
-        if (password.length < 4) {
-          setAuthError("Secure password must be at least 4 characters.");
+        if (!password) {
+          setAuthError("Enter your password.");
           return;
         }
 
@@ -988,14 +990,17 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
             <form onSubmit={handleAuthSubmit} className="flex flex-col gap-4 text-left animate-in fade-in duration-300">
               
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-mono uppercase tracking-wider opacity-60">Corporate/Staff Email Address</label>
+                <label htmlFor="staff-login-id" className="text-xs font-mono uppercase tracking-wider opacity-60">Email or mobile number</label>
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 opacity-90" />
                   <input
-                    type="email"
+                    id="staff-login-id"
+                    type="text"
+                    inputMode="email"
+                    autoComplete="username"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="name@academy.sams"
+                    placeholder="name@barodaswimfront.com or 98250 12345"
                     className={`w-full py-3.5 pl-12 pr-4 rounded-full border text-sm font-medium focus:outline-none transition-all ${
                       isSwim 
                         ? "bg-white/75 backdrop-blur-md border-white/80 text-slate-900 placeholder-slate-600 focus:bg-white/90 focus:border-sky-400" 

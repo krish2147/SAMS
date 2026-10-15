@@ -10,6 +10,16 @@ export class UserRepository {
     return rows && rows.length > 0 ? rows[0] : null;
   }
 
+  /** Every staff account whose phone ends in this 10-digit national number. */
+  async getAllByPhone(national: string): Promise<any[]> {
+    const pool = await getDbPool();
+    const [rows]: any = await pool.query(
+      "SELECT * FROM users WHERE RIGHT(REGEXP_REPLACE(COALESCE(phone_number, ''), '[^0-9]', ''), 10) = ?",
+      [national]
+    );
+    return rows || [];
+  }
+
   async getById(id: number | string): Promise<any | null> {
     const pool = await getDbPool();
     const [rows]: any = await pool.query(

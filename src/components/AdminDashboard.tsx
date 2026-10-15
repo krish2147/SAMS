@@ -317,7 +317,8 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
         fetchStaffList();
         setTimeout(() => setStaffAlert(null), 3000);
       } else {
-        setStaffAlert(data.error || "Failed to register staff account.");
+        // The server sends either a string or { message } depending on where the error arose.
+        setStaffAlert((typeof data.error === "string" ? data.error : data.error?.message) || "Failed to register staff account.");
       }
     } catch (err: any) {
       setStaffAlert("Connection error: " + err.message);
