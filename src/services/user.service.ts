@@ -223,14 +223,31 @@ export class UserService {
 
       return { success: true, token, member };
     } else {
-      // Staff/Coach/Admin/Super Admin Login
-      if (!email || !password) {
-        return { success: false, error: "Email and password required" };
+      // Staff/Coach/Admin/Developer login, with either an email or a mobile number.
+      const identifier = String(email || "").trim();
+      if (!identifier || !password) {
+        return { success: false, error: "Enter your email or mobile number, and your password." };
       }
 
-      const user = await this.userRepository.getByEmail(email);
+      let user: any = null;
+      if (identifier.includes("@")) {
+        user = await this.userRepository.getByEmail(identifier);
+      } else {
+        let national: string;
+        try {
+          national = normalizeIndianMobile(identifier).national;
+        } catch {
+          return { success: false, error: "Enter your email, or a 10-digit mobile number." };
+        }
+        const matches = await this.userRepository.getAllByPhone(national);
+        if (matches.length > 1) {
+          // Never guess between accounts that share a number.
+          return { success: false, error: "This mobile number is on more than one staff account. Sign in with your email instead." };
+        }
+        user = matches[0] || null;
+      }
       if (!user) {
-        return { success: false, error: "Invalid email or password." };
+        return { success: false, error: "Invalid email/mobile number or password." };
       }
       if (user.is_active === 0 || user.is_active === false) {
         return { success: false, error: "This staff account is inactive. Contact a system administrator." };
@@ -238,7 +255,7 @@ export class UserService {
 
       const isPasswordValid = await bcrypt.compare(password, user.password_hash);
       if (!isPasswordValid) {
-        return { success: false, error: "Invalid email or password." };
+        return { success: false, error: "Invalid email/mobile number or password." };
       }
 
       const token = await UserService.createSession({
@@ -300,6 +317,9 @@ export class UserService {
       throw new Error("Staff passwords must contain at least 12 characters.");
     }
 
+    // A mobile number signs a staff member in, so it must belong to one account only.
+    await this.assertPhoneNotTaken(staff.phone || staff.phoneNumber);
+
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(staff.password, salt);
 
@@ -354,7 +374,25 @@ export class UserService {
     return this.userRepository.updatePassword(id, passwordHash);
   }
 
+  /** Rejects a valid mobile number that another staff account already uses. */
+  private async assertPhoneNotTaken(phone: unknown, exceptUserId?: number | string) {
+    let national: string;
+    try {
+      national = normalizeIndianMobile(phone).national;
+    } catch {
+      return; // No usable number, so nothing to sign in with and nothing to clash.
+    }
+    const owners = (await this.userRepository.getAllByPhone(national))
+      .filter((u: any) => exceptUserId === undefined || String(u.id) !== String(exceptUserId));
+    if (owners.length > 0) {
+      const error: any = new Error("This mobile number is already used by another staff account.");
+      error.status = 400;
+      throw error;
+    }
+  }
+
   async updateProfile(id: number | string, data: { name: string; email: string; phoneNumber: string; photoUrl?: string }): Promise<boolean> {
+    await this.assertPhoneNotTaken(data.phoneNumber, id);
     const success = await this.userRepository.updateProfile(id, data);
     if (success) {
       const pool = await getDbPool();

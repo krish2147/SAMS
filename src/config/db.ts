@@ -740,6 +740,11 @@ function executeMockQuery(sql: string, params: any[] = []): [any, any] {
     const user = db.users.find((u: any) => u.email.toLowerCase().trim() === email);
     return [user ? [user] : [], null];
   }
+  if (sqlTrim.match(/SELECT \* FROM users WHERE RIGHT\(REGEXP_REPLACE/i)) {
+    const national = String(params[0] || "");
+    const matches = db.users.filter((u: any) => String(u.phone_number || "").replace(/\D/g, "").slice(-10) === national);
+    return [matches, null];
+  }
   if (sqlTrim.match(/SELECT \* FROM users WHERE id = \?/i)) {
     const id = Number(params[0]);
     const user = db.users.find((u: any) => u.id === id);
