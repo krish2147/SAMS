@@ -8,6 +8,7 @@ import { Msg91OtpService, type OtpProvider } from "./msg91-otp.service";
 import { OtpSecurityService } from "./otp-security.service";
 import { normalizeIndianMobile } from "../utils/phone";
 import { toDateOnlyString, calendarToday } from "../utils/membership-date";
+import { MIN_PASSWORD_LENGTH } from "../utils/password";
 
 
 export interface SessionData {
@@ -313,8 +314,8 @@ export class UserService {
       throw new Error("An account with this email address is already registered.");
     }
 
-    if (!staff.password || staff.password.length < 12) {
-      throw new Error("Staff passwords must contain at least 12 characters.");
+    if (!staff.password || staff.password.length < MIN_PASSWORD_LENGTH) {
+      throw new Error(`Staff passwords must contain at least ${MIN_PASSWORD_LENGTH} characters.`);
     }
 
     // A mobile number signs a staff member in, so it must belong to one account only.
@@ -366,8 +367,8 @@ export class UserService {
   }
 
   async resetStaffPassword(id: number | string, newPassword?: string): Promise<boolean> {
-    if (!newPassword || newPassword.length < 12) {
-      throw new Error("The new password must contain at least 12 characters.");
+    if (!newPassword || newPassword.length < MIN_PASSWORD_LENGTH) {
+      throw new Error(`The new password must contain at least ${MIN_PASSWORD_LENGTH} characters.`);
     }
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(newPassword, salt);

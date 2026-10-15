@@ -3,6 +3,7 @@ import path from "path";
 import fs from "fs";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "crypto";
+import { MIN_PASSWORD_LENGTH } from "../utils/password";
 
 /**
  * The academy's published rate card, effective 1 February 2026.
@@ -366,8 +367,8 @@ async function seedDefaultData(pool: mysql.Pool) {
       if (process.env.NODE_ENV === "production") {
         const email = process.env.INITIAL_ADMIN_EMAIL;
         const password = process.env.INITIAL_ADMIN_PASSWORD;
-        if (!email || !password || password.length < 12) {
-          throw new Error("A new production database requires INITIAL_ADMIN_EMAIL and an INITIAL_ADMIN_PASSWORD of at least 12 characters.");
+        if (!email || !password || password.length < MIN_PASSWORD_LENGTH) {
+          throw new Error(`A new production database requires INITIAL_ADMIN_EMAIL and an INITIAL_ADMIN_PASSWORD of at least ${MIN_PASSWORD_LENGTH} characters.`);
         }
         const hash = await bcrypt.hash(password, salt);
         // The first account is the system developer's own unless INITIAL_ADMIN_ROLE says otherwise.

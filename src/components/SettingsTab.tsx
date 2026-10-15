@@ -5,6 +5,7 @@ import {
   AlertCircle, Cpu, Wifi, HelpCircle, Key, Mail, Phone, Moon, Sun,
   Camera, Upload, Check, RefreshCw
 } from "lucide-react";
+import { MIN_PASSWORD_LENGTH } from "../utils/password";
 
 interface SettingsTabProps {
   activeUser: {
@@ -168,8 +169,8 @@ export function SettingsTab({ activeUser, buttonPrimary, inputStyle, onProfileUp
       setErrorMsg("Current password is required to change password.");
       return;
     }
-    if (newPassword.length < 6) {
-      setErrorMsg("New password must be at least 6 characters long.");
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
+      setErrorMsg(`New password must be at least ${MIN_PASSWORD_LENGTH} characters long.`);
       return;
     }
     if (newPassword !== confirmPassword) {

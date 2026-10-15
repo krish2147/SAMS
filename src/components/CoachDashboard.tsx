@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { AcademyId, UserSession } from "../types";
 import { NotificationDrawer } from "./NotificationDrawer";
+import { MIN_PASSWORD_LENGTH } from "../utils/password";
 
 interface CoachDashboardProps {
   academyId: AcademyId;
@@ -278,8 +279,8 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
       alert("Current account password is required.");
       return;
     }
-    if (newPassword.length < 6) {
-      alert("New password must contain at least 6 characters.");
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
+      alert(`New password must contain at least ${MIN_PASSWORD_LENGTH} characters.`);
       return;
     }
     if (newPassword !== confirmPassword) {
