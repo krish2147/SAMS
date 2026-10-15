@@ -2,9 +2,10 @@
 // old version when the internet is available.
 //  - Pages: always fetched fresh from the server; the last copy is only used when offline.
 //  - /assets/*: file names change on every release, so a cached copy is always the right one.
+//  - Icons, manifest and everything else: straight from the server, so changes show at once.
 //  - /api/*: never cached (live data, logins, payments).
 const PAGE_CACHE = "sams-pages-v1";
-const ASSET_CACHE = "sams-assets-v1";
+const ASSET_CACHE = "sams-assets-v2"; // v2: icons are no longer cached, so a new icon always shows
 const MAX_ASSETS = 80;
 
 self.addEventListener("install", () => self.skipWaiting());
@@ -50,7 +51,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (url.pathname.startsWith("/assets/") || url.pathname.startsWith("/icons/")) {
+  if (url.pathname.startsWith("/assets/")) {
     event.respondWith((async () => {
       const cached = await caches.match(req);
       if (cached) return cached;
