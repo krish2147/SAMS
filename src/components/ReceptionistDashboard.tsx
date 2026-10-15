@@ -413,7 +413,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
               <button
                 onClick={() => setNotificationsOpen(!notificationsOpen)}
                 className="p-2.5 bg-white hover:bg-slate-50 text-slate-700 rounded-xl transition-all cursor-pointer border border-slate-200 relative group shadow-2xs"
-                title="Recent System Alerts & Desk Notifications"
+                title="Notifications" aria-label="Notifications"
                 id="btn-receptionist-bell"
               >
                 <Bell className="h-4 w-4" />

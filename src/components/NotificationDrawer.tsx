@@ -35,7 +35,7 @@ export function NotificationDrawer({
   onDelete,
   onClearAll
 }: NotificationDrawerProps) {
-  const [filter, setFilter] = useState<"all" | "alerts" | "class" | "unread">("all");
+  const [filter, setFilter] = useState<"all" | "class" | "unread">("all");
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -80,7 +80,6 @@ export function NotificationDrawer({
 
   const filteredNotifications = notifications.filter((n) => {
     if (filter === "unread") return !n.read;
-    if (filter === "alerts") return ["registration", "approval", "rejection", "renewal", "system"].includes(n.type);
     if (filter === "class") return ["class", "announcement"].includes(n.type);
     return true;
   });
@@ -107,7 +106,7 @@ export function NotificationDrawer({
             className="relative w-full max-w-md bg-white h-full shadow-2xl border-l border-slate-200 flex flex-col z-10 text-left"
           >
             {/* Header */}
-            <div className="p-5 border-b border-slate-150 flex items-center justify-between bg-slate-50/80 shrink-0">
+            <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50/80 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="relative p-2 bg-white rounded-xl border border-slate-200 shadow-xs">
                   <Bell className="h-5 w-5 text-slate-800" />
@@ -118,14 +117,14 @@ export function NotificationDrawer({
                   )}
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">System Alerts & Updates</h3>
-                  <p className="text-[10.5px] text-slate-500 font-medium">Recent announcements, class updates & alerts</p>
+                  <h3 className="text-base font-bold text-slate-900 tracking-tight">Notifications</h3>
+                  <p className="text-xs text-slate-500">Members, payments and class updates</p>
                 </div>
               </div>
               <button
                 onClick={onClose}
                 className="p-1.5 rounded-xl hover:bg-slate-200 text-slate-500 transition-all cursor-pointer"
-                title="Close Drawer"
+                title="Close" aria-label="Close notifications"
               >
                 <X className="h-4.5 w-4.5" />
               </button>
@@ -135,9 +134,8 @@ export function NotificationDrawer({
             <div className="px-5 py-2.5 border-b border-slate-100 bg-white flex items-center gap-1.5 text-xs font-semibold overflow-x-auto shrink-0">
               {[
                 { id: "all", label: "All" },
-                { id: "unread", label: `Unread (${unreadCount})` },
-                { id: "alerts", label: "System Alerts" },
-                { id: "class", label: "Class Updates" }
+                { id: "unread", label: unreadCount > 0 ? `Unread (${unreadCount})` : "Unread" },
+                { id: "class", label: "Class updates" }
               ].map((t) => (
                 <button
                   key={t.id}
@@ -180,8 +178,8 @@ export function NotificationDrawer({
                   <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-300 mb-3">
                     <Bell className="h-6 w-6" />
                   </div>
-                  <p className="text-slate-600 text-xs font-bold">No notifications found</p>
-                  <p className="text-slate-400 text-[11px] mt-1 max-w-xs">You're all caught up! System alerts or class updates will appear here.</p>
+                  <p className="text-slate-600 text-sm font-semibold">{filter === "unread" ? "No unread notifications" : filter === "class" ? "No class updates" : "No notifications yet"}</p>
+                  <p className="text-slate-400 text-[11px] mt-1 max-w-xs">You're all caught up. New registrations, payments and class updates will show here.</p>
                 </div>
               ) : (
                 filteredNotifications.map((n) => (
@@ -225,7 +223,7 @@ export function NotificationDrawer({
                     </div>
 
                     {/* Action buttons on hover */}
-                    <div className="absolute bottom-3 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute bottom-3 right-3 flex items-center gap-1.5 md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100 transition-opacity">
                       {!n.read && (
                         <button
                           onClick={() => onMarkRead(n.id)}

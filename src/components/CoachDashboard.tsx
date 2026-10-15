@@ -531,7 +531,7 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
               <button
                 onClick={() => setNotificationsDrawerOpen(!notificationsDrawerOpen)}
                 className="p-2 text-slate-600 hover:text-sky-600 hover:bg-slate-50 rounded-xl relative border border-slate-200 bg-white shadow-2xs transition-colors cursor-pointer"
-                title="System Alerts & Class Updates"
+                title="Notifications" aria-label="Notifications"
                 id="btn-coach-desktop-bell"
               >
                 <Bell className="h-4.5 w-4.5" />

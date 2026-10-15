@@ -656,7 +656,7 @@ export function MemberDashboard({ academyId, userName, onLogout }: MemberDashboa
           <button
             onClick={() => setNotificationsDrawerOpen(!notificationsDrawerOpen)}
             className="p-3 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-2 text-xs font-bold text-slate-700 transition-all cursor-pointer shadow-xs relative"
-            title="System Alerts & Broadcaster Notifications"
+            title="Notifications" aria-label="Notifications"
             id="btn-member-bell"
           >
             <Bell className="h-4 w-4 text-sky-500" />
