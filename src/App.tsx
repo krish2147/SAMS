@@ -144,6 +144,7 @@ export default function App() {
       case "staff":
       case "receptionist":
         return <ReceptionistDashboard academyId={selectedAcademyId!} userName={userSession.name} onLogout={handleLogout} />;
+      case "developer":
       case "super_admin":
       case "admin":
         return <AdminDashboard academyId={selectedAcademyId!} userName={userSession.name} userRole={userSession.role} onLogout={handleLogout} userSession={userSession} onProfileUpdated={handleProfileUpdated} />;
@@ -152,7 +153,7 @@ export default function App() {
     }
   };
 
-  const isAdminStaffRole = userSession && ["admin", "super_admin", "staff", "receptionist", "coach"].includes(userSession.role);
+  const isAdminStaffRole = userSession && ["developer", "admin", "super_admin", "staff", "receptionist", "coach"].includes(userSession.role);
   // The member portal ships its own sidebar, branding, account menu and logout, so it renders
   // full-screen like the staff dashboards rather than inside the public shell's navbar/tab frame.
   const isFullScreenDashboard = Boolean(isAdminStaffRole || (userSession && userSession.role === "member"));

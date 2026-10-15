@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { PaymentService } from "../services/payment.service";
+import { hasAdminAccess } from "../utils/roles";
 
 const paymentService = new PaymentService();
 
@@ -190,7 +191,7 @@ export class PaymentController {
       const { paymentId, refundAmount, reason } = req.body;
       const user = (req as any).user;
 
-      if (user?.role && user.role !== "super_admin" && user.role !== "admin") {
+      if (user?.role && !hasAdminAccess(user.role)) {
         return res.status(403).json({ error: "Only Admin or Super Admin is authorized to issue payment refunds." });
       }
 

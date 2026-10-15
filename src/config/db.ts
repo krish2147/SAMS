@@ -370,11 +370,16 @@ async function seedDefaultData(pool: mysql.Pool) {
           throw new Error("A new production database requires INITIAL_ADMIN_EMAIL and an INITIAL_ADMIN_PASSWORD of at least 12 characters.");
         }
         const hash = await bcrypt.hash(password, salt);
+        // The first account is the system developer's own unless INITIAL_ADMIN_ROLE says otherwise.
+        // The academy's admin and staff are then created from the console.
+        const initialRole = ["developer", "super_admin", "admin"].includes(String(process.env.INITIAL_ADMIN_ROLE))
+          ? String(process.env.INITIAL_ADMIN_ROLE)
+          : "developer";
         await pool.query(
-          "INSERT INTO users (name, email, password_hash, phone_number, role, academy_id) VALUES (?, ?, ?, ?, 'super_admin', 'swim')",
-          [process.env.INITIAL_ADMIN_NAME || "System Administrator", email.toLowerCase().trim(), hash, process.env.INITIAL_ADMIN_PHONE || "+910000000000"]
+          "INSERT INTO users (name, email, password_hash, phone_number, role, academy_id) VALUES (?, ?, ?, ?, ?, 'swim')",
+          [process.env.INITIAL_ADMIN_NAME || "Developer", email.toLowerCase().trim(), hash, process.env.INITIAL_ADMIN_PHONE || "+910000000000", initialRole]
         );
-        console.log("🌱 Created the initial production administrator from environment configuration.");
+        console.log(`🌱 Created the initial production account (${initialRole}) from environment configuration.`);
       } else {
         const email = (process.env.DEV_ADMIN_EMAIL || "admin@example.test").toLowerCase().trim();
         const password = process.env.DEV_ADMIN_PASSWORD || randomBytes(18).toString("base64url");

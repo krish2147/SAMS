@@ -1,4 +1,5 @@
 import { getDbPool } from "../config/db";
+import { hasAdminAccess } from "../utils/roles";
 
 export type ArchiveMemberActor = {
   userId: string;
@@ -39,7 +40,7 @@ export class MemberDeletionService {
       await conn.beginTransaction();
       // The route middleware is the first authorization boundary. Keep this
       // check inside the transaction as a defense for non-HTTP callers too.
-      if (!["admin", "super_admin"].includes(String(actor.role))) {
+      if (!hasAdminAccess(actor.role)) {
         throw new MemberDeletionError("You are not authorized to delete members.", 403, "FORBIDDEN");
       }
       const [memberRows]: any = await conn.query(
