@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { QrCode, Search, CheckCircle2, AlertTriangle, X, Camera, RefreshCw, User, ShieldCheck, Clock, Check, Maximize2, Minimize2 } from "lucide-react";
 import { QrScannerModal } from "./QrScannerModal";
 import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-logo";
+import { CHARACTER_AVATARS } from "../utils/avatars";
 
 interface ReceptionKioskModalProps {
   isOpen: boolean;
@@ -251,7 +252,7 @@ export function ReceptionKioskModal({
                   >
                     <div className="flex items-center gap-3">
                       <img
-                        src={m.photoUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80"}
+                        src={m.photoUrl || CHARACTER_AVATARS[0]}
                         alt={m.fullName}
                         className="w-10 h-10 rounded-xl object-cover border border-slate-700"
                       />
@@ -311,7 +312,7 @@ export function ReceptionKioskModal({
               {activeConfirmation.member && (
                 <div className="mt-4 flex flex-col items-center gap-2 p-4 rounded-2xl bg-slate-950 border border-slate-800">
                   <img
-                    src={activeConfirmation.member.photoUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"}
+                    src={activeConfirmation.member.photoUrl || CHARACTER_AVATARS[0]}
                     alt={activeConfirmation.member.fullName}
                     className="w-20 h-20 rounded-2xl object-cover border-2 border-cyan-400 shadow-md"
                   />

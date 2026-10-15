@@ -35,6 +35,7 @@ import { useRememberedState } from "../utils/useRememberedState";
 import { useStaffNotifications } from "../utils/useStaffNotifications";
 import { NotificationCountBadge } from "./NotificationCountBadge";
 import { PasswordInput } from "./PasswordInput";
+import { CHARACTER_AVATARS } from "../utils/avatars";
 
 
 
@@ -385,8 +386,8 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
     // 1. Coaches
     if (isSwim) {
       setCoachesList([
-        { id: "c1", name: "Sanjay", specialty: "Elite Freestyle & Butterfly", rating: 4.9, image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=300", bio: "Senior Coach with 10+ years experience training competitive swimmers." },
-        { id: "c2", name: "Hetvi", specialty: "Stroke Correction & Kids Squad", rating: 4.8, image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=300", bio: "Junior Development Specialist. Passionate about building strong foundations." }
+        { id: "c1", name: "Sanjay", specialty: "Elite Freestyle & Butterfly", rating: 4.9, image: CHARACTER_AVATARS[5], bio: "Senior Coach with 10+ years experience training competitive swimmers." },
+        { id: "c2", name: "Hetvi", specialty: "Stroke Correction & Kids Squad", rating: 4.8, image: CHARACTER_AVATARS[6], bio: "Junior Development Specialist. Passionate about building strong foundations." }
       ]);
     } else {
       setCoachesList(cricketCoaches);
@@ -476,7 +477,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
       name: newCoachName.trim(),
       specialty: newCoachSpecialty.trim(),
       rating: 5.0,
-      image: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150",
+      image: CHARACTER_AVATARS[0],
       bio: newCoachBio.trim() || "Elite specialized athletic masterclass coach."
     };
 

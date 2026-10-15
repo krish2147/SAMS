@@ -8,6 +8,7 @@ import {
 import { AcademyId, UserSession } from "../types";
 import swimmerImage from "../assets/registration-swimmer.jpg";
 import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-logo";
+import { PhotoPicker } from "./PhotoPicker";
 
 interface RegisterPageProps {
   academyId: AcademyId;
@@ -770,8 +771,8 @@ export function RegisterPage({ academyId, onCancel, embedded = false }: Register
               <div>
                 <p className="text-[13px] font-semibold text-ink-800">Profile photo <span className="ml-1 font-normal text-ink-400">Optional</span></p>
                 <p className="mt-0.5 text-[13px] text-ink-600">Helps reception recognise you. JPEG, PNG or WEBP, up to 2 MB.</p>
-                <div className="mt-2.5 flex gap-2">
-                  <button type="button" onClick={() => fileInputRef.current?.click()} className="rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-sm font-semibold text-ink-800 hover:bg-ink-50">{form.photoUrl ? "Change" : "Upload photo"}</button>
+                <div className="mt-2.5 flex flex-wrap gap-2">
+                  <PhotoPicker onPick={processFile} accept="image/jpeg,image/png,image/webp" />
                   {form.photoUrl && <button type="button" onClick={() => setForm(p => ({ ...p, photoFile: null, photoUrl: "" }))} className="rounded-lg px-3 py-1.5 text-sm font-semibold text-ink-600 hover:bg-ink-50">Remove</button>}
                 </div>
                 <input ref={fileInputRef} name="photoUrl" type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={e => e.target.files?.[0] && processFile(e.target.files[0])} />

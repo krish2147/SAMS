@@ -17,6 +17,7 @@ import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-log
 import { useStaffNotifications } from "../utils/useStaffNotifications";
 import { NotificationCountBadge } from "./NotificationCountBadge";
 import { PasswordInput } from "./PasswordInput";
+import { CHARACTER_AVATARS } from "../utils/avatars";
 
 interface CoachDashboardProps {
   academyId: AcademyId;
@@ -77,7 +78,7 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
       const saved = sessionStore.get();
       if (saved) return JSON.parse(saved);
     } catch (e) {}
-    return { name: userName || "Coach", role: "coach", email: "coach@sams.com", phoneNumber: "+91 99887 76655", avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200" };
+    return { name: userName || "Coach", role: "coach", email: "coach@sams.com", phoneNumber: "+91 99887 76655", avatar: CHARACTER_AVATARS[0] };
   });
 
   // DB Data States
@@ -120,10 +121,10 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
 
   // Pre-loaded preset avatar lists
   const AVATAR_PRESETS = [
-    "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200",
-    "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=200",
-    "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200",
-    "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200"
+    CHARACTER_AVATARS[0],
+    CHARACTER_AVATARS[1],
+    CHARACTER_AVATARS[2],
+    CHARACTER_AVATARS[3]
   ];
 
   // Primary Data Fetch Function
@@ -931,7 +932,7 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
                         >
                           <div className="h-16 w-16 md:h-20 md:w-20 rounded-2xl overflow-hidden border border-current/10 bg-current/5 shadow-sm shrink-0 mx-auto md:mx-0">
                             <img 
-                              src={member.photoUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200"} 
+                              src={member.photoUrl || CHARACTER_AVATARS[0]} 
                               alt={member.fullName} 
                               className="h-full w-full object-cover" 
                               referrerPolicy="no-referrer"
@@ -1210,7 +1211,7 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
                         <label className="text-[10px] font-mono uppercase opacity-65 font-extrabold tracking-wider">Profile Avatar Preset</label>
                         <div className="flex gap-4 items-center">
                           <div className="h-16 w-16 rounded-2xl overflow-hidden border border-current/10 bg-current/5 shrink-0">
-                            <img src={photoUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200"} alt="Preview avatar" className="h-full w-full object-cover" />
+                            <img src={photoUrl || CHARACTER_AVATARS[0]} alt="Preview avatar" className="h-full w-full object-cover" />
                           </div>
                           
                           <div className="flex gap-2">

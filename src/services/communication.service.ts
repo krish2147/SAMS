@@ -266,7 +266,8 @@ export function generateProfessionalHTMLEmail(
   subject: string,
   bodyHtmlContent: string
 ): string {
-  const logoUrl = "https://images.unsplash.com/photo-1530549387789-4c1017266635?w=180&auto=format&fit=crop&q=80";
+  // The academy logo, served by this app (the app icon is the logo on a blue tile).
+  const logoUrl = `${(process.env.APP_BASE_URL || process.env.APP_URL || "https://sams.up.railway.app").replace(/\/$/, "")}/icons/icon-192.png`;
   const mapLink = "https://maps.google.com/?q=Baroda+Swim+Front+Vadodara";
   
   return `
