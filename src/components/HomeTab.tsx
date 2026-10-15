@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { SystemHealthMonitor } from "./SystemHealthMonitor";
 import { 
   ShieldCheck, 
@@ -96,16 +96,23 @@ export function HomeTab({
     return status === "Expired" || status === "Expiring Soon";
   }).length;
 
-  // Today's Collections (Admin only)
-  const todaysCollections = (() => {
-    let total = 0;
-    const todayStr = new Date().toISOString().split("T")[0];
-    members.filter(m => m.status === "Approved" && (m.registrationDate === todayStr || m.dateJoined === todayStr)).forEach(m => {
-      const rates: Record<string, number> = { Monthly: 3500, Quarterly: 9000, "Half Yearly": 16000, Yearly: 28000 };
-      total += rates[m.typeOfMembership] || 3500;
-    });
-    return total; 
-  })();
+  // Today's collections come from the payments ledger, the same figure the Payments page shows.
+  // This used to multiply members registered today by hardcoded plan prices (₹3,500 by default),
+  // which showed revenue that was never collected and missed payments made today.
+  const [todaysCollections, setTodaysCollections] = useState<number | null>(null);
+  useEffect(() => {
+    if (!isAdmin && !isStaff) return;
+    let cancelled = false;
+    fetch("/api/admin/payments", { credentials: "same-origin" })
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        const value = Number(data?.summary?.todaysRevenue);
+        if (!cancelled) setTodaysCollections(Number.isFinite(value) ? value : null);
+      })
+      .catch(() => { if (!cancelled) setTodaysCollections(null); });
+    return () => { cancelled = true; };
+  }, [isAdmin, isStaff]);
+  const todaysCollectionsLabel = todaysCollections === null ? "—" : formatCurrency(todaysCollections);
 
   // Quick actions grid
   const quickActions = [
@@ -231,7 +238,7 @@ export function HomeTab({
               onClick={() => onNavigate("revenue")}
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs font-bold cursor-pointer transition-colors"
             >
-              <span>• ₹{todaysCollections.toLocaleString("en-IN")} Today's Receipts</span>
+              <span>• {todaysCollectionsLabel} Today's Receipts</span>
             </div>
           </div>
         </div>
@@ -342,7 +349,7 @@ export function HomeTab({
               <span className="text-[10px] md:text-xs font-semibold tracking-wider text-ink-400 uppercase block">Today's Revenue</span>
               <div className="flex items-baseline justify-between mt-2">
                 <span className="font-display text-[26px] md:text-[30px] font-bold text-ink-950 tracking-[-0.02em]">
-                  {formatCurrency(todaysCollections)}
+                  {todaysCollectionsLabel}
                 </span>
                 <span className="text-[9px] font-bold text-emerald-600 font-mono">INR</span>
               </div>

@@ -367,7 +367,17 @@ export class MemberController {
     try {
       const pool = await getDbPool();
       const [rows]: any = await pool.query(
-        "SELECT a.id, a.member_id, a.date, a.time, a.checked_in_by, m.fullName, m.membershipNo, m.mobileNo, m.typeOfMembership, m.allottedTiming FROM attendance a INNER JOIN members m ON a.member_id = m.id ORDER BY a.id DESC"
+        // members has no typeOfMembership/allottedTiming columns, so naming them failed every call.
+        // The plan and batch names come from their own tables, and the date is returned as a plain
+        // YYYY-MM-DD so it cannot shift a day when serialized in another timezone.
+        `SELECT a.id, a.member_id, DATE_FORMAT(a.date, '%Y-%m-%d') AS date, a.time, a.checked_in_by,
+                m.fullName, m.membershipNo, m.mobileNo,
+                p.name AS typeOfMembership, b.batch_name AS allottedTiming
+           FROM attendance a
+           INNER JOIN members m ON a.member_id = m.id
+           LEFT JOIN membership_plans p ON m.membership_plan_id = p.id
+           LEFT JOIN batches b ON m.selected_batch_id = b.id
+          ORDER BY a.id DESC`
       );
       res.json(rows);
     } catch (err) {

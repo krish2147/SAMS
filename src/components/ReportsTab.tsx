@@ -134,7 +134,10 @@ export function ReportsTab({ isSwim, members, coaches, userRole = "admin" }: Rep
   // 2. Revenue Report Data (payments status Paid/Successful)
   const allTxns = paymentsData.transactions || [];
   const successfulTxns = allTxns.filter((t: any) => t.status === "Paid" || t.status === "Successful");
-  const filteredRevenueReport = successfulTxns.filter((t: any) => isDateInFilter(t.dateTime));
+  // Payments carry paymentDate/createdAt; reading only t.dateTime left every revenue figure at ₹0.
+  const txnDate = (t: any) => t.dateTime || t.paymentDate || t.createdAt;
+  const dayKey = (value: any) => String(value || "").slice(0, 10);
+  const filteredRevenueReport = successfulTxns.filter((t: any) => isDateInFilter(txnDate(t)));
 
   // 3. Attendance Report Data
   const filteredAttendanceReport = attendanceLogs.filter(log => isDateInFilter(log.date));
@@ -143,7 +146,7 @@ export function ReportsTab({ isSwim, members, coaches, userRole = "admin" }: Rep
   const filteredRenewalReport = renewalsList.filter(r => isDateInFilter(r.due_date));
 
   // 5. Payment Report Data (all transactions)
-  const filteredPaymentReport = allTxns.filter((t: any) => isDateInFilter(t.dateTime));
+  const filteredPaymentReport = allTxns.filter((t: any) => isDateInFilter(txnDate(t)));
 
   // -------------------------------------------------------------
   // TOP SUMMARY CARD CALCULATIONS (Filtered dynamically!)
@@ -152,7 +155,32 @@ export function ReportsTab({ isSwim, members, coaches, userRole = "admin" }: Rep
   
   // Active Members = Checked In Today
   const todayDateStr = new Date().toISOString().split("T")[0];
-  const statsActiveMembers = attendanceLogs.filter(log => log.date === todayDateStr).length;
+  const statsActiveMembers = attendanceLogs.filter(log => dayKey(log.date) === todayDateStr).length;
+
+  // Chart series built from the loaded records. Both charts were previously fixed sample numbers.
+  const last7Days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    const key = d.toISOString().split("T")[0];
+    return {
+      day: d.toLocaleDateString("en-IN", { weekday: "short" }),
+      count: attendanceLogs.filter(log => dayKey(log.date) === key).length
+    };
+  });
+  const last6Months = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() - (5 - i));
+    return {
+      month: d.toLocaleDateString("en-IN", { month: "short" }),
+      revenue: successfulTxns
+        .filter((t: any) => {
+          const td = new Date(txnDate(t));
+          return !isNaN(td.getTime()) && td.getMonth() === d.getMonth() && td.getFullYear() === d.getFullYear();
+        })
+        .reduce((sum: number, t: any) => sum + Number(t.amount || 0), 0)
+    };
+  });
 
   // New registrations within filtered range
   const statsNewRegistrations = filteredMembersReport.length;
@@ -192,7 +220,7 @@ export function ReportsTab({ isSwim, members, coaches, userRole = "admin" }: Rep
         "Swim Plan",
         t.amount,
         t.paymentMethod,
-        t.dateTime
+        txnDate(t)
       ]);
     } else if (reportType === "attendance") {
       headers = ["SAMS ID", "Name", "Timing Slot", "Checked In At", "Checked In By"];
@@ -221,7 +249,7 @@ export function ReportsTab({ isSwim, members, coaches, userRole = "admin" }: Rep
         t.amount,
         t.paymentMethod,
         t.status,
-        t.dateTime
+        txnDate(t)
       ]);
     }
 
@@ -332,7 +360,7 @@ export function ReportsTab({ isSwim, members, coaches, userRole = "admin" }: Rep
         "Swim Plan",
         `Rs. ${t.amount}`,
         t.paymentMethod,
-        t.dateTime?.split("T")[0]
+        dayKey(txnDate(t))
       ]);
     } else if (reportType === "attendance") {
       tableHeaders = ["SAMS ID", "Name", "Timing Slot", "Checked In", "Verified By"];
@@ -361,7 +389,7 @@ export function ReportsTab({ isSwim, members, coaches, userRole = "admin" }: Rep
         `Rs. ${t.amount}`,
         t.paymentMethod,
         t.status,
-        t.dateTime?.split("T")[0]
+        dayKey(txnDate(t))
       ]);
     }
 
@@ -518,9 +546,9 @@ export function ReportsTab({ isSwim, members, coaches, userRole = "admin" }: Rep
               <PieChart>
                 <Pie
                   data={[
-                    { name: "Male", value: approvedMembers.filter(m => (m.gender || "").toLowerCase() === "male").length || 18 },
-                    { name: "Female", value: approvedMembers.filter(m => (m.gender || "").toLowerCase() === "female").length || 12 },
-                    { name: "Other", value: approvedMembers.filter(m => (m.gender || "").toLowerCase() === "other").length || 2 }
+                    { name: "Male", value: approvedMembers.filter(m => (m.gender || "").toLowerCase() === "male").length },
+                    { name: "Female", value: approvedMembers.filter(m => (m.gender || "").toLowerCase() === "female").length },
+                    { name: "Other", value: approvedMembers.filter(m => (m.gender || "").toLowerCase() === "other").length }
                   ]}
                   cx="50%"
                   cy="50%"
@@ -552,15 +580,7 @@ export function ReportsTab({ isSwim, members, coaches, userRole = "admin" }: Rep
           </div>
           <div className="h-44 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={[
-                { day: "Mon", count: 24 },
-                { day: "Tue", count: 32 },
-                { day: "Wed", count: 28 },
-                { day: "Thu", count: 35 },
-                { day: "Fri", count: 40 },
-                { day: "Sat", count: 48 },
-                { day: "Sun", count: 42 }
-              ]}>
+              <BarChart data={last7Days}>
                 <XAxis dataKey="day" stroke="#94a3b8" fontSize={10} />
                 <YAxis stroke="#94a3b8" fontSize={10} />
                 <Tooltip />
@@ -578,14 +598,7 @@ export function ReportsTab({ isSwim, members, coaches, userRole = "admin" }: Rep
           </div>
           <div className="h-44 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={[
-                { month: "Jan", revenue: 45000 },
-                { month: "Feb", revenue: 62000 },
-                { month: "Mar", revenue: 58000 },
-                { month: "Apr", revenue: 75000 },
-                { month: "May", revenue: 92000 },
-                { month: "Jun", revenue: 110000 }
-              ]}>
+              <LineChart data={last6Months}>
                 <XAxis dataKey="month" stroke="#94a3b8" fontSize={10} />
                 <YAxis stroke="#94a3b8" fontSize={10} />
                 <Tooltip />
@@ -724,7 +737,7 @@ export function ReportsTab({ isSwim, members, coaches, userRole = "admin" }: Rep
                         <td className="py-3 pr-2 font-sans">Club Swimmer Plan</td>
                         <td className="py-3 pr-2 font-bold text-emerald-600">₹{t.amount?.toLocaleString("en-IN")}</td>
                         <td className="py-3 pr-2">{t.paymentMethod}</td>
-                        <td className="py-3">{t.dateTime?.split("T")[0] || "N/A"}</td>
+                        <td className="py-3">{dayKey(txnDate(t)) || "N/A"}</td>
                       </tr>
                     ))
                   ) : (
@@ -834,7 +847,7 @@ export function ReportsTab({ isSwim, members, coaches, userRole = "admin" }: Rep
                               : t.status === "Failed" ? "bg-red-500/10 text-red-500" : "bg-amber-500/10 text-amber-500"
                           }`}>{t.status}</span>
                         </td>
-                        <td className="py-3">{t.dateTime?.split("T")[0]}</td>
+                        <td className="py-3">{dayKey(txnDate(t))}</td>
                       </tr>
                     ))
                   ) : (
