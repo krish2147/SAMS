@@ -44,9 +44,9 @@ export function EditProfileModal({ isOpen, onClose, currentProfile, onSave, isSw
   const [parentRelation, setParentRelation] = useState(currentProfile?.parentRelation || "Father");
 
   // Medical Info
-  const [hasMedicalCondition, setHasMedicalCondition] = useState(currentProfile?.hasMedicalCondition || "No");
+  const [hasMedicalCondition, setHasMedicalCondition] = useState(currentProfile?.hasMedicalCondition || "");
   const [medicalDetails, setMedicalDetails] = useState(currentProfile?.medicalDetails || "");
-  const [bloodGroup, setBloodGroup] = useState(currentProfile?.bloodGroup || "O+");
+  const [bloodGroup, setBloodGroup] = useState(currentProfile?.bloodGroup || "");
   
   // UI & interaction states
   const [dragActive, setDragActive] = useState(false);
@@ -175,9 +175,10 @@ export function EditProfileModal({ isOpen, onClose, currentProfile, onSave, isSw
         parentName: parentName.trim(),
         parentMobile: parentMobile.trim(),
         parentRelation: parentRelation,
-        hasMedicalCondition: hasMedicalCondition,
+        // Left unanswered stays unanswered rather than being saved as "No".
+        hasMedicalCondition: hasMedicalCondition || null,
         medicalDetails: medicalDetails.trim(),
-        bloodGroup: bloodGroup
+        bloodGroup: bloodGroup || null
       };
 
       await onSave(updatedData);
@@ -356,6 +357,7 @@ export function EditProfileModal({ isOpen, onClose, currentProfile, onSave, isSw
                   onChange={(e) => setBloodGroup(e.target.value)}
                   className={`w-full py-3.5 px-4 rounded-xl border text-xs font-semibold focus:outline-none transition-all cursor-pointer ${inputBgClass}`}
                 >
+                  <option value="" disabled>Not recorded yet</option>
                   {["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"].map(bg => (
                     <option key={bg} value={bg}>{bg}</option>
                   ))}
@@ -559,6 +561,7 @@ export function EditProfileModal({ isOpen, onClose, currentProfile, onSave, isSw
                   onChange={(e) => setHasMedicalCondition(e.target.value)}
                   className={`w-full py-3.5 px-4 rounded-xl border text-xs font-semibold focus:outline-none transition-all cursor-pointer ${inputBgClass}`}
                 >
+                  <option value="" disabled>Not recorded yet</option>
                   <option value="No">No, I am medically fit</option>
                   <option value="Yes">Yes, I have conditions</option>
                 </select>
@@ -571,9 +574,9 @@ export function EditProfileModal({ isOpen, onClose, currentProfile, onSave, isSw
                   value={medicalDetails} 
                   onChange={(e) => setMedicalDetails(e.target.value)}
                   placeholder="Asthma, Sinusitis, Cardiac limits, etc. (Or 'None')"
-                  disabled={hasMedicalCondition === "No"}
+                  disabled={hasMedicalCondition !== "Yes"}
                   className={`w-full py-3.5 px-4 rounded-xl border text-xs font-semibold focus:outline-none transition-all ${
-                    hasMedicalCondition === "No" ? "bg-slate-100 text-slate-400 cursor-not-allowed border-slate-200" : inputBgClass
+                    hasMedicalCondition !== "Yes" ? "bg-slate-100 text-slate-400 cursor-not-allowed border-slate-200" : inputBgClass
                   }`}
                 />
               </div>

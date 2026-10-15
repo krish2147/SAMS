@@ -452,42 +452,10 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
         finalName = data.member.fullName;
         localStorage.setItem("sams_current_member_profile", JSON.stringify(data.member));
       } else {
-        // Create a basic member profile on the server if none found
-        const code = isSwim ? "BSF" : "TCA";
-        const randomId = Math.floor(1000 + Math.random() * 9000);
-        const tempProfile = {
-          membershipNo: `${code}-2026-${randomId}`,
-          typeOfMembership: "Monthly",
-          batchSchedule: "MWF",
-          batchTiming: "07:00 AM - 08:00 AM",
-          startDate: new Date().toISOString().split("T")[0],
-          endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-          coachRequired: "No",
-          fullName: finalName,
-          gender: "male",
-          age: "24",
-          addressLine1: "Lobby Self-Onboarding Portal",
-          addressLine2: "Vadodara, Gujarat",
-          mobileNo: finalMobile,
-          email: `${finalName.toLowerCase().replace(/\s+/g, ".")}@sams.com`,
-          emergencyName: "Emergency Contact",
-          emergencyPhone: finalMobile,
-          hasMedicalCondition: "No",
-          bloodGroup: "O+",
-          height: "175",
-          weight: "68",
-          relationToUndertaker: "self",
-          academyId,
-          status: "Pending",
-          paymentStatus: "Pending",
-          registrationDate: new Date().toLocaleDateString()
-        };
-        localStorage.setItem("sams_current_member_profile", JSON.stringify(tempProfile));
-        fetch("/api/members/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(tempProfile)
-        }).catch(err => console.error("Auto register temp profile failed", err));
+        // The server only signs in an existing, active member. Anything else is an error, never a
+        // reason to create a record (this used to register one with an invented address,
+        // emergency contact, blood group, height and weight).
+        throw new Error("No active membership was found for this number. Please contact the academy.");
       }
 
       onLoginSuccess({

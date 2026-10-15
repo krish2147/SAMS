@@ -39,7 +39,7 @@ export function DigitalMembershipCard({ member, compact = false }: DigitalMember
   // Emergency contact fallbacks
   const emergencyName = member.emergencyContactName || member.emergency_contact_name || member.guardian || "Parent / Guardian";
   const emergencyPhone = member.emergencyContactNumber || member.emergency_contact_number || "+91 98250 12345";
-  const bloodGroup = member.bloodGroup || "O+";
+  const bloodGroup = member.bloodGroup || "—";
 
   // Generate QR Code containing unique secure payload
   useEffect(() => {

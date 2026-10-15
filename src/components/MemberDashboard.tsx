@@ -1347,7 +1347,7 @@ export function MemberDashboard({ academyId, userName, onLogout }: MemberDashboa
                           </div>
                           <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
                             <span className="text-[9px] text-slate-400 uppercase">BLOOD GROUP</span>
-                            <span className="text-xs font-bold block mt-1 text-slate-800">{profileData?.bloodGroup || "O+"}</span>
+                            <span className="text-xs font-bold block mt-1 text-slate-800">{profileData?.bloodGroup || "Not recorded"}</span>
                           </div>
                         </div>
                       </div>

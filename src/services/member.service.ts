@@ -7,6 +7,13 @@ import { sendEventNotification } from "./communication.service";
 import { resolveRegistrationPlan } from "../utils/membership-plan-catalog";
 
 
+/** "Yes" / "No" only when the member actually answered; otherwise null (not recorded). */
+function medicalDeclaration(value: unknown): "Yes" | "No" | null {
+  if (value === true || value === "true" || value === "Yes") return "Yes";
+  if (value === false || value === "false" || value === "No") return "No";
+  return null;
+}
+
 export class MemberService {
   private memberRepository = new MemberRepository();
   private batchRepository = new BatchRepository();
@@ -223,7 +230,7 @@ export class MemberService {
       fullName: full_name.trim(),
       dateOfBirth: date_of_birth,
       gender: gender.toLowerCase(),
-      bloodGroup: blood_group || "O+",
+      bloodGroup: blood_group || null,
       mobileNo: mobile_number,
       whatsappNumber: whatsapp_number || mobile_number,
       email: email || null,
@@ -235,7 +242,7 @@ export class MemberService {
       emergencyPhone: emergency_contact_number,
       emergencyMobile: emergency_contact_number,
       emergencyRelation: payload.emergencyRelation || payload.parentRelation || "Contact",
-      hasMedicalCondition: (has_medical_condition === "true" || has_medical_condition === true) ? "Yes" : "No",
+      hasMedicalCondition: medicalDeclaration(has_medical_condition),
       medicalDetails: medical_details || "",
       academyId: academy_id,
       selected_batch_id: batch.id,
@@ -290,16 +297,19 @@ export class MemberService {
         gender: memberData.gender || "male",
         age: memberData.age ? Number(memberData.age) : null,
         dateOfBirth: memberData.dateOfBirth || memberData.date_of_birth || null,
-        addressLine1: memberData.addressLine1 || memberData.address || "Baroda Residence",
-        city: memberData.city || "Vadodara",
-        state: memberData.state || "Gujarat",
-        pincode: memberData.pincode || "390001",
-        emergencyName: memberData.emergencyName || memberData.emergency_contact_name || "Emergency Contact",
-        emergencyPhone: memberData.emergencyPhone || memberData.emergency_contact_number || memberData.mobileNo || "",
-        emergencyRelation: memberData.emergencyRelation || "Contact",
-        hasMedicalCondition: (memberData.hasMedicalCondition === true || memberData.hasMedicalCondition === "Yes") ? "Yes" : "No",
+        // Anything not collected at the desk stays empty, so staff can see what is still missing.
+        // These used to be filled with a placeholder address, a generic emergency contact, the
+        // member's own phone as their emergency number, and a "No" medical declaration.
+        addressLine1: memberData.addressLine1 || memberData.address || null,
+        city: memberData.city || null,
+        state: memberData.state || null,
+        pincode: memberData.pincode || null,
+        emergencyName: memberData.emergencyName || memberData.emergency_contact_name || null,
+        emergencyPhone: memberData.emergencyPhone || memberData.emergency_contact_number || null,
+        emergencyRelation: memberData.emergencyRelation || null,
+        hasMedicalCondition: medicalDeclaration(memberData.hasMedicalCondition),
         medicalDetails: memberData.medicalDetails || "",
-        bloodGroup: memberData.bloodGroup || "O+",
+        bloodGroup: memberData.bloodGroup || null,
         academyId: memberData.academyId || "swim",
         membership_plan_id: plan ? plan.id : null,
         selected_batch_id: batch ? batch.id : null,

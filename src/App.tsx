@@ -65,13 +65,14 @@ export default function App() {
             }
           })
           .catch(err => {
-            console.error("Session verification failed, relying on fallback.", err);
-            setUserSession(savedSession);
-            setActiveDashboardTab("dashboard");
+            // Fail closed: an unverified session must not open a dashboard. The stored token is
+            // kept so the next load can verify it once the server is reachable again.
+            console.error("Session verification failed; staying signed out.", err);
+            setUserSession(null);
           });
         } else {
-          setUserSession(savedSession);
-          setActiveDashboardTab("dashboard");
+          // A stored session without a token cannot be verified, so it is discarded.
+          localStorage.removeItem("sams_session");
         }
       } catch (e) {
         localStorage.removeItem("sams_session");
