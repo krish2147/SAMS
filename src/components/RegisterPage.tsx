@@ -1,24 +1,25 @@
-import React, { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { 
-  User, Smartphone, ArrowLeft, ShieldCheck, Mail, MapPin,
-  Calendar, Heart, FileText, CheckCircle, AlertCircle,
-  Clock, Activity, Upload, Sparkles, UserCheck, Droplets,
-  PhoneCall, ShieldAlert, HeartPulse, Sparkle, X
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { motion, AnimatePresence, useReducedMotion } from "motion/react";
+import {
+  ArrowLeft, ArrowRight, Check, CheckCircle2, AlertCircle, Upload, X, Sun, Moon,
+  Waves, Users, Dumbbell, ShieldCheck, MessageCircle, CreditCard, Sparkles,
+  Pencil, Loader2, RefreshCw, HeartPulse, Lock
 } from "lucide-react";
 import { AcademyId, UserSession } from "../types";
 import swimmerImage from "../assets/registration-swimmer.jpg";
-// Same cricket photo already used for the Elite Cricket Academy card in AcademySelector.tsx, for visual consistency.
-const CRICKET_HERO_IMAGE = "https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&q=80&w=1200";
-
-// Torn-paper zigzag edge for the hero photo panel, left side jagged, right side straight.
-const TORN_EDGE_CLIP_PATH = "polygon(100% 0%, 100% 100%, 0% 100%, 5% 95%, 0% 90%, 6% 85%, 1% 80%, 7% 75%, 2% 70%, 8% 65%, 3% 60%, 9% 55%, 4% 50%, 10% 45%, 5% 40%, 9% 35%, 3% 30%, 8% 25%, 2% 20%, 7% 15%, 1% 10%, 6% 5%, 0% 0%)";
+import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-logo";
 
 interface RegisterPageProps {
   academyId: AcademyId;
   onRegisterSuccess: (session: UserSession) => void;
   onCancel: () => void;
+  /** Rendered inside the staff console rather than as its own full page. */
+  embedded?: boolean;
 }
+
+type Category = "Learners" | "General" | "Family_4" | "Family_3";
+type Frequency = "6_days" | "3_days";
+type Duration = "1_month" | "3_months" | "6_months" | "9_months" | "annual";
 
 interface FormState {
   fullName: string;
@@ -26,10 +27,11 @@ interface FormState {
   gender: string;
   bloodGroup: string;
   mobileNumber: string;
+  whatsappSameAsMobile: boolean;
   whatsappNumber: string;
   email: string;
   photoFile: File | null;
-  photoUrl: string; // for local base64 preview
+  photoUrl: string;
   address: string;
   city: string;
   state: string;
@@ -38,9 +40,10 @@ interface FormState {
   emergencyContactNumber: string;
   relationship: string;
   memberType: string;
-  batchCategory: "Learners" | "General" | "Family_4" | "Family_3" | "";
-  frequency: "6_days" | "3_days" | "hourly" | "fixed" | "";
-  planDuration: "1_month" | "3_months" | "6_months" | "9_months" | "annual" | "hourly" | "one_time" | "";
+  batchCategory: Category | "";
+  frequency: Frequency | "";
+  planDuration: Duration | "";
+  /** Exact batch_name from the batches table, so the server assigns the batch that was chosen. */
   batch: string;
   // null until the applicant answers; the declaration is never assumed.
   hasMedicalCondition: boolean | null;
@@ -48,1697 +51,1050 @@ interface FormState {
   agreedToRules: boolean;
 }
 
+type FieldKey = keyof FormState;
+
 const INITIAL_FORM_STATE: FormState = {
   fullName: "",
   dateOfBirth: "",
   gender: "",
   bloodGroup: "",
   mobileNumber: "",
+  whatsappSameAsMobile: true,
   whatsappNumber: "",
   email: "",
   photoFile: null,
   photoUrl: "",
   address: "",
-  city: "",
-  state: "",
+  city: "Vadodara",
+  state: "Gujarat",
   pincode: "",
   emergencyContactName: "",
   emergencyContactNumber: "",
   relationship: "",
   memberType: "",
   batchCategory: "",
-  frequency: "6_days",
-  planDuration: "1_month",
+  frequency: "",
+  planDuration: "",
   batch: "",
   hasMedicalCondition: null,
   medicalDetails: "",
   agreedToRules: false,
 };
 
-const BATCH_CATEGORIES = {
-  morning: [
-    { label: "05:00 AM - 06:00 AM", value: "Morning (5:00-6:00)" },
-    { label: "06:00 AM - 07:00 AM", value: "Morning (6:00-7:00)" },
-    { label: "07:00 AM - 08:00 AM", value: "Morning (7:00-8:00)" },
-  ],
-  evening: [
-    { label: "04:00 PM - 05:00 PM", value: "Evening (4:00-5:00)" },
-    { label: "05:00 PM - 06:00 PM", value: "Evening (5:00-6:00)" },
-    { label: "06:00 PM - 07:00 PM", value: "Evening (6:00-7:00)" },
-    { label: "07:00 PM - 08:00 PM", value: "Evening (7:00-8:00)" },
-  ]
-};
+const REGISTRATION_FEE = 300;
 
-const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"];
-const GENDERS = ["Male", "Female", "Other"];
-
-// Official Membership Types extracted from Baroda Swim Front (Effective 1st Feb 2026)
-const BATCH_TYPES = [
-  { 
-    id: "Learners", 
-    name: "Learners Batch", 
-    desc: "Structured swimming stroke drills & water guidance under certified coaches." 
-  },
-  { 
-    id: "General", 
-    name: "General Batch", 
-    desc: "Access to designated pool lanes for regular swimming practice & exercise." 
-  },
-  { 
-    id: "Family_4", 
-    name: "Family Membership (2 Adults + 2 Kids)", 
-    desc: "Privileged family pool access pass (6 days / week)." 
-  },
-  { 
-    id: "Family_3", 
-    name: "Family Membership (2 Adults + 1 Kid)", 
-    desc: "Privileged family pool access pass (6 days / week)." 
-  },
-  // Guest (single-day entry) and Group bookings are handled at the pool, not online.
-  // Their plans still exist in membership_plans for staff to record offline.
+const CATEGORIES: Array<{ id: Category; name: string; tagline: string; who: string; icon: typeof Waves }> = [
+  { id: "Learners", name: "Learners", tagline: "Learn to swim with stroke drills and a coach on deck.", who: "New and improving swimmers", icon: Waves },
+  { id: "General", name: "General", tagline: "Lane swimming for fitness and regular practice.", who: "Confident swimmers", icon: Dumbbell },
+  { id: "Family_4", name: "Family of four", tagline: "Pool access for 2 adults and 2 kids, 6 days a week.", who: "2 adults + 2 kids", icon: Users },
+  { id: "Family_3", name: "Family of three", tagline: "Pool access for 2 adults and 1 kid, 6 days a week.", who: "2 adults + 1 kid", icon: Users },
 ];
 
-const FREQUENCY_OPTIONS = [
-  { 
-    id: "6_days", 
-    name: "6 Days per Week", 
-    subtitle: "Monday to Saturday (Full Schedule)" 
-  },
-  { 
-    id: "3_days", 
-    name: "3 Days per Week", 
-    subtitle: "Alternate Days (MWF or TTS)" 
-  }
+const FREQUENCIES: Array<{ id: Frequency; name: string; detail: string }> = [
+  { id: "6_days", name: "6 days a week", detail: "Monday to Saturday" },
+  { id: "3_days", name: "3 days a week", detail: "Alternate days" },
 ];
 
-// Exact Pricing Matrix Extracted from Official Document (From 1st Feb 2026 onwards)
-const OFFICIAL_PRICING_MATRIX: Record<string, Record<string, Array<{ id: string; label: string; price: number; formattedPrice: string }>>> = {
+const DURATION_MONTHS: Record<Duration, number> = { "1_month": 1, "3_months": 3, "6_months": 6, "9_months": 9, annual: 12 };
+const DURATION_LABEL: Record<Duration, string> = { "1_month": "1 month", "3_months": "3 months", "6_months": "6 months", "9_months": "9 months", annual: "1 year" };
+
+// Baroda Swim Front official rate card, effective 1 February 2026. The server prices the
+// registration itself from membership_plans; this mirror only drives what the form displays.
+const RATE_CARD: Record<Category, Partial<Record<Frequency, Partial<Record<Duration, number>>>>> = {
   Learners: {
-    "6_days": [
-      { id: "1_month", label: "1 Month", price: 3500, formattedPrice: "₹3,500 / Month" },
-      { id: "3_months", label: "3 Months", price: 9500, formattedPrice: "₹9,500" },
-      { id: "6_months", label: "6 Months", price: 18500, formattedPrice: "₹18,500" },
-      { id: "9_months", label: "9 Months", price: 26500, formattedPrice: "₹26,500" },
-      { id: "annual", label: "Annual (1 Year)", price: 33500, formattedPrice: "₹33,500" },
-    ],
-    "3_days": [
-      { id: "1_month", label: "1 Month", price: 3000, formattedPrice: "₹3,000 / Month" },
-      { id: "3_months", label: "3 Months", price: 8500, formattedPrice: "₹8,500" },
-      { id: "6_months", label: "6 Months", price: 16000, formattedPrice: "₹16,000" },
-      { id: "9_months", label: "9 Months", price: 22500, formattedPrice: "₹22,500" },
-      { id: "annual", label: "Annual (1 Year)", price: 28500, formattedPrice: "₹28,500" },
-    ]
+    "6_days": { "1_month": 3500, "3_months": 9500, "6_months": 18500, "9_months": 26500, annual: 33500 },
+    "3_days": { "1_month": 3000, "3_months": 8500, "6_months": 16000, "9_months": 22500, annual: 28500 },
   },
   General: {
-    "6_days": [
-      { id: "1_month", label: "1 Month", price: 3000, formattedPrice: "₹3,000 / Month" },
-      { id: "3_months", label: "3 Months", price: 8500, formattedPrice: "₹8,500" },
-      { id: "6_months", label: "6 Months", price: 16000, formattedPrice: "₹16,000" },
-      { id: "9_months", label: "9 Months", price: 22500, formattedPrice: "₹22,500" },
-      { id: "annual", label: "Annual (1 Year)", price: 28500, formattedPrice: "₹28,500" },
-    ],
-    "3_days": [
-      { id: "1_month", label: "1 Month", price: 2700, formattedPrice: "₹2,700 / Month" },
-      { id: "3_months", label: "3 Months", price: 7500, formattedPrice: "₹7,500" },
-      { id: "6_months", label: "6 Months", price: 14500, formattedPrice: "₹14,500" },
-      { id: "9_months", label: "9 Months", price: 20500, formattedPrice: "₹20,500" },
-      { id: "annual", label: "Annual (1 Year)", price: 25500, formattedPrice: "₹25,500" },
-    ]
+    "6_days": { "1_month": 3000, "3_months": 8500, "6_months": 16000, "9_months": 22500, annual: 28500 },
+    "3_days": { "1_month": 2700, "3_months": 7500, "6_months": 14500, "9_months": 20500, annual: 25500 },
   },
-  Family_4: {
-    "6_days": [
-      { id: "1_month", label: "1 Month", price: 10000, formattedPrice: "₹10,000 / Month" },
-      { id: "3_months", label: "3 Months", price: 28500, formattedPrice: "₹28,500" },
-    ]
-  },
-  Family_3: {
-    "6_days": [
-      { id: "1_month", label: "1 Month", price: 8000, formattedPrice: "₹8,000 / Month" },
-      { id: "3_months", label: "3 Months", price: 22500, formattedPrice: "₹22,500" },
-    ]
-  },
+  Family_4: { "6_days": { "1_month": 10000, "3_months": 28500 } },
+  Family_3: { "6_days": { "1_month": 8000, "3_months": 22500 } },
 };
 
-/**
- * Converts the form's category/frequency/duration into the codes the server prices against
- * (membership_plans.plan_category, frequency_code, duration_code). The server resolves the
- * exact plan from these; the human-readable memberType label is for display only.
- */
-const toPlanSelection = (category: string, frequency: string, duration: string) => {
-  if (category === "Family_4" || category === "Family_3") {
-    return { membershipType: "Family", variant: category, duration };
-  }
-  return { membershipType: category, variant: frequency, duration };
+const GENDERS = ["Male", "Female", "Other"];
+const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"];
+const NOT_SURE_BLOOD = "Not known";
+const RELATIONSHIPS = ["Father", "Mother", "Spouse", "Sibling", "Guardian", "Friend"];
+
+const SAFETY_RULES = [
+  "Follow the instructions of the coach on deck at all times.",
+  "Swimwear and a silicone swim cap are compulsory before entering the water. Costume hire is ₹50 per hour.",
+  "Report any medical condition, such as epilepsy, a skin condition or a heart condition, accurately.",
+  "The academy may decline an application or suspend access in case of misconduct.",
+];
+
+const STEPS: Array<{ id: string; title: string; short: string; fields: FieldKey[] }> = [
+  { id: "plan", title: "Choose your membership", short: "Plan", fields: ["memberType"] },
+  { id: "time", title: "Pick your pool time", short: "Pool time", fields: ["batch"] },
+  { id: "you", title: "Tell us about you", short: "About you", fields: ["fullName", "dateOfBirth", "gender", "bloodGroup", "mobileNumber", "whatsappNumber", "email", "photoUrl"] },
+  { id: "contact", title: "Address and emergency contact", short: "Contact", fields: ["address", "city", "state", "pincode", "emergencyContactName", "emergencyContactNumber", "relationship"] },
+  { id: "review", title: "Health and confirmation", short: "Confirm", fields: ["medicalDetails", "agreedToRules"] },
+];
+
+const SERVER_FIELD_MAP: Record<string, FieldKey> = {
+  full_name: "fullName", date_of_birth: "dateOfBirth", gender: "gender", mobile_number: "mobileNumber",
+  whatsapp_number: "whatsappNumber", email: "email", address: "address", city: "city", state: "state",
+  pincode: "pincode", emergency_contact_name: "emergencyContactName", emergency_contact_number: "emergencyContactNumber",
+  member_type: "memberType", batch: "batch", medical_details: "medicalDetails",
 };
 
-// Which weekly-frequency variants exist for a membership category (e.g. Learners has both 6/3 days; Guest only has "hourly").
-function getCategoryFrequencyKeys(categoryId: string): string[] {
-  return Object.keys(OFFICIAL_PRICING_MATRIX[categoryId] || {});
+interface BatchOption {
+  id: number;
+  name: string;
+  startTime: string;
+  endTime: string;
+  capacity: number;
+  remaining: number;
+  open: boolean;
 }
 
-// Duration options are identical across a category's frequency variants (e.g. Learners 6-day and 3-day both
-// offer 1/3/6/9-month + annual tiers, just at different prices), so the duration list can be shown before frequency is chosen.
-function getCategoryDurationOptions(categoryId: string): Array<{ id: string; label: string }> {
-  const options: Array<{ id: string; label: string }> = [];
-  const seenIds = new Set<string>();
-  for (const freqKey of getCategoryFrequencyKeys(categoryId)) {
-    for (const tier of OFFICIAL_PRICING_MATRIX[categoryId][freqKey]) {
-      if (!seenIds.has(tier.id)) {
-        seenIds.add(tier.id);
-        options.push({ id: tier.id, label: tier.label });
-      }
-    }
-  }
-  return options;
+const rupees = (value: number) => `₹${value.toLocaleString("en-IN")}`;
+const digitsOnly = (value: string) => value.replace(/\D/g, "");
+
+/** Converts the form's choice into the codes the server prices against. */
+const toPlanSelection = (category: string, frequency: string, duration: string) =>
+  category === "Family_4" || category === "Family_3"
+    ? { membershipType: "Family", variant: category, duration }
+    : { membershipType: category, variant: frequency, duration };
+
+const frequenciesFor = (category: Category | "") => (category ? (Object.keys(RATE_CARD[category]) as Frequency[]) : []);
+
+const durationsFor = (category: Category | "", frequency: Frequency | "") =>
+  category && frequency ? (Object.keys(RATE_CARD[category][frequency] || {}) as Duration[]) : [];
+
+const priceFor = (category: Category | "", frequency: Frequency | "", duration: Duration | "") =>
+  category && frequency && duration ? RATE_CARD[category][frequency]?.[duration] ?? null : null;
+
+/** Lowest monthly price across a category's options, shown as "from" on the plan card. */
+const fromPriceFor = (category: Category) =>
+  Math.min(...frequenciesFor(category).map(f => RATE_CARD[category][f]?.["1_month"] ?? Infinity));
+
+/** What a longer plan saves against paying the 1-month rate every month, from the rate card. */
+const savingFor = (category: Category | "", frequency: Frequency | "", duration: Duration) => {
+  const monthly = priceFor(category, frequency, "1_month");
+  const price = priceFor(category, frequency, duration);
+  if (monthly === null || price === null) return 0;
+  return Math.max(0, monthly * DURATION_MONTHS[duration] - price);
+};
+
+const ageFrom = (dob: string) => {
+  const match = dob.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const today = new Date();
+  let age = today.getFullYear() - Number(match[1]);
+  const beforeBirthday = today.getMonth() + 1 < Number(match[2]) || (today.getMonth() + 1 === Number(match[2]) && today.getDate() < Number(match[3]));
+  if (beforeBirthday) age -= 1;
+  return age >= 0 && age < 120 ? age : null;
+};
+
+const isEvening = (time: string) => /pm/i.test(time) && !/^12/.test(time.trim());
+
+function validate(form: FormState): Partial<Record<FieldKey, string>> {
+  const e: Partial<Record<FieldKey, string>> = {};
+  if (!form.batchCategory) e.memberType = "Choose a membership to continue.";
+  else if (!form.frequency || !form.planDuration || !form.memberType) e.memberType = "Choose how often you will swim and for how long.";
+  if (!form.batch) e.batch = "Choose a pool time to continue.";
+
+  if (!form.fullName.trim()) e.fullName = "Enter your full name.";
+  else if (form.fullName.trim().length < 3) e.fullName = "Enter your full name as on an ID.";
+  if (!form.dateOfBirth) e.dateOfBirth = "Enter your date of birth.";
+  else if (ageFrom(form.dateOfBirth) === null) e.dateOfBirth = "Enter a valid date of birth.";
+  if (!form.gender) e.gender = "Choose an option.";
+  if (!form.bloodGroup) e.bloodGroup = "Choose your blood group, or Not known.";
+  if (digitsOnly(form.mobileNumber).length !== 10) e.mobileNumber = "Enter a 10-digit mobile number.";
+  if (!form.whatsappSameAsMobile && digitsOnly(form.whatsappNumber).length !== 10) e.whatsappNumber = "Enter a 10-digit WhatsApp number.";
+  if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) e.email = "Enter a valid email address, or leave it blank.";
+
+  if (!form.address.trim()) e.address = "Enter your house and street.";
+  if (!form.city.trim()) e.city = "Enter your city.";
+  if (!form.state.trim()) e.state = "Enter your state.";
+  if (!/^\d{6}$/.test(form.pincode.trim())) e.pincode = "Enter a 6-digit PIN code.";
+  if (!form.emergencyContactName.trim()) e.emergencyContactName = "Enter who we should call in an emergency.";
+  if (digitsOnly(form.emergencyContactNumber).length !== 10) e.emergencyContactNumber = "Enter their 10-digit phone number.";
+  else if (digitsOnly(form.emergencyContactNumber) === digitsOnly(form.mobileNumber)) e.emergencyContactNumber = "Use someone else's number, not your own.";
+  if (!form.relationship.trim()) e.relationship = "Choose how they are related to you.";
+
+  if (form.hasMedicalCondition === null) e.medicalDetails = "Tell us whether you have any medical condition.";
+  else if (form.hasMedicalCondition && !form.medicalDetails.trim()) e.medicalDetails = "Describe the condition so the coach can keep you safe.";
+  if (!form.agreedToRules) e.agreedToRules = "Confirm the declaration to submit.";
+  return e;
 }
 
-export function RegisterPage({ academyId, onRegisterSuccess, onCancel }: RegisterPageProps) {
-  const isSwim = academyId === "swim";
-  const heroImage = isSwim ? swimmerImage : CRICKET_HERO_IMAGE;
-  const heroImageAlt = isSwim ? "Swimmer diving into the pool" : "Cricket player in action";
-  const heroHeadline = isSwim ? "DIVE IN" : "STEP UP";
+const stepOfField = (field: string) => Math.max(0, STEPS.findIndex(s => s.fields.includes(field as FieldKey)));
+
+// ---------------------------------------------------------------------------------------------
+// Small presentational pieces
+// ---------------------------------------------------------------------------------------------
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return (
+    <p className="mt-2 flex items-start gap-1.5 text-[13px] font-medium text-rose-600" role="alert">
+      <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+      {message}
+    </p>
+  );
+}
+
+function Label({ htmlFor, children, optional }: { htmlFor?: string; children: React.ReactNode; optional?: boolean }) {
+  return (
+    <label htmlFor={htmlFor} className="mb-2 block text-[13px] font-semibold text-ink-800">
+      {children}
+      {optional && <span className="ml-1.5 font-normal text-ink-400">Optional</span>}
+    </label>
+  );
+}
+
+const inputClass = (hasError?: boolean) =>
+  `w-full rounded-xl border bg-white px-4 py-3 text-[15px] text-ink-950 placeholder:text-ink-400 outline-none transition focus:ring-4 ${
+    hasError ? "border-rose-300 focus:border-rose-400 focus:ring-rose-100" : "border-ink-200 focus:border-aqua-500 focus:ring-aqua-500/15"
+  }`;
+
+function Chip({ selected, onClick, children, disabled, name }: { selected: boolean; onClick: () => void; children: React.ReactNode; disabled?: boolean; name?: string; key?: React.Key }) {
+  return (
+    <button
+      type="button"
+      name={name}
+      onClick={onClick}
+      disabled={disabled}
+      aria-pressed={selected}
+      className={`min-h-11 rounded-xl border px-4 py-2.5 text-sm font-semibold transition focus:outline-none focus-visible:ring-4 focus-visible:ring-aqua-500/25 disabled:cursor-not-allowed disabled:opacity-40 ${
+        selected ? "border-ink-950 bg-ink-950 text-white shadow-card" : "border-ink-200 bg-white text-ink-700 hover:border-ink-400"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+// ---------------------------------------------------------------------------------------------
+
+// Same cricket photo the academy selector uses for the Elite Cricket Academy card.
+const CRICKET_IMAGE = "https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&q=80&w=1200";
+
+export function RegisterPage({ academyId, onCancel, embedded = false }: RegisterPageProps) {
+  const reduceMotion = useReducedMotion();
+  const academyName = academyId === "swim" ? "Baroda Swim Front" : "Elite Cricket Academy";
+  const academyImage = academyId === "swim" ? swimmerImage : CRICKET_IMAGE;
+  const nextQuestionRef = useRef<HTMLDivElement>(null);
+  const draftKey = `sams_register_draft_${academyId}`;
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const topRef = useRef<HTMLDivElement>(null);
 
-  const [form, setForm] = useState<FormState>(INITIAL_FORM_STATE);
-  const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
+  const [form, setForm] = useState<FormState>(() => {
+    // A refresh or an accidental back should not cost the applicant everything they typed.
+    try {
+      const saved = sessionStorage.getItem(draftKey);
+      if (saved) return { ...INITIAL_FORM_STATE, ...JSON.parse(saved), photoFile: null, photoUrl: "", agreedToRules: false };
+    } catch { /* storage unavailable */ }
+    return INITIAL_FORM_STATE;
+  });
+  const [step, setStep] = useState(0);
+  const [maxStepReached, setMaxStepReached] = useState(0);
+  const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
   const [isDragging, setIsDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submittedData, setSubmittedData] = useState<any | null>(null);
+  const [submitted, setSubmitted] = useState<null | { applicationNumber: string; fullName: string; whatsapp: string; planLabel: string; batchLabel: string; total: number }>(null);
   const [generalError, setGeneralError] = useState<string | null>(null);
-  const [showTariffModal, setShowTariffModal] = useState(false);
 
-  // Background patterns & themed styling parameters
-  const accentText = isSwim ? "text-sky-600" : "text-emerald-400";
-  const accentBg = isSwim ? "bg-sky-600" : "bg-emerald-600";
-  const accentBorder = isSwim ? "border-sky-200" : "border-emerald-800/60";
-  const ringColor = isSwim ? "focus:ring-sky-500 focus:border-sky-500" : "focus:ring-emerald-500 focus:border-emerald-500";
-  const themeCardBg = isSwim ? "bg-white border-slate-100 shadow-sm" : "bg-emerald-950/40 border-emerald-900/60 shadow-xl";
-  const textPrimary = isSwim ? "text-slate-800" : "text-emerald-50";
-  const textSecondary = isSwim ? "text-slate-500" : "text-emerald-300/80";
-  const labelStyle = `block text-xs font-semibold tracking-wide uppercase mb-2 ${isSwim ? "text-slate-600" : "text-emerald-200"}`;
-  const inputStyle = `w-full px-4 py-3 rounded-xl border text-sm transition-all outline-none duration-150 ${
-    isSwim 
-      ? "bg-slate-50/50 border-slate-200 text-slate-800 placeholder-slate-400 focus:bg-white" 
-      : "bg-emerald-900/30 border-emerald-800/50 text-emerald-100 placeholder-emerald-600/80 focus:bg-emerald-950/50"
-  } ${ringColor}`;
+  const [batches, setBatches] = useState<BatchOption[] | null>(null);
+  const [batchesError, setBatchesError] = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
-    if (errors[name as keyof FormState]) {
-      setErrors(prev => ({ ...prev, [name]: undefined }));
-    }
-  };
-
-  // Sequential membership selection: Type -> Duration -> Weekly Frequency -> total price.
-  // A category offering only one frequency (the family plans) resolves it immediately so
-  // that dropdown never needs to appear.
-  const handleCategorySelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const categoryId = e.target.value;
-    if (!categoryId) {
-      setForm(prev => ({ ...prev, batchCategory: "", frequency: "", planDuration: "", memberType: "" }));
-      return;
-    }
-    const freqKeys = getCategoryFrequencyKeys(categoryId);
-    const durationOptions = getCategoryDurationOptions(categoryId);
-    setForm(prev => ({
-      ...prev,
-      batchCategory: categoryId as any,
-      frequency: (freqKeys.length === 1 ? freqKeys[0] : "") as any,
-      planDuration: (durationOptions.length === 1 ? durationOptions[0].id : "") as any,
-      memberType: ""
-    }));
-    if (errors.memberType) setErrors(prev => ({ ...prev, memberType: undefined }));
-  };
-
-  const handleDurationSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setForm(prev => ({ ...prev, planDuration: e.target.value as any }));
-  };
-
-  const handleFrequencySelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setForm(prev => ({ ...prev, frequency: e.target.value as any }));
-  };
-
-  // Once category + duration + frequency are all resolved, derive the priced plan label used for submission.
   useEffect(() => {
-    if (!form.batchCategory || !form.planDuration || !form.frequency) return;
-    const categoryObj = BATCH_TYPES.find(b => b.id === form.batchCategory);
-    const tiers = OFFICIAL_PRICING_MATRIX[form.batchCategory]?.[form.frequency] || [];
-    const tier = tiers.find(t => t.id === form.planDuration);
-    if (!tier || !categoryObj) return;
-    const freqText = form.frequency === "6_days" ? "6 Days/Wk" : form.frequency === "3_days" ? "3 Days/Wk" : "";
-    const memTypeStr = `${categoryObj.name}${freqText ? ` - ${freqText}` : ""} (${tier.label}: ${tier.formattedPrice})`;
-    setForm(prev => (prev.memberType === memTypeStr ? prev : { ...prev, memberType: memTypeStr }));
-  }, [form.batchCategory, form.planDuration, form.frequency]);
+    try {
+      const { photoFile, photoUrl, agreedToRules, ...rest } = form;
+      sessionStorage.setItem(draftKey, JSON.stringify(rest));
+    } catch { /* storage unavailable */ }
+  }, [form, draftKey]);
 
-  const handleToggleMedical = (hasCondition: boolean) => {
-    setForm(prev => ({ 
-      ...prev, 
-      hasMedicalCondition: hasCondition,
-      medicalDetails: hasCondition ? prev.medicalDetails : "" 
-    }));
-    if (errors.medicalDetails) {
-      setErrors(prev => ({ ...prev, medicalDetails: undefined }));
-    }
+  const loadBatches = useCallback(() => {
+    setBatchesError(false);
+    setBatches(null);
+    fetch("/api/batches")
+      .then(res => (res.ok ? res.json() : Promise.reject(new Error("unavailable"))))
+      .then((rows: any[]) => {
+        setBatches(
+          (Array.isArray(rows) ? rows : [])
+            .filter(b => (b.academy_id || b.academyId) === academyId)
+            .map(b => {
+              const capacity = Number(b.capacity || 0);
+              const remaining = Number(b.remaining_seats ?? Math.max(0, capacity - Number(b.current_strength || 0)));
+              return {
+                id: Number(b.id),
+                name: String(b.batch_name),
+                startTime: String(b.start_time || ""),
+                endTime: String(b.end_time || ""),
+                capacity,
+                remaining,
+                open: String(b.status || "").toUpperCase() === "OPEN" && remaining > 0,
+              };
+            })
+        );
+      })
+      .catch(() => setBatchesError(true));
+  }, [academyId]);
+
+  useEffect(() => { loadBatches(); }, [loadBatches]);
+
+  // Derived plan
+  const price = priceFor(form.batchCategory, form.frequency, form.planDuration);
+  const total = price === null ? null : price + REGISTRATION_FEE;
+  const category = CATEGORIES.find(c => c.id === form.batchCategory) || null;
+  const frequency = FREQUENCIES.find(f => f.id === form.frequency) || null;
+  const chosenBatch = batches?.find(b => b.name === form.batch) || null;
+  const age = ageFrom(form.dateOfBirth);
+
+  const planLabel = category && frequency && form.planDuration
+    ? `${category.name}${frequenciesFor(category.id).length > 1 ? `, ${frequency.name}` : ""}, ${DURATION_LABEL[form.planDuration]}`
+    : "";
+
+  // memberType is the human-readable label stored with the application; pricing uses the codes.
+  useEffect(() => {
+    const label = price === null || !category ? "" : `${planLabel} (${rupees(price)})`;
+    setForm(prev => (prev.memberType === label ? prev : { ...prev, memberType: label }));
+  }, [planLabel, price, category]);
+
+  const update = <K extends FieldKey>(key: K, value: FormState[K]) => {
+    setForm(prev => ({ ...prev, [key]: value }));
+    setErrors(prev => (prev[key] ? { ...prev, [key]: undefined } : prev));
   };
 
-  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, checked } = e.target;
-    setForm(prev => ({ ...prev, [name]: checked }));
-    if (errors[name as keyof FormState]) {
-      setErrors(prev => ({ ...prev, [name]: undefined }));
-    }
+  const chooseCategory = (id: Category) => {
+    const freqs = frequenciesFor(id);
+    setForm(prev => {
+      const keepFreq = prev.frequency && freqs.includes(prev.frequency as Frequency) ? prev.frequency : freqs.length === 1 ? freqs[0] : "";
+      const durations = durationsFor(id, keepFreq as Frequency);
+      const keepDuration = prev.planDuration && durations.includes(prev.planDuration as Duration) ? prev.planDuration : "";
+      return { ...prev, batchCategory: id, frequency: keepFreq as Frequency | "", planDuration: keepDuration as Duration | "" };
+    });
+    setErrors(prev => ({ ...prev, memberType: undefined }));
+    // On a phone the plan cards fill the screen; bring the next question into view.
+    window.setTimeout(() => nextQuestionRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" }), 120);
   };
 
-  // Image Upload Handling
+  const chooseFrequency = (id: Frequency) => {
+    setForm(prev => {
+      const durations = durationsFor(prev.batchCategory, id);
+      return { ...prev, frequency: id, planDuration: prev.planDuration && durations.includes(prev.planDuration as Duration) ? prev.planDuration : "" };
+    });
+    setErrors(prev => ({ ...prev, memberType: undefined }));
+  };
+
+  // Photo
   const processFile = (file: File) => {
     if (!file.type.startsWith("image/")) {
-      setErrors(prev => ({ ...prev, photoUrl: "Only image files (JPEG, PNG, WEBP) are supported." }));
+      setErrors(prev => ({ ...prev, photoUrl: "Choose a JPEG, PNG or WEBP image." }));
       return;
     }
     if (file.size > 2 * 1024 * 1024) {
-      setErrors(prev => ({ ...prev, photoUrl: "Image file must be less than 2MB." }));
+      setErrors(prev => ({ ...prev, photoUrl: "Choose an image smaller than 2 MB." }));
       return;
     }
-
     const reader = new FileReader();
     reader.onloadend = () => {
-      setForm(prev => ({
-        ...prev,
-        photoFile: file,
-        photoUrl: reader.result as string
-      }));
+      setForm(prev => ({ ...prev, photoFile: file, photoUrl: reader.result as string }));
       setErrors(prev => ({ ...prev, photoUrl: undefined }));
     };
     reader.readAsDataURL(file);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      processFile(e.target.files[0]);
-    }
+  const scrollToTop = () => {
+    const el = topRef.current;
+    if (!el) return;
+    el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
+  const focusField = (field: string) => {
+    window.setTimeout(() => {
+      const el = document.getElementsByName(field)[0] as HTMLElement | undefined;
+      el?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
+      if (el && "focus" in el) el.focus({ preventScroll: true });
+    }, 80);
   };
 
-  const handleDragLeave = () => {
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      processFile(e.dataTransfer.files[0]);
-    }
-  };
-
-  const triggerFileSelect = () => {
-    fileInputRef.current?.click();
-  };
-
-  const removePhoto = () => {
-    setForm(prev => ({ ...prev, photoFile: null, photoUrl: "" }));
-  };
-
-  // UI Validation Check
-  const validateForm = (): boolean => {
-    const newErrors: Partial<Record<keyof FormState, string>> = {};
-
-    if (!form.fullName.trim()) newErrors.fullName = "Full name is required";
-    else if (form.fullName.trim().length < 3) newErrors.fullName = "Name must be at least 3 characters";
-
-    if (!form.dateOfBirth) newErrors.dateOfBirth = "Date of birth is required";
-    if (!form.gender) newErrors.gender = "Gender is required";
-    if (!form.bloodGroup) newErrors.bloodGroup = "Blood group is required";
-
-    if (!form.mobileNumber) {
-      newErrors.mobileNumber = "Mobile number is required";
-    } else if (form.mobileNumber.replace(/\D/g, "").length !== 10) {
-      newErrors.mobileNumber = "Mobile number must be exactly 10 digits";
-    }
-
-    const phoneRegex = /^\+?[1-9]\d{1,14}$/;
-
-    if (form.whatsappNumber && !phoneRegex.test(form.whatsappNumber.replace(/\s+/g, ""))) {
-      newErrors.whatsappNumber = "Must be a valid WhatsApp number";
-    }
-
-    if (form.email) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(form.email)) {
-        newErrors.email = "Must be a valid email address";
-      }
-    }
-
-    if (!form.address.trim()) newErrors.address = "Address is required";
-    if (!form.city.trim()) newErrors.city = "City is required";
-    if (!form.state.trim()) newErrors.state = "State is required";
-
-    const pinRegex = /^\d{6}$/;
-    if (!form.pincode.trim()) {
-      newErrors.pincode = "PIN Code is required";
-    } else if (!pinRegex.test(form.pincode.trim())) {
-      newErrors.pincode = "Must be a 6-digit PIN Code";
-    }
-
-    if (!form.emergencyContactName.trim()) newErrors.emergencyContactName = "Emergency contact name is required";
-    
-    if (!form.emergencyContactNumber) {
-      newErrors.emergencyContactNumber = "Emergency phone number is required";
-    } else if (!phoneRegex.test(form.emergencyContactNumber.replace(/\s+/g, ""))) {
-      newErrors.emergencyContactNumber = "Must be a valid contact number";
-    }
-
-    if (!form.relationship.trim()) newErrors.relationship = "Relationship status is required";
-    if (!form.memberType) newErrors.memberType = "Please select a membership plan";
-    if (!form.batch) newErrors.batch = "Please select a training session batch";
-
-    if (form.hasMedicalCondition === null) {
-      newErrors.medicalDetails = "Please tell us whether you have any medical conditions";
-    } else if (form.hasMedicalCondition && !form.medicalDetails.trim()) {
-      newErrors.medicalDetails = "Please describe your medical conditions";
-    }
-
-    if (!form.agreedToRules) {
-      newErrors.agreedToRules = "You must agree to the rules and regulations to proceed";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const goTo = (index: number) => {
+    setStep(index);
+    setMaxStepReached(prev => Math.max(prev, index));
     setGeneralError(null);
-    if (!validateForm()) {
-      // Find the first error element and scroll to it
-      const firstErrorKey = Object.keys(errors)[0];
-      if (firstErrorKey) {
-        const element = document.getElementsByName(firstErrorKey)[0];
-        element?.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
+    scrollToTop();
+  };
+
+  const stepErrors = (index: number) => {
+    const all = validate(form);
+    return Object.fromEntries(STEPS[index].fields.filter(f => all[f]).map(f => [f, all[f]])) as Partial<Record<FieldKey, string>>;
+  };
+
+  const handleContinue = () => {
+    const found = stepErrors(step);
+    if (Object.keys(found).length) {
+      setErrors(prev => ({ ...prev, ...found }));
+      focusField(Object.keys(found)[0]);
+      return;
+    }
+    goTo(step + 1);
+  };
+
+  const handleSubmit = async () => {
+    setGeneralError(null);
+    const all = validate(form);
+    if (Object.keys(all).length) {
+      setErrors(all);
+      const first = Object.keys(all)[0];
+      const target = stepOfField(first);
+      if (target !== step) goTo(target);
+      focusField(first);
       return;
     }
 
     setIsSubmitting(true);
-
     try {
-      const formData = new FormData();
-      formData.append("fullName", form.fullName);
-      formData.append("full_name", form.fullName);
-      formData.append("dateOfBirth", form.dateOfBirth);
-      formData.append("date_of_birth", form.dateOfBirth);
-      formData.append("gender", form.gender);
-      formData.append("bloodGroup", form.bloodGroup);
-      formData.append("blood_group", form.bloodGroup);
-      const cleanMobile = form.mobileNumber.replace(/\D/g, "");
-      const finalMobile = "+91 " + cleanMobile;
-      const finalWhatsapp = form.whatsappNumber 
-        ? "+91 " + form.whatsappNumber.replace(/\D/g, "")
-        : finalMobile;
+      const mobile = `+91 ${digitsOnly(form.mobileNumber)}`;
+      const whatsapp = form.whatsappSameAsMobile ? mobile : `+91 ${digitsOnly(form.whatsappNumber)}`;
+      const emergency = `+91 ${digitsOnly(form.emergencyContactNumber)}`;
+      const bloodGroup = form.bloodGroup === NOT_SURE_BLOOD ? "" : form.bloodGroup;
+      const plan = toPlanSelection(form.batchCategory, form.frequency, form.planDuration);
 
-      formData.append("mobileNumber", finalMobile);
-      formData.append("mobile_number", finalMobile);
-      formData.append("whatsappNumber", finalWhatsapp);
-      formData.append("whatsapp_number", finalWhatsapp);
-      formData.append("email", form.email || "");
-      formData.append("address", form.address);
-      formData.append("city", form.city);
-      formData.append("state", form.state);
-      formData.append("pincode", form.pincode);
-      formData.append("emergencyContactName", form.emergencyContactName);
-      formData.append("emergency_contact_name", form.emergencyContactName);
-      formData.append("emergencyContactNumber", form.emergencyContactNumber);
-      formData.append("emergency_contact_number", form.emergencyContactNumber);
-      formData.append("relationship", form.relationship);
-      formData.append("memberType", form.memberType);
-      formData.append("member_type", form.memberType);
-      // The server prices the membership from these codes, not from the label above.
-      const planSelection = toPlanSelection(form.batchCategory, form.frequency, form.planDuration);
-      formData.append("membership_type", planSelection.membershipType);
-      formData.append("plan_variant", planSelection.variant);
-      formData.append("plan_duration", planSelection.duration);
-      formData.append("batch", form.batch);
-      formData.append("academyId", academyId);
-      formData.append("academy_id", academyId);
-      formData.append("hasMedicalCondition", String(form.hasMedicalCondition));
-      formData.append("has_medical_condition", String(form.hasMedicalCondition));
-      formData.append("medicalDetails", form.medicalDetails);
-      formData.append("medical_details", form.medicalDetails);
+      const data = new FormData();
+      const both = (camel: string, snake: string, value: string) => { data.append(camel, value); data.append(snake, value); };
+      both("fullName", "full_name", form.fullName.trim());
+      both("dateOfBirth", "date_of_birth", form.dateOfBirth);
+      data.append("gender", form.gender);
+      both("bloodGroup", "blood_group", bloodGroup);
+      both("mobileNumber", "mobile_number", mobile);
+      both("whatsappNumber", "whatsapp_number", whatsapp);
+      data.append("email", form.email.trim());
+      data.append("address", form.address.trim());
+      data.append("city", form.city.trim());
+      data.append("state", form.state.trim());
+      data.append("pincode", form.pincode.trim());
+      both("emergencyContactName", "emergency_contact_name", form.emergencyContactName.trim());
+      both("emergencyContactNumber", "emergency_contact_number", emergency);
+      data.append("relationship", form.relationship.trim());
+      data.append("emergencyRelation", form.relationship.trim());
+      both("memberType", "member_type", form.memberType);
+      // The server prices the membership from these codes, never from the label.
+      data.append("membership_type", plan.membershipType);
+      data.append("plan_variant", plan.variant);
+      data.append("plan_duration", plan.duration);
+      data.append("batch", form.batch);
+      both("academyId", "academy_id", academyId);
+      both("hasMedicalCondition", "has_medical_condition", String(form.hasMedicalCondition));
+      both("medicalDetails", "medical_details", form.hasMedicalCondition ? form.medicalDetails.trim() : "");
+      if (form.photoFile) data.append("photo", form.photoFile);
 
-      if (form.photoFile) {
-        formData.append("photo", form.photoFile);
-      }
-
-      const response = await fetch("/api/register", {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await response.json().catch(() => ({}));
+      const response = await fetch("/api/register", { method: "POST", body: data });
+      const result = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        const fieldMap: Record<string, keyof FormState> = {
-          full_name: "fullName",
-          date_of_birth: "dateOfBirth",
-          gender: "gender",
-          mobile_number: "mobileNumber",
-          whatsapp_number: "whatsappNumber",
-          email: "email",
-          address: "address",
-          city: "city",
-          state: "state",
-          pincode: "pincode",
-          emergency_contact_name: "emergencyContactName",
-          emergency_contact_number: "emergencyContactNumber",
-          member_type: "memberType",
-          batch: "batch",
-          medical_details: "medicalDetails"
-        };
-
-        if (data.errors && Array.isArray(data.errors)) {
-          const newErrors: Partial<Record<keyof FormState, string>> = {};
-          data.errors.forEach((err: any) => {
-            const frontendField = fieldMap[err.field] || err.field;
-            newErrors[frontendField as keyof FormState] = err.message;
-          });
-          setErrors(newErrors);
-          
-          const firstErrorKey = Object.keys(newErrors)[0];
-          if (firstErrorKey) {
-            const element = document.getElementsByName(firstErrorKey)[0];
-            element?.scrollIntoView({ behavior: "smooth", block: "center" });
-          }
-        } else if (data.error) {
-          const errMsg = typeof data.error === 'string' ? data.error : (data.error.message || "An error occurred");
-          if (/email/i.test(errMsg)) {
-            setErrors(prev => ({ ...prev, email: errMsg }));
-            const element = document.getElementsByName("email")[0];
-            element?.scrollIntoView({ behavior: "smooth", block: "center" });
-          } else if (/mobile|phone/i.test(errMsg)) {
-            setErrors(prev => ({ ...prev, mobileNumber: errMsg }));
-            const element = document.getElementsByName("mobileNumber")[0];
-            element?.scrollIntoView({ behavior: "smooth", block: "center" });
-          } else {
-            setGeneralError(errMsg);
-          }
+        if (Array.isArray(result.errors) && result.errors.length) {
+          const mapped: Partial<Record<FieldKey, string>> = {};
+          result.errors.forEach((err: any) => { mapped[(SERVER_FIELD_MAP[err.field] || err.field) as FieldKey] = err.message; });
+          setErrors(mapped);
+          const first = Object.keys(mapped)[0];
+          goTo(stepOfField(first));
+          focusField(first);
         } else {
-          setGeneralError(data.message || "An error occurred during registration. Please check your details.");
+          const message = typeof result.error === "string" ? result.error : result.error?.message || result.message || "We could not submit your application. Please check your details and try again.";
+          if (/email/i.test(message)) { setErrors({ email: message }); goTo(stepOfField("email")); focusField("email"); }
+          else if (/mobile|phone/i.test(message)) { setErrors({ mobileNumber: message }); goTo(stepOfField("mobileNumber")); focusField("mobileNumber"); }
+          else setGeneralError(message);
         }
         setIsSubmitting(false);
         return;
       }
 
-      setSubmittedData({
-        applicationNumber: data.data?.application_number || `APP-${Date.now()}`,
-        fullName: form.fullName,
-        dateOfBirth: form.dateOfBirth,
-        gender: form.gender,
-        bloodGroup: form.bloodGroup,
-        mobileNumber: "+91 " + form.mobileNumber.replace(/\D/g, ""),
-        whatsappNumber: "+91 " + (form.whatsappNumber || form.mobileNumber).replace(/\D/g, ""),
-        email: form.email || "Not Provided",
-        photoUrl: data.data?.photoUrl || form.photoUrl || null,
-        address: `${form.address}, ${form.city}, ${form.state} - ${form.pincode}`,
-        emergencyContact: `${form.emergencyContactName} (${form.relationship}) - ${form.emergencyContactNumber}`,
-        memberType: form.memberType,
-        batch: form.batch,
-        medicalStatus: form.hasMedicalCondition ? form.medicalDetails : "No medical conditions declared",
-        registrationStatus: "Pending",
-        adminApproval: "Pending",
-        paymentStatus: "Pending",
-        loginEnabled: "False"
+      setSubmitted({
+        applicationNumber: result.data?.application_number || "",
+        fullName: form.fullName.trim(),
+        whatsapp,
+        planLabel,
+        batchLabel: chosenBatch ? `${chosenBatch.startTime} – ${chosenBatch.endTime}` : form.batch,
+        total: total ?? 0,
       });
-
-      // Dispatch global window event so any open dashboards auto-refresh their member list
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("sams_member_registered", { detail: data.data }));
-      }
-
-      // Clear the form
+      window.dispatchEvent(new CustomEvent("sams_member_registered", { detail: result.data }));
+      try { sessionStorage.removeItem(draftKey); } catch { /* storage unavailable */ }
       setForm(INITIAL_FORM_STATE);
       setErrors({});
-      setGeneralError(null);
       setIsSubmitting(false);
-    } catch (err: any) {
-      console.error(err);
-      setGeneralError("Network error: Could not reach the registration server.");
+      scrollToTop();
+    } catch {
+      setGeneralError("We could not reach the academy's server. Check your internet connection and try again.");
       setIsSubmitting(false);
     }
   };
 
-  const handleReset = () => {
-    setForm(INITIAL_FORM_STATE);
-    setErrors({});
-    setSubmittedData(null);
+  const startAnother = () => {
+    setSubmitted(null);
+    setStep(0);
+    setMaxStepReached(0);
+    scrollToTop();
   };
 
-  // Success Screen Receipt Rendering
-  if (submittedData) {
+  const slide = reduceMotion
+    ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } }
+    : { initial: { opacity: 0, x: 24 }, animate: { opacity: 1, x: 0 }, exit: { opacity: 0, x: -24 } };
+
+  // -------------------------------------------------------------------------------------------
+  // Success
+  // -------------------------------------------------------------------------------------------
+  if (submitted) {
+    const nextSteps = [
+      { icon: CheckCircle2, title: "Application received", body: "The academy now has your details.", done: true },
+      { icon: ShieldCheck, title: "The academy reviews it", body: "Staff check your details and confirm your batch." },
+      { icon: MessageCircle, title: "Payment link on WhatsApp", body: `A secure Razorpay link for ${rupees(submitted.total)} is sent to ${submitted.whatsapp}.` },
+      { icon: CreditCard, title: "Pay, and you are in", body: "Your membership starts as soon as you pay, and the invoice arrives on WhatsApp." },
+    ];
     return (
-      <div className={`min-h-screen w-full flex flex-col justify-center items-center py-16 px-4 ${
-        isSwim ? "bg-slate-50 text-slate-800" : "bg-[#021d14] text-emerald-50"
-      }`}>
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className={`w-full max-w-xl p-8 md:p-12 rounded-[32px] border text-center shadow-2xl space-y-8 ${
-            isSwim ? "bg-white border-slate-100" : "bg-emerald-950/40 border-emerald-900/60"
-          }`}
-        >
-          {/* Brand/Check Icon */}
-          <div className="mx-auto w-16 h-16 rounded-3xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
-            <CheckCircle className="w-10 h-10 animate-bounce" />
-          </div>
-
-          {/* Heading */}
-          <div className="space-y-4">
-            <h2 className={`text-2xl md:text-3xl font-extrabold tracking-tight ${isSwim ? "text-slate-900" : "text-white"}`}>
-              Your application has been submitted successfully.
-            </h2>
-            <p className={`text-sm md:text-base font-medium opacity-80 ${isSwim ? "text-slate-600" : "text-emerald-200"}`}>
-              Our team will verify your details.
-            </p>
-          </div>
-
-          {/* WhatsApp Guidance Panel */}
-          <div className={`p-6 rounded-2xl border text-sm text-left leading-relaxed ${
-            isSwim 
-              ? "bg-emerald-50/50 border-emerald-100 text-slate-700" 
-              : "bg-emerald-900/10 border-emerald-900/40 text-emerald-100/90"
-          }`}>
-            <p className="font-bold flex items-center gap-2 mb-3 text-emerald-500 text-xs uppercase tracking-wider">
-              <span className="text-base">💬</span>
-              Official Gateway Notice
-            </p>
-            <p className="font-semibold text-xs md:text-sm">
-              Once approved, you will receive a WhatsApp message containing your secure payment link.
-            </p>
-            <p className="font-semibold text-xs md:text-sm mt-3 border-t border-emerald-500/10 pt-3">
-              After successful payment, your membership will be activated automatically.
-            </p>
-          </div>
-
-          {/* CTAs */}
-          <div className="pt-4 border-t border-current/10 flex flex-col sm:flex-row gap-4">
-            <button
-              id="btn-confirm-return"
-              onClick={onCancel}
-              className={`flex-1 py-3 px-4 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                isSwim
-                  ? "bg-slate-100 hover:bg-slate-200 text-slate-700"
-                  : "bg-emerald-900/20 hover:bg-emerald-900/30 text-emerald-200 border border-emerald-800/40"
-              }`}
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Sports Selection</span>
-            </button>
-            <button
-              id="btn-register-another"
-              onClick={handleReset}
-              className={`flex-1 py-3 px-4 rounded-xl font-bold text-xs uppercase tracking-wider text-white transition-all flex items-center justify-center gap-2 cursor-pointer ${accentBg}`}
-            >
-              <Sparkles className="w-4 h-4" />
-              <span>Register Another</span>
-            </button>
+      <div ref={topRef} className={`${embedded ? "" : "min-h-screen"} bg-canvas px-4 py-10 sm:py-16`}>
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mx-auto max-w-xl">
+          <div className="overflow-hidden rounded-[28px] bg-white shadow-panel">
+            <div className="relative bg-ink-950 px-7 pb-8 pt-9 text-white sm:px-10">
+              <div className="absolute inset-0 opacity-30" style={{ background: "radial-gradient(120% 80% at 100% 0%, #16a9c4 0%, transparent 60%)" }} />
+              <div className="relative">
+                <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-aqua-500/20 text-aqua-300"><Check className="h-7 w-7" strokeWidth={3} /></span>
+                <h1 className="mt-5 font-display text-[28px] font-bold leading-tight tracking-[-0.02em]">You're all set, {submitted.fullName.split(/\s+/)[0]}.</h1>
+                <p className="mt-2 text-[15px] text-ink-200">Your application has reached {academyName}.</p>
+                {submitted.applicationNumber && (
+                  <p className="mt-5 inline-flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-1.5 font-mono text-[13px] text-white">
+                    Application no. <strong className="font-semibold">{submitted.applicationNumber}</strong>
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="px-7 py-8 sm:px-10">
+              <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-ink-400">What happens next</p>
+              <ol className="mt-5 space-y-0">
+                {nextSteps.map((s, i) => (
+                  <li key={s.title} className="relative flex gap-4 pb-6 last:pb-0">
+                    {i < nextSteps.length - 1 && <span className="absolute left-[19px] top-10 h-[calc(100%-2.5rem)] w-px bg-ink-100" />}
+                    <span className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${s.done ? "bg-aqua-500 text-white" : "bg-ink-50 text-ink-600"}`}>
+                      <s.icon className="h-5 w-5" />
+                    </span>
+                    <div className="pt-1.5">
+                      <p className="font-semibold text-ink-950">{s.title}</p>
+                      <p className="mt-0.5 text-sm leading-6 text-ink-600">{s.body}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+              <div className="mt-7 rounded-2xl bg-ink-50 p-4 text-sm">
+                <div className="flex justify-between gap-4"><span className="text-ink-600">Plan</span><span className="text-right font-semibold text-ink-950">{submitted.planLabel}</span></div>
+                <div className="mt-2 flex justify-between gap-4"><span className="text-ink-600">Pool time</span><span className="text-right font-semibold text-ink-950">{submitted.batchLabel}</span></div>
+                <div className="mt-2 flex justify-between gap-4"><span className="text-ink-600">Due after approval</span><span className="font-semibold tabular-nums text-ink-950">{rupees(submitted.total)}</span></div>
+              </div>
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+                <button type="button" onClick={onCancel} className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-ink-200 px-5 text-sm font-semibold text-ink-800 hover:bg-ink-50">
+                  <ArrowLeft className="h-4 w-4" /> Back to the academy
+                </button>
+                <button type="button" onClick={startAnother} className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-ink-950 px-5 text-sm font-semibold text-white hover:bg-ink-800">
+                  <Sparkles className="h-4 w-4" /> Register another person
+                </button>
+              </div>
+            </div>
           </div>
         </motion.div>
       </div>
     );
   }
 
-  return (
-    <div className={`min-h-screen w-full relative transition-colors duration-500 ${
-      isSwim ? "bg-slate-50 text-slate-800" : "bg-[#011a12] text-emerald-50"
-    }`}>
-      {/* Visual background atmospheric glowing accents */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-full max-w-6xl h-96 bg-gradient-to-tr from-sky-400/10 to-teal-400/5 blur-3xl pointer-events-none rounded-full" />
+  // -------------------------------------------------------------------------------------------
+  // Steps
+  // -------------------------------------------------------------------------------------------
+  const morning = (batches || []).filter(b => !isEvening(b.startTime));
+  const evening = (batches || []).filter(b => isEvening(b.startTime));
+  const isLast = step === STEPS.length - 1;
 
-      {/* Mobile-only hero banner (the sticky side panel below is desktop-only) */}
-      <div className="lg:hidden relative w-full h-56 overflow-hidden">
-        <img src={heroImage} alt={heroImageAlt} className="w-full h-full object-cover object-center" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-        <div className="absolute bottom-5 left-5 right-5 text-white">
-          <h2 className="text-3xl font-black tracking-tight leading-none">{heroHeadline}</h2>
-          <p className="text-sm font-bold opacity-90 mt-1">{isSwim ? "Baroda Swim Front" : "SAMS Elite Club"} Membership</p>
-        </div>
-      </div>
-
-      {/* Desktop sticky photo panel with a torn-paper edge, swimmer replacing the reference mockup's boat */}
-      <div
-        className="hidden lg:block fixed top-0 right-0 h-screen w-[380px] xl:w-[440px] z-[5]"
-        style={{ clipPath: TORN_EDGE_CLIP_PATH }}
+  const BatchCard = ({ b }: { b: BatchOption; key?: React.Key }) => {
+    const selected = form.batch === b.name;
+    const fillPct = b.capacity ? Math.round(((b.capacity - b.remaining) / b.capacity) * 100) : 0;
+    const low = b.open && b.remaining <= 5;
+    return (
+      <button
+        type="button"
+        name="batch"
+        disabled={!b.open}
+        onClick={() => update("batch", b.name)}
+        aria-pressed={selected}
+        className={`group relative w-full rounded-2xl border p-4 text-left transition focus:outline-none focus-visible:ring-4 focus-visible:ring-aqua-500/25 disabled:cursor-not-allowed ${
+          selected ? "border-aqua-500 bg-aqua-500/[0.06] ring-1 ring-aqua-500" : b.open ? "border-ink-200 bg-white hover:border-ink-400 hover:shadow-card" : "border-ink-100 bg-ink-50 opacity-60"
+        }`}
       >
-        <img src={heroImage} alt={heroImageAlt} className="w-full h-full object-cover object-center" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-black/5" />
-        <div className="absolute bottom-16 left-16 right-10 text-white">
-          <h2 className="text-5xl font-black tracking-tight leading-[0.95]">{heroHeadline}</h2>
-          <p className="text-base font-bold opacity-90 mt-2 uppercase tracking-wide">{isSwim ? "Baroda Swim Front" : "SAMS Elite Club"}</p>
-          <p className="text-sm opacity-70 mt-1">Membership Registration</p>
-        </div>
-      </div>
-
-      <div className="relative z-10 flex flex-col justify-start items-center pt-10 lg:pt-32 pb-20 px-4 md:px-8 lg:pr-[400px] xl:pr-[460px]">
-      <div className="w-full max-w-4xl relative">
-
-        {/* Portal Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+        <div className="flex items-start justify-between gap-3">
           <div>
-            <button 
-              id="btn-register-cancel"
-              onClick={onCancel}
-              className={`group flex items-center gap-2 px-4 py-2 rounded-full border text-xs font-bold transition-all duration-200 cursor-pointer mb-3 ${
-                isSwim 
-                  ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-100" 
-                  : "border-emerald-800/60 bg-emerald-950/40 text-emerald-200 hover:bg-emerald-900/60"
-              }`}
-            >
-              <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
-              Go Back
-            </button>
-            <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-2">
-              Member Registration
-              <Sparkle className={`w-6 h-6 ${accentText} animate-pulse`} />
-            </h1>
-            <p className={`text-sm mt-1 max-w-xl ${textSecondary}`}>
-              Complete the unified enrollment application details to register as a new active member of the {isSwim ? "Baroda Swim Front" : "SAMS Elite Club"}.
+            <p className="font-display text-[17px] font-semibold tabular-nums text-ink-950">{b.startTime} – {b.endTime}</p>
+            <p className={`mt-1 text-[13px] font-medium ${!b.open ? "text-ink-400" : low ? "text-amber-600" : "text-ink-600"}`}>
+              {!b.open ? "Full" : `${b.remaining} of ${b.capacity} spots left`}
             </p>
           </div>
-
-          <div className={`px-4 py-3 rounded-2xl border flex items-center gap-3 ${themeCardBg}`}>
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isSwim ? "bg-sky-50" : "bg-emerald-900/40"}`}>
-              {isSwim ? <Droplets className="w-5 h-5 text-sky-600" /> : <Activity className="w-5 h-5 text-emerald-400" />}
-            </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Academy Context</p>
-              <p className={`text-xs font-bold ${accentText}`}>{isSwim ? "Baroda Swim Academy" : "SAMS Cricket Academy"}</p>
-            </div>
-          </div>
+          <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${selected ? "border-aqua-500 bg-aqua-500 text-white" : "border-ink-200"}`}>
+            {selected && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
+          </span>
         </div>
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-ink-100">
+          <div className={`h-full rounded-full ${low ? "bg-amber-400" : "bg-aqua-400"}`} style={{ width: `${Math.max(4, fillPct)}%` }} />
+        </div>
+      </button>
+    );
+  };
 
-        {/* Core Submission Form */}
-        <form onSubmit={handleSubmit} className="space-y-8" noValidate>
-          
-          {generalError && (
-            <div className="p-4 bg-red-50 border border-red-200 text-red-800 rounded-2xl text-sm flex gap-3 items-start">
-              <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-bold text-red-900">Registration Error</p>
-                <p className="mt-0.5 text-red-700 leading-relaxed">{generalError}</p>
-              </div>
-            </div>
-          )}
-          
-          {/* Grid Layout of Bento Section Cards */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            
-            {/* Column 1: Personal Details & Emergency Contact (7 Cols) */}
-            <div className="lg:col-span-7 space-y-8">
-              
-              {/* Card 1: Personal Details */}
-              <div className={`rounded-3xl border p-6 md:p-8 space-y-6 ${themeCardBg}`}>
-                <div className="flex items-center gap-3 border-b pb-4 border-slate-100/10">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isSwim ? "bg-sky-50 text-sky-600" : "bg-emerald-900/40 text-emerald-400"}`}>
-                    <User className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-md font-bold">1. Personal Profile</h3>
-                    <p className={`text-xs ${textSecondary}`}>Standard member identity & contact data</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Full Name */}
-                  <div className="sm:col-span-2">
-                    <label className={labelStyle}>
-                      Full Name <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        name="fullName"
-                        value={form.fullName}
-                        onChange={handleChange}
-                        className={inputStyle}
-                        placeholder="e.g. Krish Prajapati"
-                      />
-                    </div>
-                    {errors.fullName && (
-                      <p className="text-red-500 text-xs font-medium mt-1.5 flex items-center gap-1">
-                        <AlertCircle className="w-3.5 h-3.5" /> {errors.fullName}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Date of Birth */}
-                  <div>
-                    <label className={labelStyle}>
-                      Date of Birth <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      name="dateOfBirth"
-                      value={form.dateOfBirth}
-                      onChange={handleChange}
-                      className={inputStyle}
-                    />
-                    {errors.dateOfBirth && (
-                      <p className="text-red-500 text-xs font-medium mt-1.5 flex items-center gap-1">
-                        <AlertCircle className="w-3.5 h-3.5" /> {errors.dateOfBirth}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Gender */}
-                  <div>
-                    <label className={labelStyle}>
-                      Gender <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      name="gender"
-                      value={form.gender}
-                      onChange={handleChange}
-                      className={inputStyle}
-                    >
-                      <option value="">Select Gender</option>
-                      {GENDERS.map(g => (
-                        <option key={g} value={g}>{g}</option>
-                      ))}
-                    </select>
-                    {errors.gender && (
-                      <p className="text-red-500 text-xs font-medium mt-1.5 flex items-center gap-1">
-                        <AlertCircle className="w-3.5 h-3.5" /> {errors.gender}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Blood Group */}
-                  <div>
-                    <label className={labelStyle}>
-                      Blood Group <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      name="bloodGroup"
-                      value={form.bloodGroup}
-                      onChange={handleChange}
-                      className={inputStyle}
-                    >
-                      <option value="">Select Group</option>
-                      {BLOOD_GROUPS.map(bg => (
-                        <option key={bg} value={bg}>{bg}</option>
-                      ))}
-                    </select>
-                    {errors.bloodGroup && (
-                      <p className="text-red-500 text-xs font-medium mt-1.5 flex items-center gap-1">
-                        <AlertCircle className="w-3.5 h-3.5" /> {errors.bloodGroup}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Mobile Number */}
-                  <div>
-                    <label className={labelStyle}>
-                      Mobile Number <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative flex items-center">
-                      <span className={`absolute left-4 text-sm font-semibold pointer-events-none ${isSwim ? "text-slate-500" : "text-emerald-300"}`}>
-                        +91
-                      </span>
-                      <input
-                        type="tel"
-                        name="mobileNumber"
-                        value={form.mobileNumber}
-                        onChange={(e) => {
-                          const clean = e.target.value.replace(/\D/g, "").slice(0, 10);
-                          setForm(prev => ({ ...prev, mobileNumber: clean }));
-                          if (errors.mobileNumber) {
-                            setErrors(prev => ({ ...prev, mobileNumber: undefined }));
-                          }
-                        }}
-                        className={`${inputStyle} pl-14`}
-                        placeholder="XXXXX XXXXX"
-                      />
-                    </div>
-                    {errors.mobileNumber && (
-                      <p className="text-red-500 text-xs font-medium mt-1.5 flex items-center gap-1">
-                        <AlertCircle className="w-3.5 h-3.5" /> {errors.mobileNumber}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* WhatsApp Number */}
-                  <div>
-                    <label className={labelStyle}>
-                      WhatsApp Number <span className="text-xs text-slate-400 font-normal">(Optional)</span>
-                    </label>
-                    <input
-                      type="tel"
-                      name="whatsappNumber"
-                      value={form.whatsappNumber}
-                      onChange={handleChange}
-                      className={inputStyle}
-                      placeholder="Leave blank to use Mobile No"
-                    />
-                    {errors.whatsappNumber && (
-                      <p className="text-red-500 text-xs font-medium mt-1.5 flex items-center gap-1">
-                        <AlertCircle className="w-3.5 h-3.5" /> {errors.whatsappNumber}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Email Address */}
-                  <div>
-                    <label className={labelStyle}>
-                      Email Address <span className="text-xs text-slate-400 font-normal">(Optional)</span>
-                    </label>
-                    <input
-                      type="email"
-                      name="email"
-                      value={form.email}
-                      onChange={handleChange}
-                      className={inputStyle}
-                      placeholder="e.g. mail@example.com"
-                    />
-                    {errors.email && (
-                      <p className="text-red-500 text-xs font-medium mt-1.5 flex items-center gap-1">
-                        <AlertCircle className="w-3.5 h-3.5" /> {errors.email}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Profile Photo upload */}
-                <div className="space-y-3">
-                  <label className={labelStyle}>Profile Photograph</label>
-                  
-                  {form.photoUrl ? (
-                    <div className={`p-4 rounded-2xl border flex items-center gap-4 ${
-                      isSwim ? "bg-slate-50 border-slate-100" : "bg-emerald-950/30 border-emerald-900/40"
-                    }`}>
-                      <img 
-                        src={form.photoUrl} 
-                        alt="Profile Preview" 
-                        className="w-16 h-16 rounded-full object-cover border-2 border-slate-300 shadow-sm"
-                      />
-                      <div className="flex-1">
-                        <p className="text-xs font-bold">Photograph Ready</p>
-                        <p className={`text-[11px] ${textSecondary}`}>This file will be submitted as your member profile avatar.</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={removePhoto}
-                        className="text-xs font-bold text-red-500 px-3 py-1.5 rounded-lg border border-red-200 hover:bg-red-50 cursor-pointer"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ) : (
-                    <div
-                      onDragOver={handleDragOver}
-                      onDragLeave={handleDragLeave}
-                      onDrop={handleDrop}
-                      onClick={triggerFileSelect}
-                      className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all duration-200 flex flex-col items-center justify-center gap-3 ${
-                        isDragging 
-                          ? "border-sky-500 bg-sky-50/20 scale-[0.99]"
-                          : isSwim 
-                            ? "border-slate-300 hover:border-slate-400 bg-slate-50/30" 
-                            : "border-emerald-800/50 hover:border-emerald-700/80 bg-emerald-950/10"
-                      }`}
-                    >
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                        isSwim ? "bg-slate-100 text-slate-500" : "bg-emerald-900/40 text-emerald-400"
-                      }`}>
-                        <Upload className="w-5 h-5 animate-pulse" />
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold">Drag & drop profile picture, or <span className={accentText}>browse files</span></p>
-                        <p className="text-[10px] text-slate-400 mt-1">Accepts JPEG, PNG or WEBP. Max file size: 2MB.</p>
-                      </div>
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handleFileChange}
-                        accept="image/*"
-                        className="hidden"
-                      />
-                    </div>
-                  )}
-                  {errors.photoUrl && (
-                    <p className="text-red-500 text-xs font-medium mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5" /> {errors.photoUrl}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Card 2: Residential Address */}
-              <div className={`rounded-3xl border p-6 md:p-8 space-y-6 ${themeCardBg}`}>
-                <div className="flex items-center gap-3 border-b pb-4 border-slate-100/10">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isSwim ? "bg-sky-50 text-sky-600" : "bg-emerald-900/40 text-emerald-400"}`}>
-                    <MapPin className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-md font-bold">2. Address Details</h3>
-                    <p className={`text-xs ${textSecondary}`}>Physical address specifications</p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className={labelStyle}>
-                      Street Address <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="address"
-                      value={form.address}
-                      onChange={handleChange}
-                      className={inputStyle}
-                      placeholder="Flat No, Wing, Housing Society Name, Area"
-                    />
-                    {errors.address && (
-                      <p className="text-red-500 text-xs font-medium mt-1.5 flex items-center gap-1">
-                        <AlertCircle className="w-3.5 h-3.5" /> {errors.address}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                      <label className={labelStyle}>
-                        City <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        name="city"
-                        value={form.city}
-                        onChange={handleChange}
-                        className={inputStyle}
-                        placeholder="e.g. Vadodara"
-                      />
-                      {errors.city && (
-                        <p className="text-red-500 text-xs font-medium mt-1.5 flex items-center gap-1">
-                          <AlertCircle className="w-3.5 h-3.5" /> {errors.city}
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className={labelStyle}>
-                        State <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        name="state"
-                        value={form.state}
-                        onChange={handleChange}
-                        className={inputStyle}
-                        placeholder="e.g. Gujarat"
-                      />
-                      {errors.state && (
-                        <p className="text-red-500 text-xs font-medium mt-1.5 flex items-center gap-1">
-                          <AlertCircle className="w-3.5 h-3.5" /> {errors.state}
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className={labelStyle}>
-                        PIN Code <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        name="pincode"
-                        maxLength={6}
-                        value={form.pincode}
-                        onChange={handleChange}
-                        className={inputStyle}
-                        placeholder="e.g. 390001"
-                      />
-                      {errors.pincode && (
-                        <p className="text-red-500 text-xs font-medium mt-1.5 flex items-center gap-1">
-                          <AlertCircle className="w-3.5 h-3.5" /> {errors.pincode}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Card 3: Emergency Contacts */}
-              <div className={`rounded-3xl border p-6 md:p-8 space-y-6 ${themeCardBg}`}>
-                <div className="flex items-center gap-3 border-b pb-4 border-slate-100/10">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isSwim ? "bg-sky-50 text-sky-600" : "bg-emerald-900/40 text-emerald-400"}`}>
-                    <PhoneCall className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-md font-bold">3. Emergency Contact</h3>
-                    <p className={`text-xs ${textSecondary}`}>Primary reference contact during critical conditions</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="sm:col-span-2">
-                    <label className={labelStyle}>
-                      Contact Person Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="emergencyContactName"
-                      value={form.emergencyContactName}
-                      onChange={handleChange}
-                      className={inputStyle}
-                      placeholder="e.g. Paresh Prajapati"
-                    />
-                    {errors.emergencyContactName && (
-                      <p className="text-red-500 text-xs font-medium mt-1.5 flex items-center gap-1">
-                        <AlertCircle className="w-3.5 h-3.5" /> {errors.emergencyContactName}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className={labelStyle}>
-                      Contact Phone <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="tel"
-                      name="emergencyContactNumber"
-                      value={form.emergencyContactNumber}
-                      onChange={handleChange}
-                      className={inputStyle}
-                      placeholder="e.g. 9825012345"
-                    />
-                    {errors.emergencyContactNumber && (
-                      <p className="text-red-500 text-xs font-medium mt-1.5 flex items-center gap-1">
-                        <AlertCircle className="w-3.5 h-3.5" /> {errors.emergencyContactNumber}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className={labelStyle}>
-                      Relationship <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="relationship"
-                      value={form.relationship}
-                      onChange={handleChange}
-                      className={inputStyle}
-                      placeholder="e.g. Father, Spouse, Friend"
-                    />
-                    {errors.relationship && (
-                      <p className="text-red-500 text-xs font-medium mt-1.5 flex items-center gap-1">
-                        <AlertCircle className="w-3.5 h-3.5" /> {errors.relationship}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-            </div>
-
-            {/* Column 2: Membership & Session & Medical (5 Cols) */}
-            <div className="lg:col-span-5 space-y-8">
-              
-              {/* Card 4: Membership Tier & Pricing Structure */}
-              <div className={`rounded-3xl border p-6 md:p-8 space-y-6 ${themeCardBg}`}>
-                <div className="flex items-center justify-between border-b pb-4 border-slate-100/10">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isSwim ? "bg-sky-50 text-sky-600" : "bg-emerald-900/40 text-emerald-400"}`}>
-                      <UserCheck className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h3 className="text-md font-bold">4. Membership & Pricing Plan</h3>
-                      <p className={`text-xs ${textSecondary}`}>Baroda Swim Front Official Fee Schedule (From 1st Feb 2026)</p>
-                    </div>
-                  </div>
+  const stepBody = (() => {
+    switch (STEPS[step].id) {
+      case "plan":
+        return (
+          <div className="space-y-9">
+            <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Membership type">
+              {CATEGORIES.map(c => {
+                const selected = form.batchCategory === c.id;
+                return (
                   <button
+                    key={c.id}
                     type="button"
-                    onClick={() => setShowTariffModal(true)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 shadow-sm ${
-                      isSwim 
-                        ? "border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100" 
-                        : "border-emerald-700/60 bg-emerald-900/40 text-emerald-300 hover:bg-emerald-900/80"
+                    name="memberType"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => chooseCategory(c.id)}
+                    className={`relative rounded-2xl border p-5 text-left transition focus:outline-none focus-visible:ring-4 focus-visible:ring-aqua-500/25 ${
+                      selected ? "border-ink-950 bg-ink-950 text-white shadow-panel" : "border-ink-200 bg-white hover:-translate-y-0.5 hover:border-ink-400 hover:shadow-card-hover"
                     }`}
                   >
-                    <FileText className="w-3.5 h-3.5" />
-                    <span>View Rate Card</span>
+                    <div className="flex items-start justify-between gap-3">
+                      <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${selected ? "bg-aqua-500/20 text-aqua-300" : "bg-aqua-500/10 text-aqua-600"}`}>
+                        <c.icon className="h-5 w-5" />
+                      </span>
+                      <span className={`flex h-6 w-6 items-center justify-center rounded-full border-2 ${selected ? "border-aqua-400 bg-aqua-400 text-ink-950" : "border-ink-200"}`}>
+                        {selected && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
+                      </span>
+                    </div>
+                    <p className={`mt-4 font-display text-lg font-semibold ${selected ? "text-white" : "text-ink-950"}`}>{c.name}</p>
+                    <p className={`mt-1 text-sm leading-6 ${selected ? "text-ink-200" : "text-ink-600"}`}>{c.tagline}</p>
+                    <p className={`mt-4 text-sm ${selected ? "text-ink-200" : "text-ink-600"}`}>
+                      from <span className={`font-display text-xl font-bold tabular-nums ${selected ? "text-white" : "text-ink-950"}`}>{rupees(fromPriceFor(c.id))}</span> / month
+                    </p>
                   </button>
-                </div>
-
-                {/* Step 1: Membership Type */}
-                <div className="space-y-3">
-                  <label className={labelStyle}>
-                    Select Membership Type <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={form.batchCategory}
-                    onChange={handleCategorySelect}
-                    className={inputStyle}
-                  >
-                    <option value="">Choose a membership type…</option>
-                    {BATCH_TYPES.map(b => (
-                      <option key={b.id} value={b.id}>{b.name}</option>
-                    ))}
-                  </select>
-                  {form.batchCategory && (
-                    <p className={`text-[11px] leading-normal ${textSecondary}`}>
-                      {BATCH_TYPES.find(b => b.id === form.batchCategory)?.desc}
-                    </p>
-                  )}
-                </div>
-
-                {/* Step 2: Membership Duration (options are shared across a category's frequency variants) */}
-                {form.batchCategory && getCategoryDurationOptions(form.batchCategory).length > 1 && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    className="space-y-3 pt-2 border-t border-slate-100/10"
-                  >
-                    <label className={labelStyle}>
-                      Select Membership Duration <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={form.planDuration}
-                      onChange={handleDurationSelect}
-                      className={inputStyle}
-                    >
-                      <option value="">Choose a duration…</option>
-                      {getCategoryDurationOptions(form.batchCategory).map(opt => (
-                        <option key={opt.id} value={opt.id}>{opt.label}</option>
-                      ))}
-                    </select>
-                  </motion.div>
-                )}
-
-                {/* Step 3: Weekly Frequency (only when the category actually offers more than one) */}
-                {form.batchCategory && form.planDuration && getCategoryFrequencyKeys(form.batchCategory).length > 1 && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    className="space-y-3 pt-2 border-t border-slate-100/10"
-                  >
-                    <label className={labelStyle}>
-                      Select Weekly Schedule Frequency <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={form.frequency}
-                      onChange={handleFrequencySelect}
-                      className={inputStyle}
-                    >
-                      <option value="">Choose a frequency…</option>
-                      {FREQUENCY_OPTIONS.filter(freq => getCategoryFrequencyKeys(form.batchCategory).includes(freq.id)).map(freq => (
-                        <option key={freq.id} value={freq.id}>{freq.name} ({freq.subtitle})</option>
-                      ))}
-                    </select>
-                  </motion.div>
-                )}
-
-                {/* Fee Breakdown Calculation Pill */}
-                {form.memberType && (() => {
-                  const tiers = OFFICIAL_PRICING_MATRIX[form.batchCategory]?.[form.frequency] || [];
-                  const activeTier = tiers.find(t => t.id === form.planDuration) || tiers[0];
-                  const basePrice = activeTier?.price || 0;
-                  // Mirrors membership_plans.registration_fee: the rate-card plans charge ₹300,
-                  // while guest entries and group bookings carry none. Showing a flat ₹300 here
-                  // made the quoted total disagree with the amount actually charged.
-                  // Mirrors membership_plans.registration_fee for every plan bookable online.
-                  const registrationFee = 300;
-                  const grandTotal = basePrice + registrationFee;
-
-                  return (
-                    <div className={`p-4 rounded-2xl border text-xs space-y-2 ${
-                      isSwim ? "bg-sky-50/80 border-sky-200 text-sky-950" : "bg-emerald-950/70 border-emerald-800/60 text-emerald-100"
-                    }`}>
-                      <div className="flex justify-between items-center text-[11px]">
-                        <span className="opacity-80">Selected Plan Fee:</span>
-                        <span className="font-bold">₹{basePrice.toLocaleString("en-IN")}</span>
-                      </div>
-                      <div className="flex justify-between items-center text-[11px]">
-                        <span className="opacity-80">Form & Registration Fee (One-Time):</span>
-                        <span className="font-bold text-amber-500">+ ₹300</span>
-                      </div>
-                      <div className="pt-2 border-t border-slate-300/30 dark:border-emerald-800/40 flex justify-between items-center font-extrabold text-sm">
-                        <span>Total Initial Payment:</span>
-                        <span className="text-emerald-600 dark:text-emerald-400">₹{grandTotal.toLocaleString("en-IN")}</span>
-                      </div>
-                      <p className="text-[10px] text-slate-500 dark:text-emerald-300/60 italic pt-1">
-                        * Costume charges ₹50/hr & additional coaching ₹1,500/member/hr billed separately as applicable.
-                      </p>
-                    </div>
-                  );
-                })()}
-
-                {errors.memberType && (
-                  <p className="text-red-500 text-xs font-medium mt-1 flex items-center gap-1">
-                    <AlertCircle className="w-3.5 h-3.5" /> {errors.memberType}
-                  </p>
-                )}
-              </div>
-
-              {/* Card 5: Batch Selection */}
-              <div className={`rounded-3xl border p-6 md:p-8 space-y-6 ${themeCardBg}`}>
-                <div className="flex items-center gap-3 border-b pb-4 border-slate-100/10">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isSwim ? "bg-sky-50 text-sky-600" : "bg-emerald-900/40 text-emerald-400"}`}>
-                    <Clock className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-md font-bold">5. Training Session Batch</h3>
-                    <p className={`text-xs ${textSecondary}`}>Select preferred morning or evening timings</p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  {/* Morning Slots */}
-                  <div>
-                    <p className={`text-xs font-bold tracking-wider mb-2 flex items-center gap-1.5 ${isSwim ? "text-slate-400" : "text-emerald-300"}`}>
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                      Morning Batches
-                    </p>
-                    <div className="grid grid-cols-1 gap-2">
-                      {BATCH_CATEGORIES.morning.map(b => {
-                        const isSelected = form.batch === b.value;
-                        return (
-                          <button
-                            key={b.value}
-                            type="button"
-                            onClick={() => {
-                              setForm(prev => ({ ...prev, batch: b.value }));
-                              if (errors.batch) setErrors(prev => ({ ...prev, batch: undefined }));
-                            }}
-                            className={`px-4 py-2.5 rounded-xl border text-xs text-left font-semibold transition-all duration-150 cursor-pointer ${
-                              isSelected
-                                ? isSwim 
-                                  ? "bg-sky-500 text-white border-sky-500 shadow-sm"
-                                  : "bg-emerald-500 text-white border-emerald-500 shadow-md"
-                                : isSwim
-                                  ? "border-slate-200 hover:bg-slate-50 text-slate-700 bg-white"
-                                  : "border-emerald-800/40 hover:bg-emerald-900/20 text-emerald-200 bg-emerald-950/20"
-                            }`}
-                          >
-                            {b.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Evening Slots */}
-                  <div>
-                    <p className={`text-xs font-bold tracking-wider mb-2 flex items-center gap-1.5 ${isSwim ? "text-slate-400" : "text-emerald-300"}`}>
-                      <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />
-                      Evening Batches
-                    </p>
-                    <div className="grid grid-cols-1 gap-2">
-                      {BATCH_CATEGORIES.evening.map(b => {
-                        const isSelected = form.batch === b.value;
-                        return (
-                          <button
-                            key={b.value}
-                            type="button"
-                            onClick={() => {
-                              setForm(prev => ({ ...prev, batch: b.value }));
-                              if (errors.batch) setErrors(prev => ({ ...prev, batch: undefined }));
-                            }}
-                            className={`px-4 py-2.5 rounded-xl border text-xs text-left font-semibold transition-all duration-150 cursor-pointer ${
-                              isSelected
-                                ? isSwim 
-                                  ? "bg-sky-500 text-white border-sky-500 shadow-sm"
-                                  : "bg-emerald-500 text-white border-emerald-500 shadow-md"
-                                : isSwim
-                                  ? "border-slate-200 hover:bg-slate-50 text-slate-700 bg-white"
-                                  : "border-emerald-800/40 hover:bg-emerald-900/20 text-emerald-200 bg-emerald-950/20"
-                            }`}
-                          >
-                            {b.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {errors.batch && (
-                    <p className="text-red-500 text-xs font-medium mt-1.5 flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5" /> {errors.batch}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Card 6: Medical Declaration */}
-              <div className={`rounded-3xl border p-6 md:p-8 space-y-6 ${themeCardBg}`}>
-                <div className="flex items-center gap-3 border-b pb-4 border-slate-100/10">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isSwim ? "bg-sky-50 text-sky-600" : "bg-emerald-900/40 text-emerald-400"}`}>
-                    <HeartPulse className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-md font-bold">6. Medical Condition</h3>
-                    <p className={`text-xs ${textSecondary}`}>Declare physical fitness constraints</p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <label className={labelStyle}>Do you have any existing medical conditions? <span className="text-red-500">*</span></label>
-                  
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => handleToggleMedical(true)}
-                      className={`py-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                        form.hasMedicalCondition === true
-                          ? isSwim 
-                            ? "bg-amber-500 text-white border-amber-500" 
-                            : "bg-amber-600 text-white border-amber-600"
-                          : isSwim
-                            ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                            : "border-emerald-800/40 bg-emerald-950/20 text-emerald-200 hover:bg-emerald-900/10"
-                      }`}
-                    >
-                      Yes, I have
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleToggleMedical(false)}
-                      className={`py-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                        form.hasMedicalCondition === false
-                          ? isSwim 
-                            ? "bg-slate-700 text-white border-slate-700" 
-                            : "bg-emerald-800 text-white border-emerald-800"
-                          : isSwim
-                            ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                            : "border-emerald-800/40 bg-emerald-950/20 text-emerald-200 hover:bg-emerald-900/10"
-                      }`}
-                    >
-                      No conditions
-                    </button>
-                  </div>
-
-                  <AnimatePresence initial={false}>
-                    {form.hasMedicalCondition && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="overflow-hidden space-y-2"
-                      >
-                        <label className={labelStyle}>
-                          Describe Medical Conditions <span className="text-red-500">*</span>
-                        </label>
-                        <textarea
-                          name="medicalDetails"
-                          value={form.medicalDetails}
-                          onChange={handleChange}
-                          rows={3}
-                          className={`${inputStyle} resize-none`}
-                          placeholder="Please supply illness records, surgeries, breathing constraints, asthma, cardiovascular issues, epilepsy or physical allergies."
-                        />
-                        {errors.medicalDetails && (
-                          <p className="text-red-500 text-xs font-medium flex items-center gap-1">
-                            <AlertCircle className="w-3.5 h-3.5" /> {errors.medicalDetails}
-                          </p>
-                        )}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
-
+                );
+              })}
             </div>
 
-          </div>
+            <div ref={nextQuestionRef} className="scroll-mt-40" />
+            {form.batchCategory && frequenciesFor(form.batchCategory).length > 1 && (
+              <div>
+                <p className="mb-3 text-[15px] font-semibold text-ink-950">How often will you swim?</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {FREQUENCIES.map(f => {
+                    const selected = form.frequency === f.id;
+                    return (
+                      <button key={f.id} type="button" onClick={() => chooseFrequency(f.id)} aria-pressed={selected}
+                        className={`rounded-2xl border p-4 text-left transition focus:outline-none focus-visible:ring-4 focus-visible:ring-aqua-500/25 ${selected ? "border-aqua-500 bg-aqua-500/[0.06] ring-1 ring-aqua-500" : "border-ink-200 bg-white hover:border-ink-400"}`}>
+                        <p className="font-semibold text-ink-950">{f.name}</p>
+                        <p className="mt-0.5 text-sm text-ink-600">{f.detail}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
-          {/* Rules, Declaration & Submit Block */}
-          <div className={`rounded-3xl border p-6 md:p-8 space-y-6 ${themeCardBg}`}>
-            <div className="flex items-center gap-3 border-b pb-4 border-slate-100/10">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isSwim ? "bg-sky-50 text-sky-600" : "bg-emerald-900/40 text-emerald-400"}`}>
-                <ShieldCheck className="w-4 h-4" />
+            {form.batchCategory && form.frequency && (
+              <div>
+                <p className="mb-3 text-[15px] font-semibold text-ink-950">For how long?</p>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {durationsFor(form.batchCategory, form.frequency).map(d => {
+                    const selected = form.planDuration === d;
+                    const amount = priceFor(form.batchCategory, form.frequency, d) ?? 0;
+                    const saving = savingFor(form.batchCategory, form.frequency, d);
+                    return (
+                      <button key={d} type="button" onClick={() => update("planDuration", d)} aria-pressed={selected}
+                        className={`relative rounded-2xl border p-4 text-left transition focus:outline-none focus-visible:ring-4 focus-visible:ring-aqua-500/25 ${selected ? "border-aqua-500 bg-aqua-500/[0.06] ring-1 ring-aqua-500" : "border-ink-200 bg-white hover:border-ink-400"}`}>
+                        <p className="text-sm font-medium text-ink-600">{DURATION_LABEL[d]}</p>
+                        <p className="mt-1 font-display text-xl font-bold tabular-nums text-ink-950">{rupees(amount)}</p>
+                        {saving > 0 ? (
+                          <span className="mt-2 inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-[12px] font-semibold text-emerald-700">Save {rupees(saving)}</span>
+                        ) : (
+                          <span className="mt-2 inline-block text-[12px] text-ink-400">Pay monthly</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            <FieldError message={errors.memberType} />
+          </div>
+        );
+
+      case "time":
+        return (
+          <div className="space-y-8">
+            {batches === null && !batchesError && (
+              <div className="flex items-center gap-3 rounded-2xl border border-ink-100 bg-white p-5 text-ink-600"><Loader2 className="h-5 w-5 animate-spin text-aqua-500" /> Loading today's pool timings…</div>
+            )}
+            {batchesError && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
+                <p className="font-semibold">We couldn't load the pool timings.</p>
+                <p className="mt-1">Check your internet connection and try again.</p>
+                <button type="button" onClick={loadBatches} className="mt-3 inline-flex items-center gap-2 rounded-lg bg-white px-3 py-2 font-semibold text-amber-900 shadow-sm"><RefreshCw className="h-4 w-4" /> Try again</button>
+              </div>
+            )}
+            {batches && batches.length === 0 && (
+              <p className="rounded-2xl border border-ink-100 bg-white p-5 text-sm text-ink-600">No pool timings are open right now. Please contact the academy reception.</p>
+            )}
+            {[{ label: "Morning", icon: Sun, items: morning }, { label: "Evening", icon: Moon, items: evening }].map(group => group.items.length > 0 && (
+              <div key={group.label}>
+                <p className="mb-3 flex items-center gap-2 text-[15px] font-semibold text-ink-950"><group.icon className="h-4 w-4 text-aqua-600" /> {group.label}</p>
+                <div className="grid gap-3 sm:grid-cols-2">{group.items.map(b => <BatchCard key={b.id} b={b} />)}</div>
+              </div>
+            ))}
+            <FieldError message={errors.batch} />
+          </div>
+        );
+
+      case "you":
+        return (
+          <div className="space-y-6">
+            <div className="flex items-center gap-5">
+              <div
+                onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={e => { e.preventDefault(); setIsDragging(false); if (e.dataTransfer.files?.[0]) processFile(e.dataTransfer.files[0]); }}
+                className={`relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-dashed transition ${isDragging ? "border-aqua-500 bg-aqua-500/10" : "border-ink-200 bg-ink-50"}`}
+              >
+                {form.photoUrl ? <img src={form.photoUrl} alt="Your photo" className="h-full w-full object-cover" /> : <Upload className="h-6 w-6 text-ink-400" />}
               </div>
               <div>
-                <h3 className="text-md font-bold">7. Code of Conduct & Declaration</h3>
-                <p className={`text-xs ${textSecondary}`}>Read and accept the safety rules of the training academy</p>
+                <p className="text-[13px] font-semibold text-ink-800">Profile photo <span className="ml-1 font-normal text-ink-400">Optional</span></p>
+                <p className="mt-0.5 text-[13px] text-ink-600">Helps reception recognise you. JPEG, PNG or WEBP, up to 2 MB.</p>
+                <div className="mt-2.5 flex gap-2">
+                  <button type="button" onClick={() => fileInputRef.current?.click()} className="rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-sm font-semibold text-ink-800 hover:bg-ink-50">{form.photoUrl ? "Change" : "Upload photo"}</button>
+                  {form.photoUrl && <button type="button" onClick={() => setForm(p => ({ ...p, photoFile: null, photoUrl: "" }))} className="rounded-lg px-3 py-1.5 text-sm font-semibold text-ink-600 hover:bg-ink-50">Remove</button>}
+                </div>
+                <input ref={fileInputRef} name="photoUrl" type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={e => e.target.files?.[0] && processFile(e.target.files[0])} />
+                <FieldError message={errors.photoUrl} />
               </div>
             </div>
 
-            <div className={`p-4 rounded-2xl border text-xs space-y-2 leading-relaxed ${
-              isSwim ? "bg-sky-50/50 border-sky-100 text-slate-600" : "bg-emerald-950/50 border-emerald-900/60 text-emerald-100/80"
-            }`}>
-              <p className={`font-bold uppercase tracking-wider text-[10px] mb-2 flex items-center gap-1 ${isSwim ? "text-slate-800" : "text-emerald-50"}`}>
-                <ShieldAlert className="w-4 h-4 text-amber-500" />
-                Safety Regulations Outline
-              </p>
-              <ul className="list-disc pl-4 space-y-1">
-                <li>Active members must obey general swimming instructions issued by the chief coach on the deck.</li>
-                <li>Proper swimming attire (swimwear and standard silicone swim cap) is strictly mandatory before entering the pool water.</li>
-                <li>Members diagnosed with physical or medical ailments like epilepsy, skin issues, or cardiac troubles must report accurate health logs.</li>
-                <li>The administration holds absolute reservation rights to reject application requests or suspend access in case of behavior disputes.</li>
-              </ul>
+            <div>
+              <Label htmlFor="reg-fullName">Full name</Label>
+              <input id="reg-fullName" name="fullName" autoComplete="name" value={form.fullName} onChange={e => update("fullName", e.target.value)} placeholder="As on your ID" className={inputClass(!!errors.fullName)} />
+              <FieldError message={errors.fullName} />
             </div>
 
-            <div className="space-y-3">
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  name="agreedToRules"
-                  checked={form.agreedToRules}
-                  onChange={handleCheckboxChange}
-                  className={`mt-0.5 w-[18px] h-[18px] rounded border text-sky-600 ${
-                    isSwim ? "border-slate-300" : "border-emerald-800 bg-emerald-950"
-                  } focus:ring-sky-500`}
-                />
-                <span className={`text-xs select-none font-semibold ${isSwim ? "text-slate-700" : "text-emerald-100"}`}>
-                  I hereby state that the details compiled in this member registration application form are true to my knowledge. I fully agree to comply with the safety rules, regulations, and declarations of SAMS Academy. <span className="text-red-500">*</span>
+            <div className="grid gap-6 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="reg-dob">Date of birth</Label>
+                <input id="reg-dob" name="dateOfBirth" type="date" autoComplete="bday" max={new Date().toISOString().split("T")[0]} min="1930-01-01" value={form.dateOfBirth} onChange={e => update("dateOfBirth", e.target.value)} className={inputClass(!!errors.dateOfBirth)} />
+                {age !== null && !errors.dateOfBirth && <p className="mt-2 text-[13px] text-ink-600">{age} years old{age < 18 ? ". A parent or guardian should complete this form." : ""}</p>}
+                <FieldError message={errors.dateOfBirth} />
+              </div>
+              <div>
+                <Label>Gender</Label>
+                <div className="flex flex-wrap gap-2">{GENDERS.map(g => <Chip key={g} name="gender" selected={form.gender === g} onClick={() => update("gender", g)}>{g}</Chip>)}</div>
+                <FieldError message={errors.gender} />
+              </div>
+            </div>
+
+            <div>
+              <Label>Blood group</Label>
+              <div className="flex flex-wrap gap-2">
+                {BLOOD_GROUPS.map(g => <Chip key={g} name="bloodGroup" selected={form.bloodGroup === g} onClick={() => update("bloodGroup", g)}>{g}</Chip>)}
+                <Chip name="bloodGroup" selected={form.bloodGroup === NOT_SURE_BLOOD} onClick={() => update("bloodGroup", NOT_SURE_BLOOD)}>Not known</Chip>
+              </div>
+              <FieldError message={errors.bloodGroup} />
+            </div>
+
+            <div className="grid gap-6 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="reg-mobile">Mobile number</Label>
+                <div className={`flex items-center rounded-xl border bg-white transition focus-within:ring-4 ${errors.mobileNumber ? "border-rose-300 focus-within:ring-rose-100" : "border-ink-200 focus-within:border-aqua-500 focus-within:ring-aqua-500/15"}`}>
+                  <span className="pl-4 pr-2 text-[15px] font-medium text-ink-600">+91</span>
+                  <input id="reg-mobile" name="mobileNumber" inputMode="numeric" autoComplete="tel-national" value={form.mobileNumber} onChange={e => update("mobileNumber", digitsOnly(e.target.value).slice(0, 10))} placeholder="98250 12345" className="w-full rounded-r-xl bg-transparent py-3 pr-4 text-[15px] tabular-nums text-ink-950 outline-none placeholder:text-ink-400" />
+                </div>
+                <p className="mt-2 text-[13px] text-ink-600">You'll sign in with a code sent to this number.</p>
+                <FieldError message={errors.mobileNumber} />
+              </div>
+              <div>
+                <Label htmlFor="reg-email" optional>Email</Label>
+                <input id="reg-email" name="email" type="email" autoComplete="email" value={form.email} onChange={e => update("email", e.target.value)} placeholder="you@example.com" className={inputClass(!!errors.email)} />
+                <FieldError message={errors.email} />
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-ink-100 bg-ink-50/60 p-4">
+              <label className="flex cursor-pointer items-start gap-3">
+                <input type="checkbox" checked={form.whatsappSameAsMobile} onChange={e => update("whatsappSameAsMobile", e.target.checked)} className="mt-0.5 h-5 w-5 rounded border-ink-200 accent-[#16a9c4]" />
+                <span>
+                  <span className="block text-sm font-semibold text-ink-950">My WhatsApp number is the same</span>
+                  <span className="block text-[13px] text-ink-600">Your payment link and invoice are sent on WhatsApp.</span>
                 </span>
               </label>
-
-              {errors.agreedToRules && (
-                <p className="text-red-500 text-xs font-medium mt-1 flex items-center gap-1">
-                  <AlertCircle className="w-3.5 h-3.5" /> {errors.agreedToRules}
-                </p>
+              {!form.whatsappSameAsMobile && (
+                <div className="mt-4">
+                  <Label htmlFor="reg-whatsapp">WhatsApp number</Label>
+                  <div className={`flex items-center rounded-xl border bg-white focus-within:ring-4 ${errors.whatsappNumber ? "border-rose-300 focus-within:ring-rose-100" : "border-ink-200 focus-within:border-aqua-500 focus-within:ring-aqua-500/15"}`}>
+                    <span className="pl-4 pr-2 text-[15px] font-medium text-ink-600">+91</span>
+                    <input id="reg-whatsapp" name="whatsappNumber" inputMode="numeric" value={form.whatsappNumber} onChange={e => update("whatsappNumber", digitsOnly(e.target.value).slice(0, 10))} placeholder="98250 12345" className="w-full rounded-r-xl bg-transparent py-3 pr-4 text-[15px] tabular-nums outline-none" />
+                  </div>
+                  <FieldError message={errors.whatsappNumber} />
+                </div>
               )}
             </div>
+          </div>
+        );
 
-            {/* Form CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-slate-100/10">
-              <button
-                type="button"
-                onClick={onCancel}
-                className={`flex-1 py-3.5 px-4 rounded-xl font-bold text-sm transition-all text-center border cursor-pointer active:scale-[0.98] ${
-                  isSwim 
-                    ? "border-slate-200 bg-white hover:bg-slate-100 text-slate-700" 
-                    : "border-emerald-800/40 bg-emerald-950/20 text-emerald-200 hover:bg-emerald-900/20"
-                }`}
-              >
-                Cancel Registration
-              </button>
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className={`flex-1 py-3.5 px-4 rounded-xl font-bold text-white text-sm transition-all text-center shadow-lg cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-50 ${accentBg}`}
-              >
-                {isSubmitting ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Processing Record...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="w-5 h-5" />
-                    Submit Registration Form
-                  </>
-                )}
-              </button>
+      case "contact":
+        return (
+          <div className="space-y-8">
+            <div className="space-y-6">
+              <div>
+                <Label htmlFor="reg-address">House and street</Label>
+                <input id="reg-address" name="address" autoComplete="street-address" value={form.address} onChange={e => update("address", e.target.value)} placeholder="Flat or house no., society, area" className={inputClass(!!errors.address)} />
+                <FieldError message={errors.address} />
+              </div>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                <div>
+                  <Label htmlFor="reg-city">City</Label>
+                  <input id="reg-city" name="city" autoComplete="address-level2" value={form.city} onChange={e => update("city", e.target.value)} className={inputClass(!!errors.city)} />
+                  <FieldError message={errors.city} />
+                </div>
+                <div>
+                  <Label htmlFor="reg-state">State</Label>
+                  <input id="reg-state" name="state" autoComplete="address-level1" value={form.state} onChange={e => update("state", e.target.value)} className={inputClass(!!errors.state)} />
+                  <FieldError message={errors.state} />
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <Label htmlFor="reg-pin">PIN code</Label>
+                  <input id="reg-pin" name="pincode" inputMode="numeric" autoComplete="postal-code" value={form.pincode} onChange={e => update("pincode", digitsOnly(e.target.value).slice(0, 6))} placeholder="390007" className={`${inputClass(!!errors.pincode)} tabular-nums`} />
+                  <FieldError message={errors.pincode} />
+                </div>
+              </div>
             </div>
 
-          </div>
-
-        </form>
-
-      </div>
-      </div>
-
-      {/* Official Tariff Schedule Modal */}
-      <AnimatePresence>
-        {showTariffModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md overflow-y-auto"
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 md:p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl space-y-6 text-left"
-            >
-              {/* Modal Header */}
-              <div className="flex items-start justify-between border-b pb-4 border-slate-200 dark:border-slate-800">
+            <div className="rounded-2xl border border-rose-100 bg-rose-50/40 p-5">
+              <p className="flex items-center gap-2 font-semibold text-ink-950"><HeartPulse className="h-4 w-4 text-rose-500" /> Emergency contact</p>
+              <p className="mt-1 text-[13px] leading-5 text-ink-600">The person staff will call if anything happens at the pool. Please use someone other than yourself.</p>
+              <div className="mt-5 grid gap-5 sm:grid-cols-2">
                 <div>
-                  <span className="text-[10px] font-mono tracking-widest text-sky-600 dark:text-sky-400 uppercase font-bold">
-                    Official Fee Schedule Document
-                  </span>
-                  <h2 className="text-2xl font-black text-slate-900 dark:text-white mt-0.5">
-                    Baroda Swim Front
-                  </h2>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                    Membership charges — <span className="font-semibold text-amber-600 dark:text-amber-400">From 1st Feb 2026 onwards</span>
-                  </p>
-                  <p className="text-xs font-mono text-slate-500 dark:text-slate-400 mt-0.5">
-                    Mob: <a href="tel:9313241071" className="underline hover:text-sky-500 font-bold">9313241071</a>
-                  </p>
+                  <Label htmlFor="reg-ec-name">Their name</Label>
+                  <input id="reg-ec-name" name="emergencyContactName" value={form.emergencyContactName} onChange={e => update("emergencyContactName", e.target.value)} className={inputClass(!!errors.emergencyContactName)} />
+                  <FieldError message={errors.emergencyContactName} />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowTariffModal(false)}
-                  className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
+                <div>
+                  <Label htmlFor="reg-ec-phone">Their phone</Label>
+                  <div className={`flex items-center rounded-xl border bg-white focus-within:ring-4 ${errors.emergencyContactNumber ? "border-rose-300 focus-within:ring-rose-100" : "border-ink-200 focus-within:border-aqua-500 focus-within:ring-aqua-500/15"}`}>
+                    <span className="pl-4 pr-2 text-[15px] font-medium text-ink-600">+91</span>
+                    <input id="reg-ec-phone" name="emergencyContactNumber" inputMode="numeric" value={form.emergencyContactNumber} onChange={e => update("emergencyContactNumber", digitsOnly(e.target.value).slice(0, 10))} className="w-full rounded-r-xl bg-transparent py-3 pr-4 text-[15px] tabular-nums outline-none" />
+                  </div>
+                  <FieldError message={errors.emergencyContactNumber} />
+                </div>
+              </div>
+              <div className="mt-5">
+                <Label>They are your</Label>
+                <div className="flex flex-wrap gap-2">{RELATIONSHIPS.map(r => <Chip key={r} name="relationship" selected={form.relationship === r} onClick={() => update("relationship", r)}>{r}</Chip>)}</div>
+                <FieldError message={errors.relationship} />
+              </div>
+            </div>
+          </div>
+        );
+
+      case "review":
+      default: {
+        const rows: Array<{ label: string; value: string; step: number }> = [
+          { label: "Plan", value: planLabel || "Not chosen", step: 0 },
+          { label: "Pool time", value: chosenBatch ? `${chosenBatch.startTime} – ${chosenBatch.endTime}` : form.batch || "Not chosen", step: 1 },
+          { label: "Name", value: [form.fullName, age !== null ? `${age} yrs` : "", form.gender].filter(Boolean).join(" · "), step: 2 },
+          { label: "Mobile", value: form.mobileNumber ? `+91 ${form.mobileNumber}` : "", step: 2 },
+          { label: "Address", value: [form.address, form.city, form.pincode].filter(Boolean).join(", "), step: 3 },
+          { label: "Emergency", value: [form.emergencyContactName, form.relationship, form.emergencyContactNumber && `+91 ${form.emergencyContactNumber}`].filter(Boolean).join(" · "), step: 3 },
+        ];
+        return (
+          <div className="space-y-8">
+            <div>
+              <p className="mb-3 text-[15px] font-semibold text-ink-950">Do you have any medical condition the coach should know about?</p>
+              <div className="grid grid-cols-2 gap-3">
+                <button type="button" name="medicalDetails" onClick={() => { update("hasMedicalCondition", false); update("medicalDetails", ""); }} aria-pressed={form.hasMedicalCondition === false}
+                  className={`rounded-2xl border p-4 text-left transition ${form.hasMedicalCondition === false ? "border-aqua-500 bg-aqua-500/[0.06] ring-1 ring-aqua-500" : "border-ink-200 bg-white hover:border-ink-400"}`}>
+                  <p className="font-semibold text-ink-950">No</p><p className="text-sm text-ink-600">I'm fit to swim</p>
+                </button>
+                <button type="button" onClick={() => update("hasMedicalCondition", true)} aria-pressed={form.hasMedicalCondition === true}
+                  className={`rounded-2xl border p-4 text-left transition ${form.hasMedicalCondition === true ? "border-amber-400 bg-amber-50 ring-1 ring-amber-400" : "border-ink-200 bg-white hover:border-ink-400"}`}>
+                  <p className="font-semibold text-ink-950">Yes</p><p className="text-sm text-ink-600">I'll describe it</p>
                 </button>
               </div>
+              {form.hasMedicalCondition === true && (
+                <textarea name="medicalDetails" value={form.medicalDetails} onChange={e => update("medicalDetails", e.target.value)} rows={3}
+                  placeholder="For example: asthma, uses an inhaler; or epilepsy, last episode 2024" className={`${inputClass(!!errors.medicalDetails)} mt-4 resize-none`} />
+              )}
+              <FieldError message={errors.medicalDetails} />
+            </div>
 
-              {/* Document Rate Table */}
-              <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
-                <table className="w-full text-xs text-left border-collapse">
-                  <thead>
-                    <tr className="bg-sky-50 dark:bg-slate-800/80 text-slate-800 dark:text-slate-200 font-extrabold uppercase tracking-wider text-[11px]">
-                      <th className="p-3 border-b border-r border-slate-200 dark:border-slate-700 w-12 text-center">SL.NO.</th>
-                      <th className="p-3 border-b border-r border-slate-200 dark:border-slate-700 min-w-[200px]">Details</th>
-                      <th className="p-3 border-b border-r border-slate-200 dark:border-slate-700 min-w-[120px]">Week days / duration</th>
-                      <th className="p-3 border-b border-r border-slate-200 dark:border-slate-700">1 Month</th>
-                      <th className="p-3 border-b border-r border-slate-200 dark:border-slate-700">3 Months</th>
-                      <th className="p-3 border-b border-r border-slate-200 dark:border-slate-700">6 Months</th>
-                      <th className="p-3 border-b border-r border-slate-200 dark:border-slate-700">9 Months</th>
-                      <th className="p-3 border-b border-slate-200 dark:border-slate-700">Annually</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
-                    <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                      <td className="p-3 text-center font-bold border-r border-slate-200 dark:border-slate-800">1</td>
-                      <td className="p-3 font-semibold border-r border-slate-200 dark:border-slate-800">Learners batch (members only)</td>
-                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">6days/ week</td>
-                      <td className="p-3 font-mono border-r border-slate-200 dark:border-slate-800">₹3,500/month</td>
-                      <td className="p-3 font-mono border-r border-slate-200 dark:border-slate-800">₹9,500</td>
-                      <td className="p-3 font-mono border-r border-slate-200 dark:border-slate-800">₹18,500</td>
-                      <td className="p-3 font-mono border-r border-slate-200 dark:border-slate-800">₹26,500</td>
-                      <td className="p-3 font-mono font-bold text-emerald-600 dark:text-emerald-400">₹33,500</td>
-                    </tr>
-                    <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                      <td className="p-3 text-center font-bold border-r border-slate-200 dark:border-slate-800">2</td>
-                      <td className="p-3 font-semibold border-r border-slate-200 dark:border-slate-800">Learners batch (members only)</td>
-                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">3 days/ week</td>
-                      <td className="p-3 font-mono border-r border-slate-200 dark:border-slate-800">₹3,000/month</td>
-                      <td className="p-3 font-mono border-r border-slate-200 dark:border-slate-800">₹8,500</td>
-                      <td className="p-3 font-mono border-r border-slate-200 dark:border-slate-800">₹16,000</td>
-                      <td className="p-3 font-mono border-r border-slate-200 dark:border-slate-800">₹22,500</td>
-                      <td className="p-3 font-mono font-bold text-emerald-600 dark:text-emerald-400">₹28,500</td>
-                    </tr>
-                    <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                      <td className="p-3 text-center font-bold border-r border-slate-200 dark:border-slate-800">3</td>
-                      <td className="p-3 font-semibold border-r border-slate-200 dark:border-slate-800">General batch (members only)</td>
-                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">6days/ week</td>
-                      <td className="p-3 font-mono border-r border-slate-200 dark:border-slate-800">₹3,000/month</td>
-                      <td className="p-3 font-mono border-r border-slate-200 dark:border-slate-800">₹8,500</td>
-                      <td className="p-3 font-mono border-r border-slate-200 dark:border-slate-800">₹16,000</td>
-                      <td className="p-3 font-mono border-r border-slate-200 dark:border-slate-800">₹22,500</td>
-                      <td className="p-3 font-mono font-bold text-emerald-600 dark:text-emerald-400">₹28,500</td>
-                    </tr>
-                    <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                      <td className="p-3 text-center font-bold border-r border-slate-200 dark:border-slate-800">4</td>
-                      <td className="p-3 font-semibold border-r border-slate-200 dark:border-slate-800">General batch (members only)</td>
-                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">3days/week</td>
-                      <td className="p-3 font-mono border-r border-slate-200 dark:border-slate-800">₹2,700/month</td>
-                      <td className="p-3 font-mono border-r border-slate-200 dark:border-slate-800">₹7,500</td>
-                      <td className="p-3 font-mono border-r border-slate-200 dark:border-slate-800">₹14,500</td>
-                      <td className="p-3 font-mono border-r border-slate-200 dark:border-slate-800">₹20,500</td>
-                      <td className="p-3 font-mono font-bold text-emerald-600 dark:text-emerald-400">₹25,500</td>
-                    </tr>
-                    <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                      <td className="p-3 text-center font-bold border-r border-slate-200 dark:border-slate-800">5</td>
-                      <td className="p-3 font-semibold border-r border-slate-200 dark:border-slate-800">Family Membership (2 adults + 2 kids)</td>
-                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">6days/week</td>
-                      <td className="p-3 font-mono border-r border-slate-200 dark:border-slate-800">₹10,000/month</td>
-                      <td className="p-3 font-mono border-r border-slate-200 dark:border-slate-800">₹28,500</td>
-                      <td className="p-3 text-center opacity-40 border-r border-slate-200 dark:border-slate-800">-</td>
-                      <td className="p-3 text-center opacity-40 border-r border-slate-200 dark:border-slate-800">-</td>
-                      <td className="p-3 text-center opacity-40">-</td>
-                    </tr>
-                    <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                      <td className="p-3 text-center font-bold border-r border-slate-200 dark:border-slate-800">6</td>
-                      <td className="p-3 font-semibold border-r border-slate-200 dark:border-slate-800">Family Membership (2 adults + 1 kids)</td>
-                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">6days/week</td>
-                      <td className="p-3 font-mono border-r border-slate-200 dark:border-slate-800">₹8,000/month</td>
-                      <td className="p-3 font-mono border-r border-slate-200 dark:border-slate-800">₹22,500</td>
-                      <td className="p-3 text-center opacity-40 border-r border-slate-200 dark:border-slate-800">-</td>
-                      <td className="p-3 text-center opacity-40 border-r border-slate-200 dark:border-slate-800">-</td>
-                      <td className="p-3 text-center opacity-40">-</td>
-                    </tr>
-                    <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                      <td className="p-3 text-center font-bold border-r border-slate-200 dark:border-slate-800">7</td>
-                      <td className="p-3 font-semibold border-r border-slate-200 dark:border-slate-800">Anyone without membership</td>
-                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">1 hour</td>
-                      <td className="p-3 font-mono text-[11px] border-r border-slate-200 dark:border-slate-800 col-span-5" colSpan={5}>
-                        ₹300 (Mon to Fri) / ₹350 (Sat & Sun) + extra costume charges
-                      </td>
-                    </tr>
-                    <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                      <td className="p-3 text-center font-bold border-r border-slate-200 dark:border-slate-800">8</td>
-                      <td className="p-3 font-semibold border-r border-slate-200 dark:border-slate-800">Group charges</td>
-                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">2 hour</td>
-                      <td className="p-3 font-mono font-bold text-amber-600 dark:text-amber-400 border-r border-slate-200 dark:border-slate-800" colSpan={5}>
-                        ₹25,000/- (One Time) — (Max 50 members)
-                      </td>
-                    </tr>
-                    <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/40 bg-amber-50/40 dark:bg-amber-950/20">
-                      <td className="p-3 text-center font-bold border-r border-slate-200 dark:border-slate-800">10</td>
-                      <td className="p-3 font-semibold border-r border-slate-200 dark:border-slate-800">Form and Registration</td>
-                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">One Time</td>
-                      <td className="p-3 font-mono font-extrabold text-sky-600 dark:text-sky-400" colSpan={5}>
-                        ₹300/- (One Time)
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+            <div className="overflow-hidden rounded-2xl border border-ink-100 bg-white">
+              <p className="border-b border-ink-100 px-5 py-3 text-[13px] font-semibold uppercase tracking-[0.08em] text-ink-400">Check your details</p>
+              <dl className="divide-y divide-ink-100">
+                {rows.map(r => (
+                  <div key={r.label} className="flex items-start justify-between gap-4 px-5 py-3.5">
+                    <div className="min-w-0">
+                      <dt className="text-[13px] text-ink-400">{r.label}</dt>
+                      <dd className="mt-0.5 break-words text-sm font-medium text-ink-950">{r.value || <span className="text-rose-600">Missing</span>}</dd>
+                    </div>
+                    <button type="button" onClick={() => goTo(r.step)} className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-[13px] font-semibold text-aqua-600 hover:bg-aqua-500/10"><Pencil className="h-3.5 w-3.5" /> Edit</button>
+                  </div>
+                ))}
+              </dl>
+            </div>
 
-              {/* Additional Rules & Footnotes */}
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60 text-xs space-y-2">
-                <h4 className="font-bold text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">
-                  Additional Coaching & Costume Directives:
-                </h4>
-                <ul className="list-disc list-inside space-y-1 text-slate-600 dark:text-slate-300 leading-relaxed">
-                  <li><strong>Additional coaching charges:</strong> ₹1,500 / member / hour (3 lessons / week)</li>
-                  <li><strong>Costume charges:</strong> ₹50/- per hour</li>
-                  <li><strong>Mandatory Safety Rule:</strong> Costume is compulsory for everyone in the pool</li>
-                </ul>
-              </div>
+            <div className="rounded-2xl border border-ink-100 bg-ink-50/60 p-5">
+              <p className="text-sm font-semibold text-ink-950">Pool safety rules</p>
+              <ul className="mt-3 space-y-2 text-[13px] leading-5 text-ink-600">
+                {SAFETY_RULES.map(rule => <li key={rule} className="flex gap-2"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-aqua-600" />{rule}</li>)}
+              </ul>
+              <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-xl bg-white p-4 shadow-card">
+                <input name="agreedToRules" type="checkbox" checked={form.agreedToRules} onChange={e => update("agreedToRules", e.target.checked)} className="mt-0.5 h-5 w-5 shrink-0 accent-[#16a9c4]" />
+                <span className="text-sm leading-6 text-ink-800">The details above are true, and I agree to follow the academy's safety rules.</span>
+              </label>
+              <FieldError message={errors.agreedToRules} />
+            </div>
+          </div>
+        );
+      }
+    }
+  })();
 
-              {/* Modal Close CTA */}
-              <div className="flex justify-end pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowTariffModal(false)}
-                  className="px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-sky-500 dark:hover:bg-sky-600 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
-                >
-                  Close Rate Card
+  const continueLabel = isLast ? (isSubmitting ? "Submitting…" : "Submit application") : `Continue to ${STEPS[step + 1].short.toLowerCase()}`;
+
+  const summary = (
+    <div className="overflow-hidden rounded-[24px] bg-white shadow-panel">
+      <div className="relative h-36 overflow-hidden">
+        <img src={academyImage} alt="" className="h-full w-full object-cover object-[50%_25%]" />
+        <div className="absolute inset-0 bg-gradient-to-t from-ink-950/85 via-ink-950/30 to-transparent" />
+        <div className="absolute bottom-4 left-5 right-5 flex items-end justify-between">
+          <div>
+            <p className="text-[12px] font-semibold uppercase tracking-[0.1em] text-aqua-300">Your membership</p>
+            <p className="font-display text-lg font-semibold text-white">{academyName}</p>
+          </div>
+        </div>
+      </div>
+      <div className="space-y-4 p-5">
+        <div className="space-y-3 text-sm">
+          <div className="flex justify-between gap-3"><span className="text-ink-600">Plan</span><span className="text-right font-semibold text-ink-950">{category ? category.name : <span className="font-normal text-ink-400">Not chosen</span>}</span></div>
+          {category && frequenciesFor(category.id).length > 1 && <div className="flex justify-between gap-3"><span className="text-ink-600">Schedule</span><span className="text-right font-semibold text-ink-950">{frequency ? frequency.name : <span className="font-normal text-ink-400">Not chosen</span>}</span></div>}
+          <div className="flex justify-between gap-3"><span className="text-ink-600">Duration</span><span className="text-right font-semibold text-ink-950">{form.planDuration ? DURATION_LABEL[form.planDuration] : <span className="font-normal text-ink-400">Not chosen</span>}</span></div>
+          <div className="flex justify-between gap-3"><span className="text-ink-600">Pool time</span><span className="text-right font-semibold tabular-nums text-ink-950">{chosenBatch ? `${chosenBatch.startTime} – ${chosenBatch.endTime}` : <span className="font-normal text-ink-400">Not chosen</span>}</span></div>
+        </div>
+        <div className="border-t border-dashed border-ink-200 pt-4 text-sm">
+          <div className="flex justify-between"><span className="text-ink-600">Membership fee</span><span className="tabular-nums text-ink-950">{price === null ? "—" : rupees(price)}</span></div>
+          <div className="mt-2 flex justify-between"><span className="text-ink-600">Registration (one time)</span><span className="tabular-nums text-ink-950">{rupees(REGISTRATION_FEE)}</span></div>
+          <div className="mt-3 flex items-baseline justify-between">
+            <span className="font-semibold text-ink-950">Total</span>
+            <span className="font-display text-2xl font-bold tabular-nums text-ink-950">{total === null ? "—" : rupees(total)}</span>
+          </div>
+        </div>
+        <div className="flex gap-3 rounded-xl bg-aqua-500/[0.07] p-3.5 text-[13px] leading-5 text-ink-700">
+          <Lock className="mt-0.5 h-4 w-4 shrink-0 text-aqua-600" />
+          <span><strong className="font-semibold text-ink-950">Nothing to pay now.</strong> After the academy approves your application, you'll get a secure Razorpay link on WhatsApp.</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div ref={topRef} className={`${embedded ? "rounded-2xl" : "min-h-screen"} bg-canvas text-ink-950`}>
+      {/* Header */}
+      <header className={`${embedded ? "" : "sticky top-0"} z-30 border-b border-ink-100 bg-white/90 backdrop-blur`}>
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            {academyId === "swim"
+              ? <img src={BARODA_SWIM_FRONT_LOGO_DATA_URI} alt="Baroda Swim Front" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
+              : <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-ink-950 text-white"><Dumbbell className="h-4 w-4" /></span>}
+            <div className="min-w-0">
+              <p className="truncate font-display text-[15px] font-semibold text-ink-950">Join {academyName}</p>
+              <p className="text-[12px] text-ink-600">Step {step + 1} of {STEPS.length} · about 3 minutes</p>
+            </div>
+          </div>
+          <button type="button" onClick={onCancel} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-ink-600 hover:bg-ink-50 hover:text-ink-950">
+            <X className="h-4 w-4" /> <span className="hidden sm:inline">Exit</span>
+          </button>
+        </div>
+        <div className="mx-auto max-w-6xl px-4 pb-3 sm:px-6">
+          <ol className="flex gap-1.5" aria-label="Progress">
+            {STEPS.map((s, i) => (
+              <li key={s.id} className="flex-1">
+                <button type="button" disabled={i > maxStepReached} onClick={() => goTo(i)} className="group block w-full text-left disabled:cursor-default" aria-current={i === step ? "step" : undefined}>
+                  <span className={`block h-1.5 rounded-full transition-colors duration-300 ${i < step ? "bg-aqua-500" : i === step ? "bg-ink-950" : "bg-ink-100"}`} />
+                  <span className={`mt-1.5 hidden text-[12px] font-medium sm:block ${i === step ? "text-ink-950" : i <= maxStepReached ? "text-ink-600 group-hover:text-ink-950" : "text-ink-400"}`}>{s.short}</span>
+                </button>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </header>
+
+      <div className="mx-auto grid max-w-6xl gap-8 px-4 pb-36 pt-8 sm:px-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:pb-16">
+        <main className="min-w-0">
+          <AnimatePresence mode="wait">
+            <motion.section key={STEPS[step].id} {...slide} transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}>
+              <h1 className="font-display text-[28px] font-bold leading-tight tracking-[-0.02em] text-ink-950 sm:text-[34px]">{STEPS[step].title}</h1>
+              <p className="mt-2 max-w-[60ch] text-[15px] leading-6 text-ink-600">
+                {[
+                  "Official 2026 rates. Longer plans cost less per month.",
+                  "Live availability. Each batch is one hour in the pool.",
+                  "We'll use this to set up your membership card.",
+                  "Where you live, and who to call if you ever need help at the pool.",
+                  "One last question, then a quick check before you submit.",
+                ][step]}
+              </p>
+
+              <div className="mt-8">{stepBody}</div>
+
+              {generalError && (
+                <div className="mt-6 flex gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800" role="alert">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /> {generalError}
+                </div>
+              )}
+
+              {/* Desktop navigation */}
+              <div className="mt-10 hidden items-center justify-between gap-4 lg:flex">
+                {step > 0 ? (
+                  <button type="button" onClick={() => goTo(step - 1)} className="inline-flex min-h-12 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-ink-700 hover:bg-white">
+                    <ArrowLeft className="h-4 w-4" /> Back
+                  </button>
+                ) : <span />}
+                <button type="button" onClick={isLast ? handleSubmit : handleContinue} disabled={isSubmitting}
+                  className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-ink-950 px-6 text-[15px] font-semibold text-white shadow-card transition hover:bg-ink-800 disabled:opacity-60">
+                  {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {continueLabel}
+                  {!isSubmitting && <ArrowRight className="h-4 w-4" />}
                 </button>
               </div>
+            </motion.section>
+          </AnimatePresence>
+        </main>
 
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        <aside className="hidden lg:block">
+          <div className="sticky top-32">{summary}</div>
+        </aside>
+      </div>
+
+      {/* Mobile action bar */}
+      <div className={`${embedded ? "sticky" : "fixed"} inset-x-0 bottom-0 z-30 border-t border-ink-100 bg-white/95 px-4 pb-[calc(12px+env(safe-area-inset-bottom,0px))] pt-3 backdrop-blur lg:hidden`}>
+        <div className="mx-auto flex max-w-xl items-center gap-3">
+          {step > 0 && (
+            <button type="button" onClick={() => goTo(step - 1)} aria-label="Back" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-ink-200 text-ink-700">
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="text-[12px] text-ink-600">{total === null ? "Total" : "Total, due after approval"}</p>
+            <p className="font-display text-lg font-bold tabular-nums text-ink-950">{total === null ? "Choose a plan" : rupees(total)}</p>
+          </div>
+          <button type="button" onClick={isLast ? handleSubmit : handleContinue} disabled={isSubmitting}
+            className="inline-flex h-12 shrink-0 items-center gap-2 rounded-xl bg-ink-950 px-5 text-[15px] font-semibold text-white disabled:opacity-60">
+            {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {isLast ? (isSubmitting ? "Submitting" : "Submit") : "Continue"}
+            {!isSubmitting && <ArrowRight className="h-4 w-4" />}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

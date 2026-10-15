@@ -42,9 +42,9 @@ export class BatchRepository {
     );
     if (rows && rows.length > 0) return this.mapRowToBatch(rows[0]);
 
-    // Fallback to first batch
-    [rows] = await pool.query("SELECT * FROM batches LIMIT 1");
-    return rows && rows.length > 0 ? this.mapRowToBatch(rows[0]) : null;
+    // No match means no batch. This used to return the first batch in the table, which put every
+    // online applicant whose chosen time did not match a batch name into Morning Batch 1.
+    return null;
   }
 
   async updateStrengthAndStatus(batchId: number | string): Promise<void> {

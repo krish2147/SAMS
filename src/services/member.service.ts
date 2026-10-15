@@ -211,7 +211,10 @@ export class MemberService {
     // Resolve batch
     const batch = await this.batchRepository.findByNameOrTime(batchSelection);
     if (!batch) {
-      throw new Error(`Training batch slot ${batchSelection} could not be resolved.`);
+      const error: any = new Error("Validation Failed");
+      error.status = 400;
+      error.validationErrors = [{ field: "batch", message: "That pool time is no longer available. Please choose another." }];
+      throw error;
     }
 
     // Step 6: Prevent registration if batch status is CLOSED

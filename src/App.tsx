@@ -170,7 +170,7 @@ export default function App() {
     <div className={isAdminStaffRole ? `h-screen h-[100dvh] overflow-hidden ${bgApp} transition-colors duration-1000 select-none` : `min-h-screen ${bgApp} transition-colors duration-1000 overflow-x-hidden select-none`}>
       
       {/* 1. Universal Adaptive Navbar */}
-      {selectedAcademyId && !isFullScreenDashboard && (
+      {selectedAcademyId && !isFullScreenDashboard && !isRegisterPageActive && (
         <Navbar
           selectedAcademyId={selectedAcademyId}
           onSelectAcademy={handleSelectAcademy}
@@ -357,7 +357,7 @@ export default function App() {
       )}
 
       {/* 4. Luxury Credit Footer for selected academy pages */}
-      {selectedAcademyId && !isFullScreenDashboard && (
+      {selectedAcademyId && !isFullScreenDashboard && !isRegisterPageActive && (
         <footer className={`mt-10 border-t py-8 px-4 md:px-8 relative z-10 ${
           isSwim 
             ? "bg-white border-slate-100 text-slate-500" 
