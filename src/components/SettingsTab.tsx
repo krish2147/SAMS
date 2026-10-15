@@ -10,6 +10,7 @@ import { sessionStore } from "../utils/sessionStore";
 import { PasswordInput } from "./PasswordInput";
 import { CHARACTER_AVATARS } from "../utils/avatars";
 import { PhotoPicker } from "./PhotoPicker";
+import { ACCENTS, getAccent, saveAccent, type AccentId } from "../utils/accent";
 
 interface SettingsTabProps {
   activeUser: {
@@ -56,7 +57,7 @@ export function SettingsTab({ activeUser, buttonPrimary, inputStyle, onProfileUp
   const [notifSms, setNotifSms] = useState(true);
   const [notifPush, setNotifPush] = useState(false);
 
-  const [appearanceTheme, setAppearanceTheme] = useState("Light Slate");
+  const [accent, setAccent] = useState<AccentId>(getAccent);
 
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -471,27 +472,37 @@ export function SettingsTab({ activeUser, buttonPrimary, inputStyle, onProfileUp
       <div className="bg-white border border-slate-150 rounded-3xl p-6 shadow-xs space-y-4">
         <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
           <Moon className="h-5 w-5 text-indigo-500" />
-          <h4 className="text-sm font-extrabold uppercase text-slate-800 tracking-wider">4. UI & Appearance</h4>
+          <h4 className="text-sm font-extrabold uppercase text-slate-800 tracking-wider">4. Appearance</h4>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-extrabold text-slate-500">Dashboard Theme Accent</label>
-            <select
-              value={appearanceTheme}
-              onChange={(e) => setAppearanceTheme(e.target.value)}
-              className="p-3 text-xs rounded-xl focus:outline-none border font-semibold bg-white border-slate-200 text-slate-700"
-            >
-              <option>Light Slate</option>
-              <option>High Contrast Oceanic</option>
-              <option>Classic Blue</option>
-            </select>
-          </div>
-
-          <div className="md:col-span-2 pt-2">
-            <button onClick={handleSavePreferences} className={`px-4.5 py-2.5 rounded-xl text-xs font-bold ${buttonPrimary} cursor-pointer`}>
-              Apply Interface Styles
-            </button>
+          <div className="md:col-span-2 flex flex-col gap-3">
+            <div>
+              <p className="text-xs font-extrabold text-slate-500">Accent colour</p>
+              <p className="text-xs text-slate-400 mt-0.5">Changes buttons, links and highlights across the dashboard. Saved on this device.</p>
+            </div>
+            <div role="radiogroup" aria-label="Accent colour" className="flex flex-wrap gap-3">
+              {ACCENTS.map((a) => {
+                const selected = accent === a.id;
+                return (
+                  <button
+                    key={a.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => { setAccent(a.id); saveAccent(a.id); }}
+                    className={`flex items-center gap-2.5 min-h-11 pl-2.5 pr-4 rounded-xl border-2 text-sm font-semibold cursor-pointer transition-colors ${
+                      selected ? "border-slate-900 bg-slate-50 text-slate-900" : "border-slate-200 text-slate-600 hover:border-slate-300"
+                    }`}
+                  >
+                    <span className="h-6 w-6 rounded-full flex items-center justify-center" style={{ background: a.swatch }}>
+                      {selected && <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />}
+                    </span>
+                    {a.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
