@@ -2057,6 +2057,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
         {activeTab === "register" && (
           <div className="p-2 md:p-4 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800">
             <RegisterPage
+              embedded
               academyId={academyId}
               onRegisterSuccess={() => {
                 fetch("/api/members")
