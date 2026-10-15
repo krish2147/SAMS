@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { AcademyId } from "../types";
 import { motion } from "motion/react";
+import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-logo";
 
 interface AcademyExploreProps {
   academyId: AcademyId;
@@ -86,9 +87,11 @@ export function AcademyExplore({
 
           {/* Friendly Icon / Badge */}
           <div className="flex justify-center">
-            <div className="h-16 w-16 rounded-2xl flex items-center justify-center text-3xl bg-white/10 backdrop-blur-md border border-white/20 shadow-lg">
-              {isSwim ? "🏊" : "🏏"}
-            </div>
+            {isSwim ? (
+              <img src={BARODA_SWIM_FRONT_LOGO_DATA_URI} alt="Baroda Swim Front" className="h-24 w-24 rounded-3xl object-cover shadow-2xl ring-1 ring-white/25" />
+            ) : (
+              <div className="h-16 w-16 rounded-2xl flex items-center justify-center text-3xl bg-white/10 backdrop-blur-md border border-white/20 shadow-lg">🏏</div>
+            )}
           </div>
 
           {/* Heading */}

@@ -13,6 +13,7 @@ import { NotificationDrawer } from "./NotificationDrawer";
 import { MIN_PASSWORD_LENGTH } from "../utils/password";
 import { sessionStore } from "../utils/sessionStore";
 import { useRememberedState } from "../utils/useRememberedState";
+import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-logo";
 
 interface CoachDashboardProps {
   academyId: AcademyId;
@@ -369,9 +370,13 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
       <aside className="hidden md:flex flex-col w-64 bg-slate-900 text-slate-300 border-r border-slate-800 shrink-0 h-screen">
         {/* Sidebar Header with Academy Branding */}
         <div className="h-16 px-6 flex items-center gap-3 border-b border-slate-800 bg-slate-950/40 shrink-0">
-          <div className="flex items-center justify-center rounded-xl bg-gradient-to-br from-sky-50 to-cyan-500 text-white h-9 w-9 shadow-md shrink-0">
-            <span className="text-base">{isSwim ? "🌊" : "🏏"}</span>
-          </div>
+          {isSwim ? (
+            <img src={BARODA_SWIM_FRONT_LOGO_DATA_URI} alt="Baroda Swim Front" className="h-9 w-9 rounded-xl object-cover shadow-md shrink-0" />
+          ) : (
+            <div className="flex items-center justify-center rounded-xl bg-gradient-to-br from-sky-50 to-cyan-500 text-white h-9 w-9 shadow-md shrink-0">
+              <span className="text-base">🏏</span>
+            </div>
+          )}
           <div className="flex flex-col justify-center min-w-0">
             <span className="text-xs font-black tracking-tight leading-none text-white truncate">
               {isSwim ? "Baroda Swim Front" : "The Cricket Academy"}
@@ -459,9 +464,11 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
             >
               <Menu className="h-5 w-5" />
             </button>
-            <div className="h-8 w-8 rounded-lg bg-sky-500 text-white flex items-center justify-center font-bold text-sm shadow-sm shrink-0">
-              {isSwim ? "🌊" : "🏏"}
-            </div>
+            {isSwim ? (
+              <img src={BARODA_SWIM_FRONT_LOGO_DATA_URI} alt="Baroda Swim Front" className="h-8 w-8 rounded-lg object-cover shadow-sm shrink-0" />
+            ) : (
+              <div className="h-8 w-8 rounded-lg bg-sky-500 text-white flex items-center justify-center font-bold text-sm shadow-sm shrink-0">🏏</div>
+            )}
             <div>
               <span className="text-xs font-black text-slate-800 block tracking-tight">
                 {isSwim ? "Baroda Swim Front" : "The Cricket Academy"}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
-import { QrCode, Search, CheckCircle2, AlertTriangle, X, Camera, RefreshCw, User, ShieldCheck, Clock, Check, Waves, Maximize2, Minimize2 } from "lucide-react";
+import { QrCode, Search, CheckCircle2, AlertTriangle, X, Camera, RefreshCw, User, ShieldCheck, Clock, Check, Maximize2, Minimize2 } from "lucide-react";
 import { QrScannerModal } from "./QrScannerModal";
+import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-logo";
 
 interface ReceptionKioskModalProps {
   isOpen: boolean;
@@ -156,9 +157,7 @@ export function ReceptionKioskModal({
       {/* Top Banner / Navigation */}
       <div className="p-6 bg-slate-900 border-b border-slate-800 flex justify-between items-center shrink-0">
         <div className="flex items-center gap-3">
-          <div className="p-3 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 shadow-lg text-white">
-            <Waves className="w-6 h-6 animate-pulse" />
-          </div>
+          <img src={BARODA_SWIM_FRONT_LOGO_DATA_URI} alt="Baroda Swim Front" className="h-12 w-12 rounded-2xl object-cover shadow-lg" />
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-xl font-black text-white tracking-tight">BARODA SWIM FRONT KIOSK MODE</h2>

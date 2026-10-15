@@ -3,6 +3,7 @@ import { SAMSLogo } from "./Branding";
 import { Menu, X, Sparkles, LogOut, User, Users, ArrowLeft } from "lucide-react";
 import { AcademyId, UserSession } from "../types";
 import { motion } from "motion/react";
+import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-logo";
 
 interface NavbarProps {
   selectedAcademyId: AcademyId | null;
@@ -62,9 +63,7 @@ export function Navbar({
       >
         {selectedAcademyId === "swim" ? (
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-cyan-500 text-white h-10 w-10 shrink-0 shadow-md">
-              <span className="text-lg">🌊</span>
-            </div>
+            <img src={BARODA_SWIM_FRONT_LOGO_DATA_URI} alt="Baroda Swim Front" className="h-10 w-10 shrink-0 rounded-xl object-cover shadow-md ring-1 ring-white/20" />
             <div className="flex flex-col justify-center">
               <span className={`text-sm font-extrabold tracking-tight leading-none ${isPhotoBackdrop ? "text-white drop-shadow-md" : "text-slate-800"}`}>
                 Baroda Swim Front

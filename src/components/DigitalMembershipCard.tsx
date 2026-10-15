@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import QRCode from "qrcode";
-import { Download, QrCode, ShieldCheck, Sparkles, CheckCircle2, AlertTriangle, Calendar, User, Clock, Waves, Share2, Maximize2, Phone, HeartPulse, X } from "lucide-react";
+import { Download, QrCode, ShieldCheck, Sparkles, CheckCircle2, AlertTriangle, Calendar, User, Clock, Share2, Maximize2, Phone, HeartPulse, X } from "lucide-react";
+import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-logo";
 
 interface DigitalMembershipCardProps {
   member: {
@@ -150,9 +151,7 @@ export function DigitalMembershipCard({ member, compact = false }: DigitalMember
           {/* Card Header */}
           <div className="relative z-10 flex items-center justify-between pb-4 border-b border-white/10">
             <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 shadow-md">
-                <Waves className="w-5 h-5 text-white" />
-              </div>
+              <img src={BARODA_SWIM_FRONT_LOGO_DATA_URI} alt="Baroda Swim Front" className="h-9 w-9 rounded-xl object-cover shadow-md" />
               <div>
                 <div className="text-xs font-extrabold tracking-widest text-cyan-300 uppercase">
                   Baroda Swim Front
@@ -311,7 +310,7 @@ export function DigitalMembershipCard({ member, compact = false }: DigitalMember
           <div className="relative w-full max-w-xl p-8 bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl text-white space-y-6">
             <div className="flex justify-between items-center border-b border-slate-800 pb-4">
               <div className="flex items-center gap-2">
-                <Waves className="w-6 h-6 text-cyan-400" />
+                <img src={BARODA_SWIM_FRONT_LOGO_DATA_URI} alt="Baroda Swim Front" className="h-8 w-8 rounded-lg object-cover" />
                 <h3 className="text-xl font-bold">Baroda Swim Front Pass</h3>
               </div>
               <button

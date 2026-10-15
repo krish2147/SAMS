@@ -1,6 +1,7 @@
 import React from "react";
-import { CalendarDays, CheckCircle2, Waves } from "lucide-react";
+import { CalendarDays, CheckCircle2 } from "lucide-react";
 import { formatMemberDate, getMembershipDisplayStatus, type MemberDashboardData } from "./member-overview-data";
+import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-logo";
 
 const statusStyles = {
   Active: "border-emerald-200/80 bg-emerald-50 text-emerald-700",
@@ -19,7 +20,7 @@ export function MemberDigitalCard({ data }: { data: MemberDashboardData }) {
     <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_88%_8%,rgba(34,211,238,0.16),transparent_34%),linear-gradient(125deg,rgba(14,165,233,0.06),transparent_48%)]" />
     <div className="relative flex h-full min-h-[238px] flex-col">
       <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-2 text-sm font-semibold text-slate-200"><Waves className="h-5 w-5 text-cyan-300" />Baroda Swim Front</div>
+        <div className="flex items-center gap-2 text-sm font-semibold text-slate-200"><img src={BARODA_SWIM_FRONT_LOGO_DATA_URI} alt="Baroda Swim Front" className="h-7 w-7 rounded-lg object-cover" />Baroda Swim Front</div>
         <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${statusStyles[status]}`}><CheckCircle2 className="h-3.5 w-3.5" />{status}</span>
       </div>
       <div className="mt-8">
