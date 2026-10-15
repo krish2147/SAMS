@@ -289,6 +289,10 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
       setStaffAlert("Please fill in all staff fields.");
       return;
     }
+    if (newStaffPhone && newStaffPhone.length !== 10) {
+      setStaffAlert("Enter the 10-digit mobile number after +91.");
+      return;
+    }
     try {
       const token = getSessionToken();
       const res = await fetch("/api/staff/register", {
@@ -302,8 +306,9 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
           email: newStaffEmail,
           password: newStaffPassword,
           role: newStaffRole,
-          phone: newStaffPhone,
-          phoneNumber: newStaffPhone,
+          // Stored with the country code; staff can then sign in with this number.
+          phone: newStaffPhone ? `+91 ${newStaffPhone}` : "",
+          phoneNumber: newStaffPhone ? `+91 ${newStaffPhone}` : "",
           academyId
         })
       });
@@ -1952,14 +1957,20 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[9.5px] font-mono uppercase opacity-50">Phone Number</label>
-                      <input
-                        type="text"
-                        value={newStaffPhone}
-                        onChange={(e) => setNewStaffPhone(e.target.value)}
-                        placeholder="e.g. +91 98765 43210"
-                        className={inputStyle}
-                      />
+                      <label htmlFor="new-staff-phone" className="text-[9.5px] font-mono uppercase opacity-50">Mobile Number</label>
+                      <div className="relative">
+                        <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500">+91</span>
+                        <input
+                          id="new-staff-phone"
+                          type="tel"
+                          inputMode="numeric"
+                          autoComplete="off"
+                          value={newStaffPhone}
+                          onChange={(e) => setNewStaffPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                          placeholder="98765 43210"
+                          className={`${inputStyle} !pl-14 tabular-nums`}
+                        />
+                      </div>
                     </div>
 
                     <div className="flex flex-col gap-1.5">
