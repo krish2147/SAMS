@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { accessRole, roleLabel } from "../utils/roles";
+import { MIN_PASSWORD_LENGTH } from "../utils/password";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Sparkles, IndianRupee, Users, Award, TrendingUp, Cpu, 
@@ -258,6 +259,10 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
   const [staffRoleFilter, setStaffRoleFilter] = useState<"all" | "coaches" | "admins" | "staff">("all");
   const [deleteConfirmStaffId, setDeleteConfirmStaffId] = useState<string | null>(null);
   const [staffAlert, setStaffAlert] = useState<string | null>(null);
+  // Per-field problems in the Register Staff form, shown under each field.
+  const [staffErrors, setStaffErrors] = useState<Partial<Record<"name" | "email" | "password" | "phone" | "form", string>>>({});
+  const clearStaffError = (field: "name" | "email" | "password" | "phone") =>
+    setStaffErrors(prev => (prev[field] || prev.form ? { ...prev, [field]: undefined, form: undefined } : prev));
 
   const fetchStaffList = () => {
     setIsStaffLoading(true);
@@ -285,14 +290,21 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
 
   const handleAddStaff = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newStaffName.trim() || !newStaffEmail.trim() || !newStaffPassword.trim()) {
-      setStaffAlert("Please fill in all staff fields.");
+    const found: typeof staffErrors = {};
+    if (!newStaffName.trim()) found.name = "Enter the person's full name.";
+    else if (newStaffName.trim().length < 2) found.name = "Enter the full name.";
+    if (!newStaffEmail.trim()) found.email = "Enter an email address.";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newStaffEmail.trim())) found.email = "This email address is not valid. Check for typos, e.g. name@barodaswimfront.com.";
+    if (!newStaffPassword) found.password = "Enter a password.";
+    else if (newStaffPassword.length < MIN_PASSWORD_LENGTH) found.password = `Use at least ${MIN_PASSWORD_LENGTH} characters.`;
+    if (newStaffPhone && !/^[6-9]\d{9}$/.test(newStaffPhone)) found.phone = newStaffPhone.length !== 10 ? "Enter all 10 digits after +91." : "Indian mobile numbers start with 6, 7, 8 or 9.";
+    if (Object.keys(found).length) {
+      setStaffErrors(found);
+      const first = (["name", "phone", "email", "password"] as const).find(f => found[f]);
+      if (first) document.getElementById(`new-staff-${first}`)?.focus();
       return;
     }
-    if (newStaffPhone && newStaffPhone.length !== 10) {
-      setStaffAlert("Enter the 10-digit mobile number after +91.");
-      return;
-    }
+    setStaffErrors({});
     try {
       const token = getSessionToken();
       const res = await fetch("/api/staff/register", {
@@ -318,15 +330,21 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
         setNewStaffEmail("");
         setNewStaffPassword("");
         setNewStaffPhone("");
+        setStaffErrors({});
         setStaffAlert("Staff account registered successfully!");
         fetchStaffList();
         setTimeout(() => setStaffAlert(null), 3000);
       } else {
         // The server sends either a string or { message } depending on where the error arose.
-        setStaffAlert((typeof data.error === "string" ? data.error : data.error?.message) || "Failed to register staff account.");
+        // Put it under the field it is about when that is clear, otherwise under the button.
+        const message = (typeof data.error === "string" ? data.error : data.error?.message) || "The account could not be created. Please try again.";
+        if (/email/i.test(message)) setStaffErrors({ email: message });
+        else if (/mobile|phone/i.test(message)) setStaffErrors({ phone: message });
+        else if (/password/i.test(message)) setStaffErrors({ password: message });
+        else setStaffErrors({ form: message });
       }
     } catch (err: any) {
-      setStaffAlert("Connection error: " + err.message);
+      setStaffErrors({ form: "Could not reach the server. Check your internet connection and try again." });
     }
   };
 
@@ -1919,22 +1937,24 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
             {/* Right Column: Register Staff Form */}
             <div className={`lg:col-span-5 p-6 md:p-8 rounded-3xl border ${bgCard} text-left`}>
               {(currentUserRole === "super_admin" || currentUserRole === "admin") ? (
-                <form onSubmit={handleAddStaff} className="space-y-4">
+                <form onSubmit={handleAddStaff} noValidate className="space-y-4">
                   <span className="text-[10px] font-mono uppercase tracking-widest opacity-50 block">Admin Security Control</span>
                   <h3 className="text-lg font-bold">Register Admin, Coach, or Staff</h3>
                   <p className="text-xs opacity-65 leading-relaxed mb-4">Directly provision secure access credentials for institutional personnel. Public registration is fully locked down.</p>
 
                   <div className="space-y-4">
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[9.5px] font-mono uppercase text-slate-500">Full Name <span className="text-rose-600" aria-hidden="true">*</span></label>
+                      <label htmlFor="new-staff-name" className="text-[9.5px] font-mono uppercase text-slate-500">Full Name <span className="text-rose-600" aria-hidden="true">*</span></label>
                       <input
+                        id="new-staff-name"
                         type="text"
                         value={newStaffName}
-                        onChange={(e) => setNewStaffName(e.target.value)}
+                        onChange={(e) => { setNewStaffName(e.target.value); clearStaffError("name"); }}
                         placeholder="e.g. Rahul Mehta"
-                        className={inputStyle}
-                        required
+                        className={`${inputStyle}${staffErrors.name ? " !border-rose-400" : ""}`}
+                        aria-invalid={!!staffErrors.name}
                       />
+                      {staffErrors.name && <p id="new-staff-name-error" role="alert" className="text-xs font-medium text-rose-600">{staffErrors.name}</p>}
                     </div>
 
                     <div className="flex flex-col gap-1.5">
@@ -1962,41 +1982,52 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                         <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500">+91</span>
                         <input
                           id="new-staff-phone"
+                          aria-invalid={!!staffErrors.phone}
                           type="tel"
                           inputMode="numeric"
                           autoComplete="off"
                           value={newStaffPhone}
-                          onChange={(e) => setNewStaffPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                          onChange={(e) => { setNewStaffPhone(e.target.value.replace(/\D/g, "").slice(0, 10)); clearStaffError("phone"); }}
                           placeholder="98765 43210"
-                          className={`${inputStyle} !pl-14 tabular-nums`}
+                          className={`${inputStyle} !pl-14 tabular-nums${staffErrors.phone ? " !border-rose-400" : ""}`}
                         />
                       </div>
+                      {staffErrors.phone && <p id="new-staff-phone-error" role="alert" className="text-xs font-medium text-rose-600">{staffErrors.phone}</p>}
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[9.5px] font-mono uppercase text-slate-500">Corporate Email Address <span className="text-rose-600" aria-hidden="true">*</span></label>
+                      <label htmlFor="new-staff-email" className="text-[9.5px] font-mono uppercase text-slate-500">Corporate Email Address <span className="text-rose-600" aria-hidden="true">*</span></label>
                       <input
+                        id="new-staff-email"
                         type="email"
                         value={newStaffEmail}
-                        onChange={(e) => setNewStaffEmail(e.target.value)}
+                        onChange={(e) => { setNewStaffEmail(e.target.value); clearStaffError("email"); }}
                         placeholder="e.g. name@barodaswimfront.com"
-                        className={inputStyle}
-                        required
+                        className={`${inputStyle}${staffErrors.email ? " !border-rose-400" : ""}`}
+                        aria-invalid={!!staffErrors.email}
                       />
+                      {staffErrors.email && <p id="new-staff-email-error" role="alert" className="text-xs font-medium text-rose-600">{staffErrors.email}</p>}
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[9.5px] font-mono uppercase text-slate-500">Secure Password <span className="text-rose-600" aria-hidden="true">*</span></label>
+                      <label htmlFor="new-staff-password" className="text-[9.5px] font-mono uppercase text-slate-500">Secure Password <span className="text-rose-600" aria-hidden="true">*</span></label>
                       <input
+                        id="new-staff-password"
                         type="password"
+                        autoComplete="new-password"
                         value={newStaffPassword}
-                        onChange={(e) => setNewStaffPassword(e.target.value)}
-                        placeholder="••••••••"
-                        className={inputStyle}
-                        required
+                        onChange={(e) => { setNewStaffPassword(e.target.value); clearStaffError("password"); }}
+                        placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
+                        className={`${inputStyle}${staffErrors.password ? " !border-rose-400" : ""}`}
+                        aria-invalid={!!staffErrors.password}
                       />
+                      {staffErrors.password && <p role="alert" className="text-xs font-medium text-rose-600">{staffErrors.password}</p>}
                     </div>
                   </div>
+
+                  {staffErrors.form && (
+                    <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs font-medium text-rose-700">{staffErrors.form}</p>
+                  )}
 
                   <button
                     type="submit"
