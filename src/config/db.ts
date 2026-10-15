@@ -211,6 +211,7 @@ const statements = cleanedSql
       "ALTER TABLE members ADD COLUMN next_renewal_date DATE NULL",
       "ALTER TABLE members ADD COLUMN last_payment_id INT UNSIGNED NULL",
       "ALTER TABLE otp_login_challenges ADD COLUMN otp_hash CHAR(64) NULL",
+      "ALTER TABLE user_sessions ADD COLUMN remember_me TINYINT(1) NOT NULL DEFAULT 0",
       // Plan selection codes. Databases created before the rate card existed lack them, and
       // registration cannot price anything without them.
       "ALTER TABLE membership_plans ADD COLUMN plan_code VARCHAR(80) NULL",

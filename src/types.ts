@@ -29,6 +29,7 @@ export interface UserSession {
   avatar: string;
   email?: string;
   token?: string;
+  rememberMe?: boolean;
 }
 
 export interface Student {

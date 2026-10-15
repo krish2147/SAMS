@@ -20,7 +20,13 @@ export interface SessionData {
   expiresAt: number;
   photoUrl?: string;
   phoneNumber?: string;
+  rememberMe?: boolean;
 }
+
+// How long a session lasts without being used. Every request pushes the expiry forward again.
+export const SESSION_IDLE_MS = 8 * 60 * 60 * 1000;            // a working shift
+export const REMEMBERED_SESSION_IDLE_MS = 30 * 24 * 60 * 60 * 1000; // "Keep me logged in"
+export const sessionLifetime = (rememberMe?: boolean) => (rememberMe ? REMEMBERED_SESSION_IDLE_MS : SESSION_IDLE_MS);
 
 export class UserService {
   private userRepository = new UserRepository();
@@ -45,7 +51,10 @@ export class UserService {
     const pool = await getDbPool();
     if (isMockDatabase()) {
       const session = this.activeSessions.get(token);
-      if (session && session.expiresAt > Date.now()) return session;
+      if (session && session.expiresAt > Date.now()) {
+        session.expiresAt = Date.now() + sessionLifetime(session.rememberMe);
+        return session;
+      }
       if (session) this.activeSessions.delete(token);
       return null;
     }
@@ -58,7 +67,8 @@ export class UserService {
     const row = rows[0];
     if (!row) return null;
 
-    const expiresAt = Date.now() + 2 * 60 * 60 * 1000;
+    const rememberMe = Boolean(Number(row.remember_me));
+    const expiresAt = Date.now() + sessionLifetime(rememberMe);
     await pool.query("UPDATE user_sessions SET expires_at = ? WHERE token_hash = ?", [new Date(expiresAt), tokenHash]);
     return {
       userId: row.user_id,
@@ -68,7 +78,8 @@ export class UserService {
       academyId: row.academy_id,
       expiresAt,
       photoUrl: row.photo_url || "",
-      phoneNumber: row.phone_number || ""
+      phoneNumber: row.phone_number || "",
+      rememberMe
     };
   }
 
@@ -82,12 +93,12 @@ export class UserService {
 
     await pool.query(
       `INSERT INTO user_sessions
-        (token_hash, user_id, email, role, name, academy_id, photo_url, phone_number, expires_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (token_hash, user_id, email, role, name, academy_id, photo_url, phone_number, expires_at, remember_me)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         this.hashSessionToken(token), sessionData.userId, sessionData.email, sessionData.role,
         sessionData.name, sessionData.academyId, sessionData.photoUrl || null,
-        sessionData.phoneNumber || null, new Date(sessionData.expiresAt)
+        sessionData.phoneNumber || null, new Date(sessionData.expiresAt), sessionData.rememberMe ? 1 : 0
       ]
     );
     return token;
@@ -173,8 +184,10 @@ export class UserService {
     password?: string;
     otpCode?: string;
     ipAddress?: string;
-  }): Promise<{ success: boolean; token?: string; member?: any; staff?: any; error?: string; code?: string }> {
+    rememberMe?: boolean;
+  }): Promise<{ success: boolean; token?: string; member?: any; staff?: any; error?: string; code?: string; rememberMe?: boolean }> {
     const { phoneNumber, role, email, password, otpCode, ipAddress } = payload;
+    const rememberMe = payload.rememberMe === true;
 
     if (role === "parent" || role === "member") {
       if (!phoneNumber) {
@@ -217,12 +230,13 @@ export class UserService {
         role: "member",
         name: member.fullName,
         academyId: (member.academyId || "swim") as any,
-        expiresAt: Date.now() + 2 * 60 * 60 * 1000
+        expiresAt: Date.now() + sessionLifetime(rememberMe),
+        rememberMe
       });
 
       await ActivityService.logActivity(member.fullName, "Member Logged In", "Success", "Self");
 
-      return { success: true, token, member };
+      return { success: true, token, member, rememberMe };
     } else {
       // Staff/Coach/Admin/Developer login, with either an email or a mobile number.
       const identifier = String(email || "").trim();
@@ -265,7 +279,8 @@ export class UserService {
         role: user.role,
         name: user.name,
         academyId: (user.academy_id || "swim") as any,
-        expiresAt: Date.now() + 2 * 60 * 60 * 1000,
+        expiresAt: Date.now() + sessionLifetime(rememberMe),
+        rememberMe,
         photoUrl: user.photo_url || "",
         phoneNumber: user.phone_number || ""
       });
@@ -275,6 +290,7 @@ export class UserService {
       return {
         success: true,
         token,
+        rememberMe,
         staff: {
           id: `usr_${user.role}_${user.id}`,
           name: user.name,
@@ -339,7 +355,7 @@ export class UserService {
       role: staff.role,
       name: staff.name.trim(),
       academyId: (staff.academyId || "swim") as any,
-      expiresAt: Date.now() + 2 * 60 * 60 * 1000,
+      expiresAt: Date.now() + SESSION_IDLE_MS,
       photoUrl: "",
       phoneNumber: staff.phone || staff.phoneNumber || ""
     });

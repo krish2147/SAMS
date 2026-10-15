@@ -9,6 +9,7 @@ import { MemberCalendarPage } from "../member-dashboard/MemberCalendarPage";
 import { MemberProfilePage } from "../member-dashboard/MemberProfilePage";
 import { MemberSecurityPage } from "../member-dashboard/MemberSecurityPage";
 import { MemberAttendancePage } from "../member-dashboard/MemberAttendancePage";
+import { useRememberedState } from "../utils/useRememberedState";
 
 interface MemberDashboardShellProps {
   userName: string;
@@ -17,7 +18,7 @@ interface MemberDashboardShellProps {
 }
 
 export function MemberDashboardShell({ userName, avatar, onLogout }: MemberDashboardShellProps) {
-  const [activeSection, setActiveSection] = useState<MemberSection>("overview");
+  const [activeSection, setActiveSection] = useRememberedState<MemberSection>("member.section", "overview");
   const [membershipStatus, setMembershipStatus] = useState<string>();
   const currentSection = useMemo(() => findMemberNavigationItem(activeSection), [activeSection]);
   const CurrentIcon = currentSection.icon;

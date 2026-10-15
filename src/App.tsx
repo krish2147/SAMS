@@ -18,21 +18,33 @@ import { MemberDashboardShell } from "./components/MemberDashboardShell";
 import { CoachDashboard } from "./components/CoachDashboard";
 import { ReceptionistDashboard } from "./components/ReceptionistDashboard";
 import { AdminDashboard } from "./components/AdminDashboard";
+import { sessionStore } from "./utils/sessionStore";
+import { useRememberedState, clearRememberedViews } from "./utils/useRememberedState";
+import { InstallAppPrompt } from "./components/InstallAppPrompt";
 
 export default function App() {
   // Global States
   const [selectedAcademyId, setSelectedAcademyId] = useState<AcademyId | null>(null);
   const [userSession, setUserSession] = useState<UserSession | null>(null);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
-  const [isRegisterPageActive, setIsRegisterPageActive] = useState(false);
-  const [activeDashboardTab, setActiveDashboardTab] = useState<"dashboard" | "explore">("explore");
+  const [isRegisterPageActive, setIsRegisterPageActive] = useRememberedState("app.register", false);
+  const [activeDashboardTab, setActiveDashboardTab] = useRememberedState<"dashboard" | "explore">("app.tab", sessionStore.get() ? "dashboard" : "explore");
+  // While a saved login is being checked, show a loader instead of flashing the public home page.
+  const [isRestoringSession, setIsRestoringSession] = useState(() => Boolean(sessionStore.get()));
 
   // Keep track of localStorage to persist across simple reload, verifying on backend
   useEffect(() => {
     const savedAcademy = localStorage.getItem("sams_academy");
-    const savedSessionStr = localStorage.getItem("sams_session");
+    const savedSessionStr = sessionStore.get();
     
     if (savedAcademy) setSelectedAcademyId(savedAcademy as AcademyId);
+    if (!savedSessionStr) {
+      // No login survives (browser was closed without "Keep me logged in", or data was cleared),
+      // so drop any profile copies left behind by the last person.
+      localStorage.removeItem("sams_current_member_profile");
+      localStorage.removeItem("sams_current_user");
+      localStorage.removeItem("sams_current_staff");
+    }
     if (savedSessionStr) {
       try {
         const savedSession = JSON.parse(savedSessionStr);
@@ -54,13 +66,13 @@ export default function App() {
                 academyId: data.user.academyId,
                 avatar: data.user.photoUrl || savedSession.avatar,
                 phoneNumber: data.user.phoneNumber || savedSession.phoneNumber || "",
-                token: savedSession.token
+                token: savedSession.token,
+                rememberMe: Boolean(data.user.rememberMe ?? savedSession.rememberMe)
               };
               setUserSession(verifiedSession);
-              localStorage.setItem("sams_session", JSON.stringify(verifiedSession));
-              setActiveDashboardTab("dashboard");
+              sessionStore.set(JSON.stringify(verifiedSession));
             } else {
-              localStorage.removeItem("sams_session");
+              sessionStore.clear();
               setUserSession(null);
             }
           })
@@ -69,13 +81,16 @@ export default function App() {
             // kept so the next load can verify it once the server is reachable again.
             console.error("Session verification failed; staying signed out.", err);
             setUserSession(null);
-          });
+          })
+          .finally(() => setIsRestoringSession(false));
         } else {
           // A stored session without a token cannot be verified, so it is discarded.
-          localStorage.removeItem("sams_session");
+          sessionStore.clear();
+          setIsRestoringSession(false);
         }
       } catch (e) {
-        localStorage.removeItem("sams_session");
+        sessionStore.clear();
+        setIsRestoringSession(false);
       }
     }
   }, []);
@@ -98,8 +113,9 @@ export default function App() {
     localStorage.removeItem("sams_current_user");
     localStorage.removeItem("sams_current_staff");
 
+    clearRememberedViews();
     setUserSession(session);
-    localStorage.setItem("sams_session", JSON.stringify(session));
+    sessionStore.set(JSON.stringify(session), session.rememberMe === true);
     setActiveDashboardTab("dashboard");
     setIsRegisterPageActive(false);
   };
@@ -118,8 +134,18 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    const token = userSession?.token;
+    if (token) {
+      // End the session on the server too, so the token and cookie stop working.
+      fetch("/api/auth/logout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token })
+      }).catch(() => {});
+    }
     setUserSession(null);
-    localStorage.removeItem("sams_session");
+    sessionStore.clear();
+    clearRememberedViews();
     setActiveDashboardTab("explore");
     setIsRegisterPageActive(false);
   };
@@ -165,6 +191,14 @@ export default function App() {
   const paymentOrderId = new URLSearchParams(window.location.search).get("order_id");
   if (window.location.pathname === "/pay" && paymentOrderId) {
     return <PaymentCheckoutPage orderId={paymentOrderId} />;
+  }
+
+  if (isRestoringSession) {
+    return (
+      <div className="min-h-screen min-h-[100dvh] flex items-center justify-center bg-[#05070c]">
+        <RefreshCw className="h-6 w-6 animate-spin text-sky-400" aria-label="Loading" />
+      </div>
+    );
   }
 
   return (
@@ -356,6 +390,8 @@ export default function App() {
           }}
         />
       )}
+
+      <InstallAppPrompt />
 
       {/* 4. Luxury Credit Footer for selected academy pages */}
       {selectedAcademyId && !isFullScreenDashboard && !isRegisterPageActive && (

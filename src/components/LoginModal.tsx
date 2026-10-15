@@ -25,6 +25,7 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [fullName, setFullName] = useState("");
   const [isRegistering, setIsRegistering] = useState(true);
   const [isStaffRegistering, setIsStaffRegistering] = useState(false);
@@ -313,6 +314,7 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
           body: JSON.stringify({
             email,
             password,
+            rememberMe,
             role: "admin" // triggers staff path
           })
         })
@@ -342,7 +344,8 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
               email: data.staff.email,
               avatar: data.staff.photoUrl || avatarMap[data.staff.role] || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=150",
               phoneNumber: data.staff.phoneNumber || "",
-              token: data.token || ""
+              token: data.token || "",
+              rememberMe
             });
             onClose();
           })
@@ -440,7 +443,7 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
     fetch("/api/members/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phoneNumber: finalMobile, role: selectedRole, otpCode })
+      body: JSON.stringify({ phoneNumber: finalMobile, role: selectedRole, otpCode, rememberMe })
     })
     .then(async (res) => {
       if (!res.ok) {
@@ -470,7 +473,8 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
         avatar: selectedRole === "parent" 
           ? "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=150" 
           : "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150",
-        token: data.token || ""
+        token: data.token || "",
+        rememberMe
       });
       onClose();
     })
@@ -1039,6 +1043,18 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
                 </div>
               </div>
 
+              <label htmlFor="login-remember-staff" className={`flex items-center gap-2.5 cursor-pointer select-none text-xs font-medium ${isSwim ? "text-slate-600" : "text-emerald-100/80"}`}>
+                <input
+                  id="login-remember-staff"
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className={`h-4 w-4 rounded cursor-pointer ${isSwim ? "accent-sky-500" : "accent-amber-400"}`}
+                />
+                Keep me logged in
+                <span className="opacity-60">(don't tick on a shared computer)</span>
+              </label>
+
               <div className="flex gap-3 mt-3">
                 <button
                   type="button"
@@ -1133,6 +1149,18 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
                   </button>
                 )}
               </div>
+
+              <label htmlFor="login-remember-otp" className={`flex items-center gap-2.5 cursor-pointer select-none text-xs font-medium self-start ${isSwim ? "text-slate-600" : "text-emerald-100/80"}`}>
+                <input
+                  id="login-remember-otp"
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className={`h-4 w-4 rounded cursor-pointer ${isSwim ? "accent-sky-500" : "accent-amber-400"}`}
+                />
+                Keep me logged in
+                <span className="opacity-60">(don't tick on a shared computer)</span>
+              </label>
 
               <div className="flex gap-3 mt-1 w-full">
                 <button

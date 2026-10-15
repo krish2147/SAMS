@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { UserService } from "../services/user.service";
+import { UserService, REMEMBERED_SESSION_IDLE_MS } from "../services/user.service";
 import { ActivityService } from "../services/activity.service";
 import { getDbPool, getConnectionError } from "../config/db";
 import bcrypt from "bcryptjs";
@@ -46,11 +46,13 @@ export class UserController {
 
       // Set cookie
       if (result.token) {
+        // Without "Keep me logged in" this is a browser-session cookie: Chrome drops it on close.
         res.cookie("sams_session_token", result.token, {
           httpOnly: true,
           secure: process.env.NODE_ENV === "production",
-          maxAge: 2 * 60 * 60 * 1000,
-          path: "/"
+          sameSite: "lax",
+          path: "/",
+          ...(result.rememberMe ? { maxAge: REMEMBERED_SESSION_IDLE_MS } : {})
         });
       }
 

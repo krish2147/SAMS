@@ -11,6 +11,8 @@ import {
 import { AcademyId, UserSession } from "../types";
 import { NotificationDrawer } from "./NotificationDrawer";
 import { MIN_PASSWORD_LENGTH } from "../utils/password";
+import { sessionStore } from "../utils/sessionStore";
+import { useRememberedState } from "../utils/useRememberedState";
 
 interface CoachDashboardProps {
   academyId: AcademyId;
@@ -46,7 +48,7 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
   }`;
 
   // Navigation state
-  const [activeTab, setActiveTab] = useState<"home" | "batches" | "members" | "attendance" | "schedule" | "notifications" | "profile">("home");
+  const [activeTab, setActiveTab] = useRememberedState<"home" | "batches" | "members" | "attendance" | "schedule" | "notifications" | "profile">("coach.tab", "home");
   const [mobileMenuDrawerOpen, setMobileMenuDrawerOpen] = useState(false);
   const [notificationsDrawerOpen, setNotificationsDrawerOpen] = useState(false);
 
@@ -54,7 +56,7 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
   const getSessionToken = () => {
     if (userSession?.token) return userSession.token;
     try {
-      const saved = localStorage.getItem("sams_session");
+      const saved = sessionStore.get();
       if (saved) {
         return JSON.parse(saved)?.token || "";
       }
@@ -68,7 +70,7 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
   const [sessionUser, setSessionUser] = useState<any>(() => {
     if (userSession) return userSession;
     try {
-      const saved = localStorage.getItem("sams_session");
+      const saved = sessionStore.get();
       if (saved) return JSON.parse(saved);
     } catch (e) {}
     return { name: userName || "Coach", role: "coach", email: "coach@sams.com", phoneNumber: "+91 99887 76655", avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200" };
@@ -250,7 +252,7 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
       
       // Update local storage session
       try {
-        const saved = localStorage.getItem("sams_session");
+        const saved = sessionStore.get();
         if (saved) {
           const parsed = JSON.parse(saved);
           parsed.name = profileName;
@@ -259,7 +261,7 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
           parsed.phoneNumber = profilePhone;
           parsed.photoUrl = photoUrl;
           parsed.avatar = photoUrl;
-          localStorage.setItem("sams_session", JSON.stringify(parsed));
+          sessionStore.set(JSON.stringify(parsed));
           setSessionUser(parsed);
         }
       } catch (e) {}

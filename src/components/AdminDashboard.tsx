@@ -30,6 +30,8 @@ import { CommandPaletteModal } from "./CommandPaletteModal";
 import { QuickActionsFab } from "./QuickActionsFab";
 import { RegisterPage } from "./RegisterPage";
 import { DailyClosingReportModal } from "./DailyClosingReportModal";
+import { sessionStore } from "../utils/sessionStore";
+import { useRememberedState } from "../utils/useRememberedState";
 
 
 
@@ -69,7 +71,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
 
   const getSessionToken = () => {
     try {
-      const saved = localStorage.getItem("sams_session");
+      const saved = sessionStore.get();
       if (saved) {
         const parsed = JSON.parse(saved);
         return parsed?.token || "";
@@ -102,7 +104,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
   }, [userName, userRole, userSession]);
   
   // Tab control
-  const [activeTab, setActiveTab] = useState<string>("home");
+  const [activeTab, setActiveTab] = useRememberedState<string>("admin.tab", "home");
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [mobileMenuDrawerOpen, setMobileMenuDrawerOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -851,7 +853,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
 
   const loggedInSession = (() => {
     try {
-      const saved = localStorage.getItem("sams_session");
+      const saved = sessionStore.get();
       if (saved) return JSON.parse(saved);
     } catch (e) {}
     return { id: "0", name: userName, role: userRole };
@@ -2144,14 +2146,14 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                 avatar: updated.avatar
               }));
               try {
-                const saved = localStorage.getItem("sams_session");
+                const saved = sessionStore.get();
                 if (saved) {
                   const parsed = JSON.parse(saved);
                   parsed.name = updated.name;
                   parsed.email = updated.email;
                   parsed.avatar = updated.avatar;
                   parsed.phoneNumber = updated.phoneNumber;
-                  localStorage.setItem("sams_session", JSON.stringify(parsed));
+                  sessionStore.set(JSON.stringify(parsed));
                 }
               } catch (err) {}
               if (onProfileUpdated) {
