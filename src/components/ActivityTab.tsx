@@ -35,7 +35,7 @@ export function ActivityTab({ getSessionToken }: ActivityTabProps) {
         headers: token ? { "x-session-token": token } : {}
       });
       if (!res.ok) {
-        throw new Error("Failed to fetch activity records from database");
+        throw new Error("Couldn't load recent activity. Please try again.");
       }
       const data = await res.json().catch(() => []);
       if (Array.isArray(data)) {
@@ -43,7 +43,7 @@ export function ActivityTab({ getSessionToken }: ActivityTabProps) {
       }
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.message || "Unable to connect to database activities service.");
+      setErrorMsg(err.message || "Couldn't load recent activity. Check your internet connection and try again.");
     } finally {
       setIsRefreshing(false);
     }
@@ -113,9 +113,9 @@ export function ActivityTab({ getSessionToken }: ActivityTabProps) {
       {/* HEADER SECTION */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-150 pb-5">
         <div>
-          <span className="text-xs font-black tracking-widest text-sky-600 uppercase block mb-1">AUDIT TRAILS</span>
+          <span className="text-xs font-black tracking-widest text-sky-600 uppercase block mb-1">Activity</span>
           <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Recent Activity</h1>
-          <p className="text-sm text-slate-500 font-medium mt-1">Real-time chronologic log of all transactions, member operations, logins, and approvals.</p>
+          <p className="text-sm text-slate-500 font-medium mt-1">Everything that has happened recently — payments, member changes, logins and approvals.</p>
         </div>
         
         <button
@@ -124,7 +124,7 @@ export function ActivityTab({ getSessionToken }: ActivityTabProps) {
           className="self-start md:self-center inline-flex items-center gap-2 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-700 font-bold px-4 py-2 rounded-2xl shadow-xs text-xs md:text-sm transition-all cursor-pointer disabled:opacity-50"
         >
           <RefreshCw className={`h-4 w-4 text-slate-500 ${isRefreshing ? "animate-spin" : ""}`} />
-          <span>{isRefreshing ? "Refreshing..." : "Refresh Logs"}</span>
+          <span>{isRefreshing ? "Refreshing..." : "Refresh"}</span>
         </button>
       </div>
 
@@ -132,7 +132,7 @@ export function ActivityTab({ getSessionToken }: ActivityTabProps) {
         <div className="bg-amber-50 border border-amber-200 rounded-3xl p-4 flex items-start gap-3">
           <CircleAlert className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
           <div>
-            <h5 className="text-sm font-bold text-amber-800">Operational Notice</h5>
+            <h5 className="text-sm font-bold text-amber-800">Something went wrong</h5>
             <p className="text-xs text-amber-700 mt-0.5">{errorMsg}</p>
           </div>
         </div>

@@ -26,7 +26,7 @@ export function MemberTimelineModal({ isOpen, onClose, member }: MemberTimelineM
     },
     {
       title: "Admin Membership Approval",
-      description: `Application reviewed & verified by SAMS Reception Desk. Assigned Membership ID: ${member.membershipNo || member.id}`,
+      description: `Application checked and approved by reception. Assigned Membership ID: ${member.membershipNo || member.id}`,
       date: approvedDate,
       status: "completed",
       icon: UserCheck,

@@ -160,7 +160,7 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
       }
 
       if (!data) {
-        throw new Error("Received empty or non-JSON response from server. SAMS may be compiling or restarting.");
+        throw new Error("Couldn't load your dashboard right now. Please try again in a minute.");
       }
 
       if (data.success) {
@@ -172,11 +172,11 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
         setNotifications(data.notifications || []);
         setStats(data.stats || { totalMembersInTodayBatches: 0, membersPresentToday: 0, membersAbsentToday: 0 });
       } else {
-        throw new Error("Failed to load synchronized dashboard data.");
+        throw new Error("Couldn't load your dashboard. Please try again.");
       }
     } catch (err: any) {
       console.error("Coach dashboard data sync failure:", err);
-      setApiError(err.message || "Unable to establish live connection to the database.");
+      setApiError(err.message || "Couldn't load your dashboard. Check your internet connection and try again.");
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -249,7 +249,7 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
 
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(data.error || "Failed to sync profile change with backend.");
+        throw new Error(data.error || "Couldn't save your profile. Please try again.");
       }
 
       setSuccessToast("Coaching profile updated successfully!");
@@ -272,7 +272,7 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
 
       setTimeout(() => setSuccessToast(null), 4000);
     } catch (err: any) {
-      alert("Sync error: " + err.message);
+      alert("Couldn't save: " + err.message);
     } finally {
       setIsSavingProfile(false);
     }
@@ -385,7 +385,7 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
               {isSwim ? "Baroda Swim Front" : "The Cricket Academy"}
             </span>
             <span className="text-[9px] font-mono tracking-widest uppercase font-semibold text-sky-400 mt-1 truncate">
-              COACH PORTAL
+              Coach dashboard
             </span>
           </div>
         </div>
@@ -403,7 +403,7 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
             <div className="min-w-0 flex-1">
               <div className="text-xs font-bold text-white truncate">{sessionUser?.name || userName}</div>
               <div className="text-[9.5px] font-mono text-sky-400 uppercase font-semibold truncate tracking-wider">
-                Authorized Coach
+                Coach
               </div>
             </div>
           </div>
@@ -476,7 +476,7 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
               <span className="text-xs font-black text-slate-800 block tracking-tight">
                 {isSwim ? "Baroda Swim Front" : "The Cricket Academy"}
               </span>
-              <span className="text-[9px] font-mono text-sky-600 font-bold uppercase tracking-wider block leading-none">COACH PORTAL</span>
+              <span className="text-[9px] font-mono text-sky-600 font-bold uppercase tracking-wider block leading-none">Coach dashboard</span>
             </div>
           </div>
 
@@ -541,7 +541,7 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
               <button
                 onClick={() => fetchDashboardData(true)}
                 className="p-2 text-slate-500 hover:text-sky-600 hover:bg-slate-50 rounded-xl relative border border-slate-150 bg-white shadow-xs transition-colors"
-                title="Sync Database"
+                title="Refresh"
               >
                 <RefreshCw className={`h-4.5 w-4.5 ${isRefreshing ? "animate-spin" : ""}`} />
               </button>
@@ -555,18 +555,18 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
             {isLoading ? (
               <div className="py-24 text-center space-y-4">
                 <Loader2 className={`h-10 w-10 animate-spin mx-auto text-${themeAccent}-500`} />
-                <p className="text-sm text-slate-500 font-bold">Synchronizing encrypted database records...</p>
+                <p className="text-sm text-slate-500 font-bold">Loading your dashboard...</p>
               </div>
             ) : apiError ? (
               <div className="max-w-2xl mx-auto bg-white border border-rose-150 rounded-3xl p-8 shadow-md text-center space-y-6">
                 <ShieldAlert className="h-12 w-12 text-rose-500 mx-auto" />
                 <div className="space-y-2">
                   <h3 className="text-lg font-extrabold text-slate-900">
-                    {apiError === "SESSION_EXPIRED" ? "Session Expired" : "Database Connection Interrupted"}
+                    {apiError === "SESSION_EXPIRED" ? "Session Expired" : "Couldn't load your dashboard"}
                   </h3>
                   <p className="text-sm text-slate-500">
                     {apiError === "SESSION_EXPIRED" 
-                      ? "Your secure coaching session has expired or is invalid. Please log in again to sync swimmer rosters and attendance sheets." 
+                      ? "You've been logged out. Please log in again to see your swimmers and attendance." 
                       : apiError}
                   </p>
                 </div>
@@ -584,7 +584,7 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
                     className={`px-6 py-3 rounded-xl font-bold text-xs inline-flex items-center gap-2 cursor-pointer ${btnPrimary}`}
                   >
                     <RefreshCw className="h-4 w-4" />
-                    <span>Re-establish Secure Link</span>
+                    <span>Try Again</span>
                   </button>
                 )}
               </div>
@@ -640,14 +640,14 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
                       <div className="flex justify-between items-center">
                         <div>
                           <h3 className={`text-lg font-black tracking-tight ${textTitle}`}>Today's Batches List</h3>
-                          <p className="text-xs text-slate-500">Live filling status and real-time attendance ratios.</p>
+                          <p className="text-xs text-slate-500">How full each batch is and who's present today.</p>
                         </div>
                       </div>
 
                       <div className="grid grid-cols-1 gap-4">
                         {batches.length === 0 ? (
                           <div className={`rounded-3xl p-8 text-center text-sm border ${bgCard}`}>
-                            No batches scheduled in the system today.
+                            No batches scheduled today.
                           </div>
                         ) : (
                           batches.map((batch) => {
@@ -767,7 +767,7 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
               {activeTab === "batches" && (
                 <div className="space-y-6">
                   <div>
-                    <h3 className={`text-lg font-black tracking-tight ${textTitle}`}>Active Batches Console</h3>
+                    <h3 className={`text-lg font-black tracking-tight ${textTitle}`}>Active Batches</h3>
                     <p className="text-xs text-slate-500">Overview of all batches under the academy scope. Admin edits are view-only here.</p>
                   </div>
 
@@ -899,8 +899,8 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
                   }`}>
                     <ShieldAlert className="h-5 w-5 shrink-0 text-amber-600" />
                     <div className="text-xs leading-normal">
-                      <span className="font-extrabold block mb-0.5">RESTRICTED INSTRUCTOR ACCESS MODE</span>
-                      Coaches can only view members assigned to their respective academy lanes. Administrative features (Deleting members, payments editing, registrations approval, or membership plan changes) are restricted to Head Administration roles.
+                      <span className="font-extrabold block mb-0.5">VIEW-ONLY ACCESS</span>
+                      Coaches can only view members assigned to their respective academy lanes. Deleting members, editing payments, approving registrations and changing plans can only be done by admins.
                     </div>
                   </div>
 
@@ -1001,7 +1001,7 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
                         <h4 className={`text-sm font-black uppercase tracking-wide ${isSwim ? "text-slate-900" : "text-white"}`}>Athlete Coaching File</h4>
                         <button onClick={() => setEditingMember(null)} className={`font-black text-sm ${isSwim ? "text-slate-400 hover:text-slate-800" : "text-emerald-400 hover:text-white"}`}>✕</button>
                       </div>
-                      <p className="text-xs opacity-75 font-medium">Update biometric performance feedback remarks for {editingMember.fullName}.</p>
+                      <p className="text-xs opacity-75 font-medium">Update coaching notes for {editingMember.fullName}.</p>
                     </div>
 
                     <form onSubmit={handleSaveNotes} className="space-y-4">
@@ -1061,7 +1061,7 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
                 <div className="space-y-6">
                   <div>
                     <h3 className={`text-lg font-black tracking-tight ${textTitle}`}>Attendance Logs Register</h3>
-                    <p className="text-xs text-slate-500">Live view-only logs of recent SAMS lobby check-ins. Updates are automatically synced via reception barcode scanner.</p>
+                    <p className="text-xs text-slate-500">Recent check-ins at the front desk (view only). These update automatically when reception scans a member's card.</p>
                   </div>
 
                   <div className={`rounded-3xl p-6 border ${bgCard} space-y-6`}>
@@ -1071,7 +1071,7 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
 
                     <div className="space-y-3">
                       {attendanceLogs.length === 0 ? (
-                        <p className="text-xs opacity-60 text-center py-8">No attendance logs available in the database.</p>
+                        <p className="text-xs opacity-60 text-center py-8">No attendance recorded yet.</p>
                       ) : (
                         attendanceLogs.slice(0, 20).map((log) => (
                           <div key={log.id} className={`p-4 rounded-2xl flex justify-between items-center text-xs border border-current/5 ${bgSubCard}`}>
@@ -1101,7 +1101,7 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
                 <div className="space-y-6">
                   <div>
                     <h3 className={`text-lg font-black tracking-tight ${textTitle}`}>Timeline Schedule & Holidays</h3>
-                    <p className="text-xs text-slate-500">Check batch training slots, active holidays, and tournament events on SAMS master calendar.</p>
+                    <p className="text-xs text-slate-500">See batch timings, holidays and upcoming events on the academy calendar.</p>
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -1159,7 +1159,7 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
               {activeTab === "notifications" && (
                 <div className="space-y-6">
                   <div>
-                    <h3 className={`text-lg font-black tracking-tight ${textTitle}`}>Active System Notifications</h3>
+                    <h3 className={`text-lg font-black tracking-tight ${textTitle}`}>Notifications</h3>
                     <p className="text-xs text-slate-500">Live alert logs, batch updates, registrations feed, and administrative memos.</p>
                   </div>
 
@@ -1191,7 +1191,7 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
                 <div className="space-y-8">
                   <div>
                     <h3 className={`text-lg font-black tracking-tight ${textTitle}`}>My Coaching Profile</h3>
-                    <p className="text-xs text-slate-500">Manage your profile photo, phone number, and account access password securely.</p>
+                    <p className="text-xs text-slate-500">Update your profile photo, phone number and password.</p>
                   </div>
 
                   {/* SPLIT FOR PROFILE INFO AND SECURITY */}
@@ -1201,7 +1201,7 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
                     <div className={`lg:col-span-8 rounded-3xl p-6 border ${bgCard} space-y-6`}>
                       <div className="flex items-center gap-2 pb-3 border-b border-current/10">
                         <User className="h-5 w-5 text-indigo-500" />
-                        <h4 className={`text-sm font-black uppercase tracking-wider ${isSwim ? "text-slate-900" : "text-white"}`}>Coaching Credentials</h4>
+                        <h4 className={`text-sm font-black uppercase tracking-wider ${isSwim ? "text-slate-900" : "text-white"}`}>Coaching Details</h4>
                       </div>
 
                       {/* PHOTO UPLOADER */}
@@ -1490,7 +1490,7 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
               <div className="flex items-center justify-between mb-4 px-2">
                 <div>
                   <h3 className={`text-sm font-black uppercase tracking-wider ${isSwim ? "text-slate-900" : "text-white"}`}>All Modules Desk</h3>
-                  <p className="text-[10px] opacity-75 mt-0.5">Access {isSwim ? "Baroda Swim Front" : "The Cricket Academy"} coach controls</p>
+                  <p className="text-[10px] opacity-75 mt-0.5">Access {isSwim ? "Baroda Swim Front" : "The Cricket Academy"} coach dashboard</p>
                 </div>
                 <button 
                   onClick={() => setMobileMenuDrawerOpen(false)}
@@ -1547,7 +1547,7 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
                   className="w-full py-3.5 rounded-xl bg-red-50 hover:bg-red-100/50 text-red-600 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2.5 transition-colors cursor-pointer"
                 >
                   <LogOut className="h-4 w-4" />
-                  <span>Log Out of System</span>
+                  <span>Log Out</span>
                 </button>
               </div>
             </motion.div>

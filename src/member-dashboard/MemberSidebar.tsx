@@ -24,7 +24,7 @@ export function MemberSidebar({ activeSection, collapsed, userName, avatar, memb
         {!collapsed && (
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-bold tracking-tight text-white">Baroda Swim Front</p>
-            <p className="mt-0.5 text-[11px] font-medium tracking-wide text-aqua-300">Member Portal</p>
+            <p className="mt-0.5 text-[11px] font-medium tracking-wide text-aqua-300">Member dashboard</p>
           </div>
         )}
       </div>

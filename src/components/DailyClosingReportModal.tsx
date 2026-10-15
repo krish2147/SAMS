@@ -86,7 +86,7 @@ export function DailyClosingReportModal({
             </div>
             <div>
               <h3 className="text-lg font-black tracking-tight">Baroda Swim Front Daily Closing Report</h3>
-              <p className="text-xs text-slate-300 font-medium">Verified Operational & Financial Summary</p>
+              <p className="text-xs text-slate-300 font-medium">Today's attendance and collections summary</p>
             </div>
           </div>
 

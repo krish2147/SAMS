@@ -14,12 +14,12 @@ export function SystemHealthMonitor({ isSwim = true }: { isSwim?: boolean }) {
   const [lastRefreshed, setLastRefreshed] = useState<string>(new Date().toLocaleTimeString());
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [services, setServices] = useState<ServiceHealth[]>([
-    { name: "Database (MySQL)", key: "db", category: "Core Infrastructure", status: "connected", pingMs: 12, lastChecked: "Just now" },
-    { name: "Razorpay Gateway", key: "razorpay", category: "Payment Processing", status: "connected", pingMs: 45, lastChecked: "Just now" },
-    { name: "WhatsApp Cloud API", key: "whatsapp", category: "Messaging", status: "connected", pingMs: 68, lastChecked: "Just now" },
-    { name: "MSG91 SMS Gateway", key: "msg91", category: "SMS Notifications", status: "connected", pingMs: 52, lastChecked: "Just now" },
-    { name: "SMTP Mail Server", key: "smtp", category: "Email Dispatch", status: "connected", pingMs: 34, lastChecked: "Just now" },
-    { name: "Storage Service", key: "storage", category: "Cloud Media", status: "connected", pingMs: 18, lastChecked: "Just now" },
+    { name: "Member records", key: "db", category: "Records", status: "connected", pingMs: 12, lastChecked: "Just now" },
+    { name: "Online payments", key: "razorpay", category: "Payments", status: "connected", pingMs: 45, lastChecked: "Just now" },
+    { name: "WhatsApp messages", key: "whatsapp", category: "WhatsApp", status: "connected", pingMs: 68, lastChecked: "Just now" },
+    { name: "Text messages", key: "msg91", category: "SMS", status: "connected", pingMs: 52, lastChecked: "Just now" },
+    { name: "Emails", key: "smtp", category: "Email", status: "connected", pingMs: 34, lastChecked: "Just now" },
+    { name: "Photos & documents", key: "storage", category: "Files", status: "connected", pingMs: 18, lastChecked: "Just now" },
   ]);
 
   const refreshHealth = () => {
@@ -54,13 +54,13 @@ export function SystemHealthMonitor({ isSwim = true }: { isSwim?: boolean }) {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-base font-extrabold tracking-tight">System Health & API Monitor</h3>
+              <h3 className="text-base font-extrabold tracking-tight">Website status</h3>
               <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                ● 100% OPERATIONAL
+                ● All working
               </span>
             </div>
             <p className="text-xs text-slate-400 font-medium">
-              Real-time connectivity ping for backend integrations • Auto-refreshes every 1 min
+              Checks that records, payments and messages are working • Refreshes every minute
             </p>
           </div>
         </div>
@@ -73,7 +73,7 @@ export function SystemHealthMonitor({ isSwim = true }: { isSwim?: boolean }) {
             onClick={refreshHealth}
             disabled={isRefreshing}
             className="p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-all border border-white/10 text-xs cursor-pointer"
-            title="Refresh System Health"
+            title="Check again"
           >
             <RefreshCw className={`w-3.5 h-3.5 text-cyan-400 ${isRefreshing ? "animate-spin" : ""}`} />
           </button>
@@ -87,11 +87,11 @@ export function SystemHealthMonitor({ isSwim = true }: { isSwim?: boolean }) {
               <span className="text-[10px] text-slate-400 font-mono uppercase truncate">{svc.category}</span>
               {svc.status === "connected" ? (
                 <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-md border border-emerald-500/20">
-                  <CheckCircle2 className="w-2.5 h-2.5" /> Connected
+                  <CheckCircle2 className="w-2.5 h-2.5" /> Working
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded-md border border-rose-500/20">
-                  <XCircle className="w-2.5 h-2.5" /> Disconnected
+                  <XCircle className="w-2.5 h-2.5" /> Not working
                 </span>
               )}
             </div>
@@ -99,8 +99,8 @@ export function SystemHealthMonitor({ isSwim = true }: { isSwim?: boolean }) {
             <div className="font-bold text-xs text-white truncate">{svc.name}</div>
 
             <div className="flex justify-between items-center text-[10px] font-mono text-slate-400 pt-1 border-t border-white/5">
-              <span>Latency</span>
-              <span className="text-cyan-300 font-bold">{svc.pingMs}ms</span>
+              <span>Checked</span>
+              <span className="text-cyan-300 font-bold">{svc.lastChecked}</span>
             </div>
           </div>
         ))}

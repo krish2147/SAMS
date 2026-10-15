@@ -165,7 +165,7 @@ export function AcademyExplore({
       {/* Footer */}
       <footer className="max-w-4xl w-full mx-auto py-6 border-t border-current/5 text-center">
         <p className="text-[10px] font-mono opacity-40">
-          © {new Date().getFullYear()} Academy Member System. All rights reserved.
+          © {new Date().getFullYear()} {isSwim ? "Baroda Swim Front" : "The Cricket Academy"}. All rights reserved.
         </p>
       </footer>
 
@@ -293,7 +293,7 @@ export function AcademyExplore({
                             <span className="w-48 h-1 bg-sky-500/20 rounded-full overflow-hidden">
                               <span className="block h-full bg-sky-400 animate-[pulse_1.5s_infinite]" style={{ width: `${videoProgress}%` }}></span>
                             </span>
-                            <span className="text-[10px] font-mono tracking-widest text-sky-400 animate-pulse">PLAYING MULTIMEDIA DEMO</span>
+                            <span className="text-[10px] font-mono tracking-widest text-sky-400 animate-pulse">PLAYING VIDEO</span>
                           </div>
                         )}
                       </div>
@@ -301,7 +301,7 @@ export function AcademyExplore({
                       {/* Video Title Indicator */}
                       <div className="relative z-10 flex justify-between items-center">
                         <span className="text-[10px] font-mono bg-black/40 text-slate-300 px-2 py-1 rounded-md backdrop-blur-sm">
-                          SAMS_Portal_Demo.mp4
+                          Academy tour video
                         </span>
                         <span className="text-[10px] font-mono text-slate-300">
                           {isVideoPlaying ? `00:${videoProgress < 10 ? `0${videoProgress}` : videoProgress}` : "00:12"} / 01:40

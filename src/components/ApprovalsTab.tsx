@@ -74,14 +74,14 @@ export function ApprovalsTab({ members, onApprove, onReject, onDelete, academyId
         });
       } else {
         setWhatsappToast({
-          message: data.error || "Failed to dispatch WhatsApp message via MSG91.",
+          message: data.error || "Couldn't send the WhatsApp message. Please try again.",
           type: "error"
         });
       }
     } catch (err: any) {
       console.error("WhatsApp dispatch error:", err);
       setWhatsappToast({
-        message: err.message || "Network error while contacting WhatsApp API gateway.",
+        message: err.message || "Couldn't send the WhatsApp message. Check your internet connection and try again.",
         type: "error"
       });
     } finally {
@@ -244,9 +244,9 @@ export function ApprovalsTab({ members, onApprove, onReject, onDelete, academyId
 
       {/* HEADER SECTION */}
       <div>
-        <span className="text-xs font-black tracking-widest text-sky-600 uppercase block mb-1">GATEKEEPER SERVICE</span>
-        <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Institutional Registration Approvals</h1>
-        <p className="text-sm text-slate-500 font-medium mt-1">Verify walk-in or public online applicant profiles. Approve to generate membership or reject with clear remarks.</p>
+        <span className="text-xs font-black tracking-widest text-sky-600 uppercase block mb-1">New registrations</span>
+        <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Registration Approvals</h1>
+        <p className="text-sm text-slate-500 font-medium mt-1">Check walk-in and online registrations. Approve to start their membership, or reject with a short reason.</p>
       </div>
 
       {/* FILTER & SEARCH */}

@@ -84,8 +84,8 @@ export function RenewalsTab({ isSwim, members, onRenew }: RenewalsTabProps) {
     <div className="space-y-6 animate-in fade-in duration-300 text-left">
       
       <div>
-        <span className="text-xs font-mono tracking-widest text-slate-400 uppercase">SUBSCRIPTION MANAGER</span>
-        <h3 className="text-xl font-bold mt-1">SAMS Membership Renewals Desk</h3>
+        <span className="text-xs font-mono tracking-widest text-slate-400 uppercase">Renewals</span>
+        <h3 className="text-xl font-bold mt-1">Membership Renewals</h3>
         <p className="text-xs opacity-65 mt-0.5">
           Process payments and extend subscription dates for approved athletes. Receipts are calculated transparently.
         </p>
@@ -121,7 +121,7 @@ export function RenewalsTab({ isSwim, members, onRenew }: RenewalsTabProps) {
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-current/5 border-b border-current/10 font-mono text-[10px] opacity-75 uppercase tracking-wider">
-                  <th className="p-4">SAMS ID</th>
+                  <th className="p-4">Member ID</th>
                   <th className="p-4">Member Name</th>
                   <th className="p-4">Membership Term</th>
                   <th className="p-4">Expiration Date</th>
@@ -228,10 +228,10 @@ export function RenewalsTab({ isSwim, members, onRenew }: RenewalsTabProps) {
               </button>
 
               <form onSubmit={handleProcessRenewal} className="space-y-4">
-                <span className="text-[10px] font-mono uppercase tracking-widest opacity-50 block">SAMS SINK ENGINE</span>
-                <h3 className="text-lg font-bold">Process Fee Extension Drawer</h3>
+                <span className="text-[10px] font-mono uppercase tracking-widest opacity-50 block">Renew membership</span>
+                <h3 className="text-lg font-bold">Record Renewal Payment</h3>
                 <p className="text-xs opacity-65 leading-relaxed">
-                  Log a physical or digital payment transaction to extend <strong className="uppercase">{selectedMember.fullName}</strong>.
+                  Record a cash or online payment to extend the membership of <strong className="uppercase">{selectedMember.fullName}</strong>.
                 </p>
 
                 <div className="p-4 rounded-2xl bg-sky-500/5 border border-sky-500/10 space-y-2 text-xs">
@@ -278,7 +278,7 @@ export function RenewalsTab({ isSwim, members, onRenew }: RenewalsTabProps) {
                   className={`w-full py-3.5 rounded-xl text-xs uppercase tracking-widest font-extrabold shadow-md cursor-pointer flex items-center justify-center gap-2 mt-4 ${buttonPrimary}`}
                 >
                   <RefreshCw className="h-4 w-4 animate-spin-slow" />
-                  <span>Issue SAMS Renewal extension</span>
+                  <span>Renew Membership</span>
                 </button>
               </form>
             </div>

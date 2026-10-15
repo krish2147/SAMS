@@ -49,7 +49,7 @@ export function BatchesTab({ isSwim, members, batches, onNavigate }: BatchesTabP
   const handleSaveAttendance = () => {
     // Generate simple log output
     const timestamp = new Date().toLocaleTimeString();
-    setSaveSuccess(`Successfully synchronized attendance registry for ${currentBatch.name} on ${attendanceDate} at ${timestamp}!`);
+    setSaveSuccess(`Attendance saved for ${currentBatch.name} on ${attendanceDate} at ${timestamp}.`);
     setTimeout(() => {
       setSaveSuccess(null);
     }, 5000);
@@ -60,7 +60,7 @@ export function BatchesTab({ isSwim, members, batches, onNavigate }: BatchesTabP
       
       {/* Batches Overview Board */}
       <div>
-        <span className="text-[10px] font-mono tracking-widest text-slate-400 uppercase">SCHEDULING ENGINE</span>
+        <span className="text-[10px] font-mono tracking-widest text-slate-400 uppercase">Batches</span>
         <h3 className="text-xl font-bold mt-1">Baroda Swim Front Active Batches</h3>
         <p className="text-xs opacity-65 mt-0.5">
           Academy standard training slots. Swimmers are locked into specific morning or evening schedules to respect capacity bounds.
@@ -141,10 +141,10 @@ export function BatchesTab({ isSwim, members, batches, onNavigate }: BatchesTabP
       <div className={`p-6 md:p-8 rounded-3xl border ${bgCard}`}>
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
           <div>
-            <span className="text-[10px] font-mono tracking-widest opacity-60 uppercase">OPERATIONAL REGISTRY</span>
-            <h3 className="text-lg font-black mt-1 uppercase">Daily Attendance marking Desk</h3>
+            <span className="text-[10px] font-mono tracking-widest opacity-60 uppercase">Attendance</span>
+            <h3 className="text-lg font-black mt-1 uppercase">Daily Attendance</h3>
             <p className="text-xs opacity-65 mt-0.5">
-              Select any active training slot to inspect its members and record attendance logs.
+              Pick a batch to see its members and mark attendance.
             </p>
           </div>
 
@@ -187,7 +187,7 @@ export function BatchesTab({ isSwim, members, batches, onNavigate }: BatchesTabP
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-current/5 border-b border-current/10 font-mono text-[10px] opacity-75 uppercase tracking-wider">
-                    <th className="p-4">SAMS Card ID</th>
+                    <th className="p-4">Member ID</th>
                     <th className="p-4">Member Name</th>
                     <th className="p-4">Membership Term</th>
                     <th className="p-4">Gender</th>
@@ -274,7 +274,7 @@ export function BatchesTab({ isSwim, members, batches, onNavigate }: BatchesTabP
                 className={`px-5 py-3 rounded-xl text-xs uppercase tracking-widest font-extrabold shadow-md cursor-pointer flex items-center gap-2 ${buttonPrimary}`}
               >
                 <CheckCircle className="h-4 w-4" />
-                <span>Synchronize Attendance Log</span>
+                <span>Save Attendance</span>
               </button>
             </div>
           </div>

@@ -443,7 +443,7 @@ export function QrScannerModal({ isOpen, onClose, onCheckInSuccess, userName }: 
                       {isSubmitting && (
                         <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center text-cyan-400 gap-3 z-10">
                           <div className="w-8 h-8 border-3 border-cyan-500 border-t-transparent rounded-full animate-spin" />
-                          <span className="text-xs font-semibold text-white">Validating QR Code with SAMS...</span>
+                          <span className="text-xs font-semibold text-white">Checking QR code...</span>
                         </div>
                       )}
                     </div>

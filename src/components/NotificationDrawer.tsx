@@ -205,7 +205,7 @@ export function NotificationDrawer({
                     <div className="flex-1 min-w-0 pr-6">
                       <div className="flex items-center gap-1.5 mb-1">
                         <span className="text-[9px] font-mono font-black uppercase px-1.5 py-0.5 rounded bg-white/80 border border-slate-200 text-slate-600 tracking-wider">
-                          {n.type.replace("_", " ")}
+                          {({ registration: "New member", approval: "Payment", rejection: "Rejected", renewal: "Renewal", class: "Class", announcement: "Announcement", system: "Update" } as Record<string, string>)[n.type] || n.type.replace("_", " ")}
                         </span>
                         {n.title && (
                           <span className="text-xs font-bold text-slate-900 truncate">

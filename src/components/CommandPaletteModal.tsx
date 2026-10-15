@@ -63,15 +63,15 @@ export function CommandPaletteModal({
 
   // Pre-defined quick navigation routes
   const navItems = [
-    { id: "home", title: "Executive Dashboard Home", category: "Navigation", icon: LayoutIcon, tab: "home" },
+    { id: "home", title: "Dashboard Home", category: "Navigation", icon: LayoutIcon, tab: "home" },
     { id: "approvals", title: "Member Registration Approvals", category: "Navigation", icon: ShieldCheck, tab: "approvals" },
     { id: "payments", title: "Payments & Financial Collections", category: "Navigation", icon: CreditCard, tab: "payments" },
     { id: "batches", title: "Swimmer Batches & Schedules", category: "Navigation", icon: Layers, tab: "batches" },
     { id: "calendar", title: "Academy Events & Holidays Calendar", category: "Navigation", icon: Calendar, tab: "calendar" },
     { id: "reports", title: "Analytics & Financial Reports", category: "Navigation", icon: FileText, tab: "reports" },
-    { id: "activity", title: "Live Audit Timeline & Activity Log", category: "Navigation", icon: Activity, tab: "activity" },
-    { id: "communication", title: "SMS & WhatsApp Communication Hub", category: "Navigation", icon: Bell, tab: "communication" },
-    { id: "settings", title: "Academy System Settings", category: "Navigation", icon: Settings, tab: "settings" }
+    { id: "activity", title: "Recent Activity", category: "Navigation", icon: Activity, tab: "activity" },
+    { id: "communication", title: "SMS & WhatsApp Messages", category: "Navigation", icon: Bell, tab: "communication" },
+    { id: "settings", title: "Academy Settings", category: "Navigation", icon: Settings, tab: "settings" }
   ];
 
   // Pre-defined quick actions
@@ -316,7 +316,7 @@ export function CommandPaletteModal({
           {/* Footer Shortcuts */}
           <div className="p-3 border-t border-slate-800 bg-slate-950/80 text-[11px] text-slate-400 flex items-center justify-between px-5">
             <span className="flex items-center gap-2">
-              <Sparkles className="w-3.5 h-3.5 text-cyan-400" /> SAMS Universal Command Center
+              <Sparkles className="w-3.5 h-3.5 text-cyan-400" /> Quick search
             </span>
             <div className="flex items-center gap-3">
               <span>Use <strong>↑</strong> <strong>↓</strong> to navigate</span>

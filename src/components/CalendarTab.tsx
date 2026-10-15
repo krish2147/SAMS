@@ -281,15 +281,15 @@ export function CalendarTab({ isSwim, userRole = "admin" }: CalendarTabProps) {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-xs font-mono tracking-widest text-slate-400 uppercase">SCHEDULING PROTOCOL</span>
+            <span className="text-xs font-mono tracking-widest text-slate-400 uppercase">Calendar</span>
             <Sparkles className="h-4 w-4 text-sky-500" />
           </div>
           <h3 className="text-2xl font-extrabold mt-1 tracking-tight text-slate-900 dark:text-white">
-            SAMS Schedulers & Calendars
+            Events & Holidays
           </h3>
           <p className="text-xs opacity-65 mt-0.5 max-w-2xl">
             Track competitions, deep cleaning maintenance windows, public holidays, and specialized workshops. 
-            {isAdmin ? " Admins have full write permissions." : " Members have read-only permissions."}
+            {isAdmin ? " Admins can add and edit entries." : " You can view entries here."}
           </p>
         </div>
 
@@ -532,7 +532,7 @@ export function CalendarTab({ isSwim, userRole = "admin" }: CalendarTabProps) {
           <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-100 dark:border-slate-800 p-6 md:p-8 rounded-3xl shadow-2xl max-w-md w-full text-left space-y-5 animate-in zoom-in-95 duration-200">
             <div>
               <span className="text-[10px] font-mono uppercase tracking-widest text-sky-500 font-bold block">
-                {editingId ? "Modify Scheduler Credentials" : "Add SAMS Calendar Entry"}
+                {editingId ? "Edit Calendar Entry" : "Add Calendar Entry"}
               </span>
               <h3 className="text-lg font-black mt-0.5 text-slate-900 dark:text-white">
                 {editingId ? "Edit Scheduled Item" : "Schedule New Event"}

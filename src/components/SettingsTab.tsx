@@ -223,8 +223,8 @@ export function SettingsTab({ activeUser, buttonPrimary, inputStyle, onProfileUp
       {/* HEADER SECTION */}
       <div className="border-b border-slate-150 pb-5">
         <span className="text-xs font-black tracking-widest text-sky-600 uppercase block mb-1">CONFIGURATION</span>
-        <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">System Settings</h1>
-        <p className="text-sm text-slate-500 font-medium mt-1">Manage your administrative profile, security settings, preferences, and view system analytics.</p>
+        <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Settings</h1>
+        <p className="text-sm text-slate-500 font-medium mt-1">Manage your profile, password and preferences.</p>
       </div>
 
       {saveSuccess && (
@@ -419,7 +419,7 @@ export function SettingsTab({ activeUser, buttonPrimary, inputStyle, onProfileUp
           <div className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-2xl transition-all">
             <div>
               <h5 className="text-xs font-extrabold text-slate-800">Email Notifications</h5>
-              <p className="text-[10px] text-slate-400 font-medium">Receive automated reports, backup notifications, and audit alerts via email.</p>
+              <p className="text-[10px] text-slate-400 font-medium">Get daily reports and important alerts by email.</p>
             </div>
             <input 
               type="checkbox" 
@@ -432,7 +432,7 @@ export function SettingsTab({ activeUser, buttonPrimary, inputStyle, onProfileUp
           <div className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-2xl transition-all">
             <div>
               <h5 className="text-xs font-extrabold text-slate-800">SMS / WhatsApp Alerts</h5>
-              <p className="text-[10px] text-slate-400 font-medium">Dispatch instant batch change alerts, fees approval updates, and greeting SMS.</p>
+              <p className="text-[10px] text-slate-400 font-medium">Send members SMS alerts for batch changes, fee approvals and greetings.</p>
             </div>
             <input 
               type="checkbox" 
@@ -480,7 +480,7 @@ export function SettingsTab({ activeUser, buttonPrimary, inputStyle, onProfileUp
             >
               <option>Light Slate</option>
               <option>High Contrast Oceanic</option>
-              <option>Corporate Blue</option>
+              <option>Classic Blue</option>
             </select>
           </div>
 
@@ -503,41 +503,6 @@ export function SettingsTab({ activeUser, buttonPrimary, inputStyle, onProfileUp
           </div>
         </div>
       </div>
-
-      {/* SECTION 5: SYSTEM DIAGNOSTICS */}
-      <div className="bg-slate-50 border border-slate-200 rounded-3xl p-6 shadow-xs space-y-4">
-        <div className="flex items-center gap-2 pb-3 border-b border-slate-200">
-          <Database className="h-5 w-5 text-slate-500" />
-          <h4 className="text-sm font-extrabold uppercase text-slate-700 tracking-wider">5. System Diagnostics</h4>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-          <div className="bg-white border border-slate-200/60 p-4 rounded-2xl flex items-center gap-3">
-            <Cpu className="h-8 w-8 text-sky-500 stroke-1 shrink-0" />
-            <div>
-              <span className="text-[10px] text-slate-400 font-extrabold block uppercase">SAMS VERSION</span>
-              <span className="font-bold text-slate-800">SAMS v3.4.1 Prod</span>
-            </div>
-          </div>
-
-          <div className="bg-white border border-slate-200/60 p-4 rounded-2xl flex items-center gap-3">
-            <Wifi className="h-8 w-8 text-emerald-500 stroke-1 shrink-0" />
-            <div>
-              <span className="text-[10px] text-slate-400 font-extrabold block uppercase">API LATENCY</span>
-              <span className="font-bold text-slate-800">~12ms stable</span>
-            </div>
-          </div>
-
-          <div className="bg-white border border-slate-200/60 p-4 rounded-2xl flex items-center gap-3">
-            <CheckCircle className="h-8 w-8 text-indigo-500 stroke-1 shrink-0" />
-            <div>
-              <span className="text-[10px] text-slate-400 font-extrabold block uppercase">STRENGTH STATUS</span>
-              <span className="font-bold text-slate-800">Database connected</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
     </div>
   );
 }

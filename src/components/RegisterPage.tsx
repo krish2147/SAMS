@@ -525,7 +525,7 @@ export function RegisterPage({ academyId, onCancel, embedded = false }: Register
       setIsSubmitting(false);
       scrollToTop();
     } catch {
-      setGeneralError("We could not reach the academy's server. Check your internet connection and try again.");
+      setGeneralError("We couldn't connect right now. Check your internet connection and try again.");
       setIsSubmitting(false);
     }
   };
