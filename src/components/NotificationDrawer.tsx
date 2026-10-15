@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 
 export interface SysNotification {
-  id: number;
+  id: number | string;
   text: string;
   time: string;
   read: boolean;
@@ -20,9 +20,9 @@ interface NotificationDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   notifications: SysNotification[];
-  onMarkRead: (id: number) => void;
+  onMarkRead: (id: number | string) => void;
   onMarkAllRead: () => void;
-  onDelete: (id: number) => void;
+  onDelete: (id: number | string) => void;
   onClearAll: () => void;
 }
 

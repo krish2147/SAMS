@@ -14,6 +14,8 @@ import { MIN_PASSWORD_LENGTH } from "../utils/password";
 import { sessionStore } from "../utils/sessionStore";
 import { useRememberedState } from "../utils/useRememberedState";
 import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-logo";
+import { useStaffNotifications } from "../utils/useStaffNotifications";
+import { NotificationCountBadge } from "./NotificationCountBadge";
 
 interface CoachDashboardProps {
   academyId: AcademyId;
@@ -84,6 +86,7 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
   const [events, setEvents] = useState<any[]>([]);
   const [holidays, setHolidays] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
+  const staffFeed = useStaffNotifications();
   const [stats, setStats] = useState({ totalMembersInTodayBatches: 0, membersPresentToday: 0, membersAbsentToday: 0 });
   
   // Loading & Operations states
@@ -490,9 +493,7 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
               id="btn-coach-mobile-bell"
             >
               <Bell className="h-5 w-5" />
-              {notifications.some(n => !n.read && !n.is_read) && (
-                <span className="absolute top-1 right-1 h-2 w-2 bg-rose-500 rounded-full border border-white" />
-              )}
+              <NotificationCountBadge count={staffFeed.unreadCount} />
             </button>
           </div>
         </header>
@@ -534,9 +535,7 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
                 id="btn-coach-desktop-bell"
               >
                 <Bell className="h-4.5 w-4.5" />
-                {notifications.some(n => !n.read && !n.is_read) && (
-                  <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-rose-500 rounded-full border border-white" />
-                )}
+                <NotificationCountBadge count={staffFeed.unreadCount} />
               </button>
 
               <button
@@ -1560,26 +1559,11 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
       <NotificationDrawer
         isOpen={notificationsDrawerOpen}
         onClose={() => setNotificationsDrawerOpen(false)}
-        notifications={notifications.map((n, idx) => ({
-          id: n.id || idx + 1,
-          text: n.text || n.message || "Coach Alert",
-          time: n.time || "Today",
-          read: Boolean(n.read || n.is_read),
-          type: n.type || "class",
-          title: n.title || "Coach Update"
-        }))}
-        onMarkRead={(id) => {
-          setNotifications(prev => prev.map((n, idx) => (n.id || idx + 1) === id ? { ...n, read: true, is_read: true } : n));
-        }}
-        onMarkAllRead={() => {
-          setNotifications(prev => prev.map(n => ({ ...n, read: true, is_read: true })));
-        }}
-        onDelete={(id) => {
-          setNotifications(prev => prev.filter((n, idx) => (n.id || idx + 1) !== id));
-        }}
-        onClearAll={() => {
-          setNotifications([]);
-        }}
+        notifications={staffFeed.notifications}
+        onMarkRead={staffFeed.markRead}
+        onMarkAllRead={staffFeed.markAllRead}
+        onDelete={staffFeed.remove}
+        onClearAll={staffFeed.clearAll}
       />
 
     </div>

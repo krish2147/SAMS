@@ -32,6 +32,8 @@ import { RegisterPage } from "./RegisterPage";
 import { DailyClosingReportModal } from "./DailyClosingReportModal";
 import { sessionStore } from "../utils/sessionStore";
 import { useRememberedState } from "../utils/useRememberedState";
+import { useStaffNotifications } from "../utils/useStaffNotifications";
+import { NotificationCountBadge } from "./NotificationCountBadge";
 
 
 
@@ -108,7 +110,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [mobileMenuDrawerOpen, setMobileMenuDrawerOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const staffFeed = useStaffNotifications();
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [isClosingReportModalOpen, setIsClosingReportModalOpen] = useState(false);
 
@@ -1027,9 +1029,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
               className="p-1.5 text-slate-500 hover:text-sky-600 hover:bg-slate-50 rounded-lg relative cursor-pointer"
             >
               <Bell className="h-4.5 w-4.5" />
-              {notifications.some(n => !n.read) && (
-                <span className="absolute top-1 right-1 h-1.5 w-1.5 bg-red-500 rounded-full" />
-              )}
+              <NotificationCountBadge count={staffFeed.unreadCount} className="-top-1 -right-1" />
             </button>
           </div>
         </header>
@@ -1087,9 +1087,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                 title="System Notifications"
               >
                 <Bell className="h-4.5 w-4.5" />
-                {notifications.some(n => !n.read) && (
-                  <span className="absolute top-2 right-2 h-2 w-2 bg-red-500 rounded-full border border-white" />
-                )}
+                <NotificationCountBadge count={staffFeed.unreadCount} />
               </button>
             </div>
           </header>
@@ -2561,19 +2559,11 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
       <NotificationDrawer
         isOpen={notificationsOpen}
         onClose={() => setNotificationsOpen(false)}
-        notifications={notifications}
-        onMarkRead={(id) => {
-          setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-        }}
-        onMarkAllRead={() => {
-          setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-        }}
-        onDelete={(id) => {
-          setNotifications(prev => prev.filter(n => n.id !== id));
-        }}
-        onClearAll={() => {
-          setNotifications([]);
-        }}
+        notifications={staffFeed.notifications}
+        onMarkRead={staffFeed.markRead}
+        onMarkAllRead={staffFeed.markAllRead}
+        onDelete={staffFeed.remove}
+        onClearAll={staffFeed.clearAll}
       />
 
       {/* Global Command Palette */}

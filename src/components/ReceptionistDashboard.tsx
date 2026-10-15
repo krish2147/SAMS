@@ -14,6 +14,8 @@ import { MemberTimelineModal } from "./MemberTimelineModal";
 import { DailyClosingReportModal } from "./DailyClosingReportModal";
 import { NotificationDrawer, SysNotification } from "./NotificationDrawer";
 import { sessionStore } from "../utils/sessionStore";
+import { useStaffNotifications } from "../utils/useStaffNotifications";
+import { NotificationCountBadge } from "./NotificationCountBadge";
 
 interface ReceptionistDashboardProps {
   academyId: AcademyId;
@@ -73,11 +75,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
   const [isTimelineModalOpen, setIsTimelineModalOpen] = useState(false);
   const [isClosingReportModalOpen, setIsClosingReportModalOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<SysNotification[]>([
-    { id: 101, text: "New member registration pending front-desk review", time: "5m ago", read: false, type: "registration", title: "Member Verification" },
-    { id: 102, text: "3 memberships due for quarterly renewal this week", time: "30m ago", read: false, type: "renewal", title: "Expiration Notice" },
-    { id: 103, text: "Morning Batch 07:00 AM swum check-ins synchronized", time: "1h ago", read: true, type: "system", title: "Attendance Logged" }
-  ]);
+  const staffFeed = useStaffNotifications();
   
   // Local persistent state for walk-in inquiries
   const [walkInInquiries, setWalkInInquiries] = useState<any[]>(() => {
@@ -419,9 +417,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
                 id="btn-receptionist-bell"
               >
                 <Bell className="h-4 w-4" />
-                {notifications.some(n => !n.read) && (
-                  <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-rose-500 rounded-full border border-white" />
-                )}
+                <NotificationCountBadge count={staffFeed.unreadCount} />
               </button>
 
               {onLogout && (
@@ -1452,19 +1448,11 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
       <NotificationDrawer
         isOpen={notificationsOpen}
         onClose={() => setNotificationsOpen(false)}
-        notifications={notifications}
-        onMarkRead={(id) => {
-          setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-        }}
-        onMarkAllRead={() => {
-          setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-        }}
-        onDelete={(id) => {
-          setNotifications(prev => prev.filter(n => n.id !== id));
-        }}
-        onClearAll={() => {
-          setNotifications([]);
-        }}
+        notifications={staffFeed.notifications}
+        onMarkRead={staffFeed.markRead}
+        onMarkAllRead={staffFeed.markAllRead}
+        onDelete={staffFeed.remove}
+        onClearAll={staffFeed.clearAll}
       />
 
     </div>
