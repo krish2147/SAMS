@@ -16,6 +16,7 @@ import { useRememberedState } from "../utils/useRememberedState";
 import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-logo";
 import { useStaffNotifications } from "../utils/useStaffNotifications";
 import { NotificationCountBadge } from "./NotificationCountBadge";
+import { PasswordInput } from "./PasswordInput";
 
 interface CoachDashboardProps {
   academyId: AcademyId;
@@ -1308,8 +1309,7 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
                       <form onSubmit={handleUpdatePassword} className="space-y-4">
                         <div className="flex flex-col gap-1.5">
                           <label className="text-[10px] font-mono uppercase opacity-65 font-extrabold">Current Password</label>
-                          <input 
-                            type="password" 
+                          <PasswordInput 
                             value={currentPassword}
                             onChange={(e) => setCurrentPassword(e.target.value)}
                             placeholder="••••••••"
@@ -1324,11 +1324,10 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
 
                         <div className="flex flex-col gap-1.5">
                           <label className="text-[10px] font-mono uppercase opacity-65 font-extrabold">New Password</label>
-                          <input 
-                            type="password" 
+                          <PasswordInput 
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
-                            placeholder="Min 6 characters"
+                            placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
                             className={`w-full p-3.5 text-xs focus:outline-none rounded-xl font-bold border ${
                               isSwim 
                                 ? "bg-slate-50 border-slate-200 text-slate-900 focus:bg-white focus:ring-1 focus:ring-sky-400" 
@@ -1340,8 +1339,7 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
 
                         <div className="flex flex-col gap-1.5">
                           <label className="text-[10px] font-mono uppercase opacity-65 font-extrabold">Confirm New Password</label>
-                          <input 
-                            type="password" 
+                          <PasswordInput 
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             placeholder="••••••••"

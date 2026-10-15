@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { MIN_PASSWORD_LENGTH } from "../utils/password";
 import { sessionStore } from "../utils/sessionStore";
+import { PasswordInput } from "./PasswordInput";
 
 interface SettingsTabProps {
   activeUser: {
@@ -53,7 +54,6 @@ export function SettingsTab({ activeUser, buttonPrimary, inputStyle, onProfileUp
   const [notifPush, setNotifPush] = useState(false);
 
   const [appearanceTheme, setAppearanceTheme] = useState("Light Slate");
-  const [appearanceDensity, setAppearanceDensity] = useState("Spacious");
 
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -371,8 +371,7 @@ export function SettingsTab({ activeUser, buttonPrimary, inputStyle, onProfileUp
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-extrabold text-slate-500">Current Password</label>
-              <input
-                type="password"
+              <PasswordInput
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 placeholder="••••••••"
@@ -381,18 +380,16 @@ export function SettingsTab({ activeUser, buttonPrimary, inputStyle, onProfileUp
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-extrabold text-slate-500">New Password</label>
-              <input
-                type="password"
+              <PasswordInput
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Min 6 characters"
+                placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
                 className={inputStyle}
               />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-extrabold text-slate-500">Confirm New Password</label>
-              <input
-                type="password"
+              <PasswordInput
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="••••••••"
@@ -481,18 +478,6 @@ export function SettingsTab({ activeUser, buttonPrimary, inputStyle, onProfileUp
               <option>Light Slate</option>
               <option>High Contrast Oceanic</option>
               <option>Classic Blue</option>
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-extrabold text-slate-500">Interface Layout Density</label>
-            <select
-              value={appearanceDensity}
-              onChange={(e) => setAppearanceDensity(e.target.value)}
-              className="p-3 text-xs rounded-xl focus:outline-none border font-semibold bg-white border-slate-200 text-slate-700"
-            >
-              <option>Spacious</option>
-              <option>Compact</option>
             </select>
           </div>
 

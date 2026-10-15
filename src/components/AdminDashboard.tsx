@@ -34,6 +34,7 @@ import { sessionStore } from "../utils/sessionStore";
 import { useRememberedState } from "../utils/useRememberedState";
 import { useStaffNotifications } from "../utils/useStaffNotifications";
 import { NotificationCountBadge } from "./NotificationCountBadge";
+import { PasswordInput } from "./PasswordInput";
 
 
 
@@ -2013,9 +2014,8 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
 
                     <div className="flex flex-col gap-1.5">
                       <label htmlFor="new-staff-password" className="text-[9.5px] font-mono uppercase text-slate-500">Password <span className="text-rose-600" aria-hidden="true">*</span></label>
-                      <input
+                      <PasswordInput
                         id="new-staff-password"
-                        type="password"
                         autoComplete="new-password"
                         value={newStaffPassword}
                         onChange={(e) => { setNewStaffPassword(e.target.value); clearStaffError("password"); }}
