@@ -24,7 +24,7 @@ In development, the app can use its local JSON database when MySQL is unavailabl
   (`payment_link.paid` confirms the WhatsApp payment-link flow used by registration; without it a
   paid registration never activates)
 
-The first startup against an empty production database requires `INITIAL_ADMIN_EMAIL` and an `INITIAL_ADMIN_PASSWORD` of at least 8 characters. Remove those bootstrap values after the administrator has been created.
+The first startup against an empty production database requires `INITIAL_DEVELOPER_EMAIL` and an `INITIAL_DEVELOPER_PASSWORD` of at least 8 characters (optional: `INITIAL_DEVELOPER_NAME`, `INITIAL_DEVELOPER_NUMBER`). This creates the developer account; staff are created from the console. Remove those bootstrap values after the administrator has been created.
 
 ## DigitalOcean deployment
 
