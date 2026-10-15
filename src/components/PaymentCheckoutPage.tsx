@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { CheckCircle2, LoaderCircle, ShieldCheck, Waves } from "lucide-react";
+import { CheckCircle2, LoaderCircle, ShieldCheck } from "lucide-react";
+import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-logo";
 
 type CheckoutData = {
   paymentId: number;
@@ -108,7 +109,7 @@ export function PaymentCheckoutPage({ orderId }: { orderId: string }) {
     <main className="min-h-screen bg-slate-950 px-4 py-10 text-slate-900 flex items-center justify-center">
       <section className="w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl">
         <header className="bg-sky-600 px-7 py-6 text-white flex items-center gap-4">
-          <div className="rounded-2xl bg-white/15 p-3"><Waves className="h-7 w-7" /></div>
+          <img src={BARODA_SWIM_FRONT_LOGO_DATA_URI} alt="Baroda Swim Front" className="h-14 w-14 rounded-2xl object-cover ring-2 ring-white/30" />
           <div><h1 className="text-xl font-black">Baroda Swim Front</h1><p className="text-sm text-sky-100">Secure membership payment</p></div>
         </header>
 

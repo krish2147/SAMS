@@ -996,9 +996,11 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
         {/* MOBILE TOP HEADER (Sticky, Premium, Blur) */}
         <header className="md:hidden flex h-14 bg-white/95 border-b border-ink-100 justify-between items-center px-4 shrink-0 z-30 backdrop-blur-md">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-sky-500 text-white flex items-center justify-center font-bold text-sm shadow-sm shrink-0">
-              {isSwim ? "🌊" : "🏏"}
-            </div>
+            {isSwim ? (
+              <img src={BARODA_SWIM_FRONT_LOGO_DATA_URI} alt="Baroda Swim Front" className="h-8 w-8 rounded-lg object-cover shadow-sm shrink-0" />
+            ) : (
+              <div className="h-8 w-8 rounded-lg bg-sky-500 text-white flex items-center justify-center font-bold text-sm shadow-sm shrink-0">🏏</div>
+            )}
             <div>
               <span className="text-xs font-black text-slate-800 block tracking-tight">Baroda Swim Front</span>
               <span className="text-[9px] font-mono text-sky-600 font-bold uppercase tracking-wider block leading-none">SAMS SYSTEM</span>
