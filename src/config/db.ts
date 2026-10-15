@@ -365,20 +365,21 @@ async function seedDefaultData(pool: mysql.Pool) {
     if (userCount[0].count === 0) {
       const salt = await bcrypt.genSalt(10);
       if (process.env.NODE_ENV === "production") {
-        const email = process.env.INITIAL_ADMIN_EMAIL;
-        const password = process.env.INITIAL_ADMIN_PASSWORD;
+        // The first account is the system developer's own. INITIAL_DEVELOPER_* is the name used on
+        // Railway; INITIAL_ADMIN_* is still read for deployments set up before the rename.
+        const env = (name: string) => process.env[`INITIAL_DEVELOPER_${name}`]?.trim() || process.env[`INITIAL_ADMIN_${name}`]?.trim() || "";
+        const email = env("EMAIL");
+        const password = env("PASSWORD");
         if (!email || !password || password.length < MIN_PASSWORD_LENGTH) {
-          throw new Error(`A new production database requires INITIAL_ADMIN_EMAIL and an INITIAL_ADMIN_PASSWORD of at least ${MIN_PASSWORD_LENGTH} characters.`);
+          throw new Error(`A new production database requires INITIAL_DEVELOPER_EMAIL and an INITIAL_DEVELOPER_PASSWORD of at least ${MIN_PASSWORD_LENGTH} characters.`);
         }
         const hash = await bcrypt.hash(password, salt);
-        // The first account is the system developer's own unless INITIAL_ADMIN_ROLE says otherwise.
         // The academy's admin and staff are then created from the console.
-        const initialRole = ["developer", "super_admin", "admin"].includes(String(process.env.INITIAL_ADMIN_ROLE))
-          ? String(process.env.INITIAL_ADMIN_ROLE)
-          : "developer";
+        const requestedRole = env("ROLE");
+        const initialRole = ["developer", "super_admin", "admin"].includes(requestedRole) ? requestedRole : "developer";
         await pool.query(
           "INSERT INTO users (name, email, password_hash, phone_number, role, academy_id) VALUES (?, ?, ?, ?, ?, 'swim')",
-          [process.env.INITIAL_ADMIN_NAME || "Developer", email.toLowerCase().trim(), hash, process.env.INITIAL_ADMIN_PHONE || "+910000000000", initialRole]
+          [env("NAME") || "Developer", email.toLowerCase(), hash, env("NUMBER") || env("PHONE") || "+910000000000", initialRole]
         );
         console.log(`🌱 Created the initial production account (${initialRole}) from environment configuration.`);
       } else {
