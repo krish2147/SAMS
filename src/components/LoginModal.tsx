@@ -991,7 +991,7 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
             <form onSubmit={handleAuthSubmit} className="flex flex-col gap-4 text-left animate-in fade-in duration-300">
               
               <div className="flex flex-col gap-1.5">
-                <label htmlFor="staff-login-id" className="text-xs font-mono uppercase tracking-wider opacity-60">Email or mobile number</label>
+                <label htmlFor="staff-login-id" className="text-xs font-mono uppercase tracking-wider opacity-60">Email or mobile number <span className="text-rose-500" aria-hidden="true">*</span></label>
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 opacity-90" />
                   <input
@@ -1013,7 +1013,7 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-mono uppercase tracking-wider opacity-60">Security Passcode</label>
+                <label className="text-xs font-mono uppercase tracking-wider opacity-60">Security Passcode <span className="text-rose-500" aria-hidden="true">*</span></label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 opacity-90" />
                   <input

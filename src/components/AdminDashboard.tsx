@@ -1926,7 +1926,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
 
                   <div className="space-y-4">
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[9.5px] font-mono uppercase opacity-50">Full Name</label>
+                      <label className="text-[9.5px] font-mono uppercase text-slate-500">Full Name <span className="text-rose-600" aria-hidden="true">*</span></label>
                       <input
                         type="text"
                         value={newStaffName}
@@ -1938,7 +1938,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[9.5px] font-mono uppercase opacity-50">Designation / Role</label>
+                      <label className="text-[9.5px] font-mono uppercase text-slate-500">Designation / Role <span className="text-rose-600" aria-hidden="true">*</span></label>
                       <select
                         value={newStaffRole}
                         onChange={(e) => setNewStaffRole(e.target.value as any)}
@@ -1957,7 +1957,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label htmlFor="new-staff-phone" className="text-[9.5px] font-mono uppercase opacity-50">Mobile Number</label>
+                      <label htmlFor="new-staff-phone" className="text-[9.5px] font-mono uppercase text-slate-500">Mobile Number <span className="normal-case opacity-70">(optional)</span></label>
                       <div className="relative">
                         <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500">+91</span>
                         <input
@@ -1974,7 +1974,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[9.5px] font-mono uppercase opacity-50">Corporate Email Address</label>
+                      <label className="text-[9.5px] font-mono uppercase text-slate-500">Corporate Email Address <span className="text-rose-600" aria-hidden="true">*</span></label>
                       <input
                         type="email"
                         value={newStaffEmail}
@@ -1986,7 +1986,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[9.5px] font-mono uppercase opacity-50">Secure Password</label>
+                      <label className="text-[9.5px] font-mono uppercase text-slate-500">Secure Password <span className="text-rose-600" aria-hidden="true">*</span></label>
                       <input
                         type="password"
                         value={newStaffPassword}

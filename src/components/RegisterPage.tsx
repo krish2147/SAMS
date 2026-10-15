@@ -238,11 +238,16 @@ function FieldError({ message }: { message?: string }) {
   );
 }
 
+/** Red asterisk marking a required field. Screen readers hear "required". */
+function Req() {
+  return <span className="ml-0.5 text-rose-600" aria-hidden="true">*</span>;
+}
+
 function Label({ htmlFor, children, optional }: { htmlFor?: string; children: React.ReactNode; optional?: boolean }) {
   return (
     <label htmlFor={htmlFor} className="mb-2 block text-[13px] font-semibold text-ink-800">
       {children}
-      {optional && <span className="ml-1.5 font-normal text-ink-400">Optional</span>}
+      {optional ? <span className="ml-1.5 font-normal text-ink-400">Optional</span> : <><Req /><span className="sr-only"> (required)</span></>}
     </label>
   );
 }
@@ -680,7 +685,7 @@ export function RegisterPage({ academyId, onCancel, embedded = false }: Register
             <div ref={nextQuestionRef} className="scroll-mt-40" />
             {form.batchCategory && frequenciesFor(form.batchCategory).length > 1 && (
               <div>
-                <p className="mb-3 text-[15px] font-semibold text-ink-950">How often will you swim?</p>
+                <p className="mb-3 text-[15px] font-semibold text-ink-950">How often will you swim?<Req /></p>
                 <div className="grid grid-cols-2 gap-3">
                   {FREQUENCIES.map(f => {
                     const selected = form.frequency === f.id;
@@ -698,7 +703,7 @@ export function RegisterPage({ academyId, onCancel, embedded = false }: Register
 
             {form.batchCategory && form.frequency && (
               <div>
-                <p className="mb-3 text-[15px] font-semibold text-ink-950">For how long?</p>
+                <p className="mb-3 text-[15px] font-semibold text-ink-950">For how long?<Req /></p>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                   {durationsFor(form.batchCategory, form.frequency).map(d => {
                     const selected = form.planDuration === d;
@@ -910,7 +915,7 @@ export function RegisterPage({ academyId, onCancel, embedded = false }: Register
         return (
           <div className="space-y-8">
             <div>
-              <p className="mb-3 text-[15px] font-semibold text-ink-950">Do you have any medical condition the coach should know about?</p>
+              <p className="mb-3 text-[15px] font-semibold text-ink-950">Do you have any medical condition the coach should know about?<Req /></p>
               <div className="grid grid-cols-2 gap-3">
                 <button type="button" name="medicalDetails" onClick={() => { update("hasMedicalCondition", false); update("medicalDetails", ""); }} aria-pressed={form.hasMedicalCondition === false}
                   className={`rounded-2xl border p-4 text-left transition ${form.hasMedicalCondition === false ? "border-aqua-500 bg-aqua-500/[0.06] ring-1 ring-aqua-500" : "border-ink-200 bg-white hover:border-ink-400"}`}>
