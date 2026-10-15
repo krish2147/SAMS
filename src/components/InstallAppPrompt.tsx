@@ -97,7 +97,7 @@ export function InstallAppPrompt() {
           <RefreshCw className="h-5 w-5" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold">A new version of SAMS is ready</p>
+          <p className="text-sm font-bold">A new version of the app is ready</p>
           <p className="text-xs text-slate-500 mt-0.5">Save anything you're typing, then update.</p>
           <button
             id="btn-app-update"
@@ -117,10 +117,10 @@ export function InstallAppPrompt() {
   if (hidden || (!installEvent && !showIosHint)) return null;
 
   return (
-    <div role="dialog" aria-label="Install SAMS" className={card}>
+    <div role="dialog" aria-label="Install the Baroda Swim Front app" className={card}>
       <img src="/icons/icon-192.png" alt="" className="h-11 w-11 shrink-0 rounded-xl" />
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-bold">Install the SAMS app</p>
+        <p className="text-sm font-bold">Install the Baroda Swim Front app</p>
         {installEvent ? (
           <>
             <p className="text-xs text-slate-500 mt-0.5">Open it from your home screen like any app. It updates itself.</p>

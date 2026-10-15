@@ -39,7 +39,7 @@ export function ParentDashboard({ academyId, userName }: ParentDashboardProps) {
 
   // Support messenger states
   const [messages, setMessages] = useState([
-    { sender: "System", text: "Welcome to SAMS Elite Parent portal. You can dispatch encrypted messages to current coaches.", time: "09:00 AM" }
+    { sender: "Academy", text: "Welcome! You can send messages to your child's coaches here.", time: "09:00 AM" }
   ]);
   const [newMessageText, setNewMessageText] = useState("");
 
@@ -67,7 +67,7 @@ export function ParentDashboard({ academyId, userName }: ParentDashboardProps) {
         ...prev,
         { 
           sender: coaches[0]?.name || "Coach", 
-          text: `Message secure logs updated. I've noted this and will check ${selectedStudent?.name || "swimmer"}'s wrist telemetry tomorrow.`, 
+          text: `Thanks for letting me know. I'll check in with ${selectedStudent?.name || "swimmer"} at tomorrow's session.`, 
           time: "Just now" 
         }
       ]);
@@ -183,7 +183,7 @@ export function ParentDashboard({ academyId, userName }: ParentDashboardProps) {
           {/* 1. Dashboard Header */}
       <motion.div variants={itemVariants} className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <span className="text-xs font-mono tracking-widest text-slate-400 uppercase">PARENT PORTAL</span>
+          <span className="text-xs font-mono tracking-widest text-slate-400 uppercase">Parent dashboard</span>
           <h2 className={`text-3xl font-extrabold tracking-tight mt-1 ${isSwim ? "text-slate-900" : "text-white font-serif"}`}>
             {(() => {
               const hour = new Date().getHours();
@@ -225,12 +225,12 @@ export function ParentDashboard({ academyId, userName }: ParentDashboardProps) {
         }`}>
           <div className="flex justify-between items-center mb-6">
             <div>
-              <span className="text-[10px] font-mono tracking-widest opacity-60 uppercase">BIOMECHANICAL ANALYTICS</span>
+              <span className="text-[10px] font-mono tracking-widest opacity-60 uppercase">Progress</span>
               <h3 className="text-lg font-bold mt-1">Historic Performance development</h3>
             </div>
             <div className="flex items-center gap-1.5 text-xs font-mono text-emerald-400 font-bold bg-emerald-950/30 px-3 py-1.5 rounded-full border border-emerald-900/40">
               <TrendingUp className="h-4 w-4" />
-              <span>SAMS AI Optimized</span>
+              <span>Improving</span>
             </div>
           </div>
 
@@ -306,7 +306,7 @@ export function ParentDashboard({ academyId, userName }: ParentDashboardProps) {
           <div className={`p-6 rounded-3xl border ${
             isSwim ? "bg-white border-sky-100 shadow-md text-slate-900" : "bg-emerald-950/40 border-emerald-900/40 text-emerald-100"
           }`}>
-            <span className="text-[10px] font-mono tracking-widest opacity-60 uppercase block">ATTENDANCE COMPLIANCE</span>
+            <span className="text-[10px] font-mono tracking-widest opacity-60 uppercase block">ATTENDANCE</span>
             <div className="flex justify-between items-baseline mt-2 mb-4">
               <span className="text-3xl font-black">92.4%</span>
               <span className="text-xs text-emerald-400 font-semibold font-mono">EXCELLENT</span>
@@ -331,7 +331,7 @@ export function ParentDashboard({ academyId, userName }: ParentDashboardProps) {
           <div className={`p-6 rounded-3xl border ${
             isSwim ? "bg-white border-sky-100 shadow-md text-slate-900" : "bg-emerald-950/40 border-emerald-900/40 text-emerald-100"
           }`}>
-            <span className="text-[10px] font-mono tracking-widest opacity-60 uppercase block">FINANCIAL OUTSTANDINGS</span>
+            <span className="text-[10px] font-mono tracking-widest opacity-60 uppercase block">FEES DUE</span>
             <h3 className="text-base font-bold mt-1 mb-4">Dues & Tuitions</h3>
             
             <div className="space-y-3">
@@ -372,7 +372,7 @@ export function ParentDashboard({ academyId, userName }: ParentDashboardProps) {
         }`}>
           <div className="flex justify-between items-center mb-6">
             <div>
-              <span className="text-[10px] font-mono tracking-widest opacity-60 uppercase">ACTIVE COVENANTS</span>
+              <span className="text-[10px] font-mono tracking-widest opacity-60 uppercase">BOOKINGS</span>
               <h3 className="text-lg font-bold mt-1">Confirmed Facility bookings</h3>
             </div>
             <Calendar className="h-5 w-5 opacity-40" />
@@ -413,8 +413,8 @@ export function ParentDashboard({ academyId, userName }: ParentDashboardProps) {
         }`}>
           <div className="flex justify-between items-center mb-6">
             <div>
-              <span className="text-[10px] font-mono tracking-widest opacity-60 uppercase">ENCRYPTED TELEPHONY</span>
-              <h3 className="text-lg font-bold mt-1">Direct Message Coach Desk</h3>
+              <span className="text-[10px] font-mono tracking-widest opacity-60 uppercase">Messages</span>
+              <h3 className="text-lg font-bold mt-1">Message the Coach</h3>
             </div>
             <MessageSquare className="h-5 w-5 opacity-40" />
           </div>
@@ -482,7 +482,7 @@ export function ParentDashboard({ academyId, userName }: ParentDashboardProps) {
               <div>
                 <div className="flex justify-between items-center mb-8">
                   <div>
-                    <span className="text-[9px] font-mono tracking-widest opacity-60 uppercase">SAMS CAPITAL GATEWAY</span>
+                    <span className="text-[9px] font-mono tracking-widest opacity-60 uppercase">Pay fees</span>
                     <h3 className="text-xl font-bold font-serif">Settle Tuition Invoice</h3>
                   </div>
                   <button 
@@ -513,7 +513,7 @@ export function ParentDashboard({ academyId, userName }: ParentDashboardProps) {
                       ✓
                     </div>
                     <h4 className="text-base font-bold">Transaction Confirmed</h4>
-                    <p className="text-xs opacity-60 font-light mt-1">An encrypted SAMS capital receipt has been dispatched.</p>
+                    <p className="text-xs opacity-60 font-light mt-1">Your receipt has been sent.</p>
                   </motion.div>
                 ) : (
                   <form onSubmit={processPayment} className="space-y-5">
@@ -580,10 +580,10 @@ export function ParentDashboard({ academyId, userName }: ParentDashboardProps) {
                       {isPaying ? (
                         <>
                           <div className="h-4 w-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
-                          <span>Authorizing Card...</span>
+                          <span>Processing payment...</span>
                         </>
                       ) : (
-                        <span>Authorize Secure Payment</span>
+                        <span>Pay Now</span>
                       )}
                     </button>
                   </form>
@@ -592,7 +592,7 @@ export function ParentDashboard({ academyId, userName }: ParentDashboardProps) {
 
               <div className="flex items-center gap-2.5 text-[10px] font-mono opacity-50 justify-center">
                 <UserCheck className="h-3.5 w-3.5 text-emerald-400" />
-                <span>PCI-DSS ENCRYPTED TRANSFERS</span>
+                <span>Payments are safe and secure</span>
               </div>
             </motion.div>
           </div>

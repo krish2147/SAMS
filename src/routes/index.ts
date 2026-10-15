@@ -8,6 +8,7 @@ import memberDashboardRoutes from "./member-dashboard.routes";
 import paymentRoutes from "./payment.routes";
 import communicationRoutes from "./communication.routes";
 import analyticsRoutes from "./analytics.routes";
+import staffNotificationRoutes from "./staff-notifications.routes";
 
 const router = Router();
 
@@ -21,6 +22,7 @@ router.use(memberDashboardRoutes);
 router.use(paymentRoutes);
 router.use(communicationRoutes);
 router.use(analyticsRoutes);
+router.use(staffNotificationRoutes);
 
 // Catch-all 404 for unhandled API endpoints to prevent falling through to Vite index.html
 router.use("*", (req, res) => {

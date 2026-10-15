@@ -182,7 +182,7 @@ export const AnalyticsDashboard: React.FC = () => {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
     doc.setTextColor(56, 189, 248); // sky-400
-    doc.text("Executive Analytics & Performance Report", 14, 22);
+    doc.text("Academy Insights Report", 14, 22);
 
     doc.setFontSize(8);
     doc.setTextColor(203, 213, 225);
@@ -193,7 +193,7 @@ export const AnalyticsDashboard: React.FC = () => {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
     doc.setTextColor(15, 23, 42);
-    doc.text("1. Executive Overview KPIs", 14, 42);
+    doc.text("1. Key Figures", 14, 42);
 
     const kpiTableData = [
       ["Total Registered Members", kpis.totalMembers.toString(), "Active Today", kpis.activeMembersToday.toString()],
@@ -240,11 +240,11 @@ export const AnalyticsDashboard: React.FC = () => {
   // Export as CSV
   const handleExportCSV = () => {
     let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "BARODA SWIM FRONT - EXECUTIVE ANALYTICS REPORT\n";
+    csvContent += "BARODA SWIM FRONT - ACADEMY INSIGHTS REPORT\n";
     csvContent += `Filter Period,${filter}\n`;
     csvContent += `Generated At,${new Date().toLocaleString("en-IN")}\n\n`;
 
-    csvContent += "EXECUTIVE KPIS\n";
+    csvContent += "KEY FIGURES\n";
     csvContent += `Total Members,${kpis.totalMembers}\n`;
     csvContent += `Active Members Today,${kpis.activeMembersToday}\n`;
     csvContent += `New Registrations This Month,${kpis.newRegistrationsThisMonth}\n`;
@@ -288,13 +288,13 @@ export const AnalyticsDashboard: React.FC = () => {
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 relative z-10">
           <div>
             <div className="flex items-center gap-2 text-sky-400 text-xs font-bold uppercase tracking-wider mb-2">
-              <Sparkles className="w-4 h-4 text-sky-400" /> Baroda Swim Front Real-Time Intelligence
+              <Sparkles className="w-4 h-4 text-sky-400" /> Baroda Swim Front at a glance
             </div>
             <h1 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tight text-white">
-              Executive Analytics Dashboard
+              Academy Insights
             </h1>
             <p className="text-slate-300 text-xs md:text-sm mt-1.5 max-w-2xl">
-              Live database metrics on member acquisition, revenue streams, daily attendance velocity, batch capacities, and financial distributions.
+              New members, fees collected, daily attendance, batch sizes and how members pay — all in one place.
             </p>
           </div>
 
@@ -737,7 +737,7 @@ export const AnalyticsDashboard: React.FC = () => {
           <div>
             <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
               <PieIcon className="w-5 h-5 text-amber-500" />
-              Payment Gateway Methods
+              Payment Methods
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">Razorpay, UPI, Cards, NetBanking, Cash</p>
           </div>

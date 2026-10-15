@@ -297,7 +297,7 @@ export function DigitalMembershipCard({ member, compact = false }: DigitalMember
           {/* Footer tag */}
           <div className="relative z-10 mt-3 pt-2 flex items-center justify-between text-[10px] text-slate-400 font-mono border-t border-white/5">
             <span className="flex items-center gap-1 text-slate-400">
-              <Sparkles className="w-3 h-3 text-cyan-400" /> SAMS SECURE QR PASS
+              <Sparkles className="w-3 h-3 text-cyan-400" /> MEMBER QR PASS
             </span>
             <span>VERIFIED DIGITAL PASS</span>
           </div>

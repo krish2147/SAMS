@@ -164,13 +164,8 @@ export function AcademySelector({ onSelectAcademy }: AcademySelectorProps) {
       {/* Simplified Footer */}
       <footer className="py-6 px-6 md:px-12 border-t border-white/5 bg-black/40 backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0">
         <span className="text-[9px] uppercase tracking-[0.25em] text-white/30 font-mono text-center sm:text-left">
-          Seamless Multilateral Athletic management system
+          Choose your academy to get started
         </span>
-        <div className="text-[9px] font-mono text-white/40 flex items-center gap-2">
-          <span>SECURE NODE</span>
-          <span>•</span>
-          <span>PCI-DSS ENCRYPTED</span>
-        </div>
       </footer>
 
     </div>

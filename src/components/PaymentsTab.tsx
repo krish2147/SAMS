@@ -104,7 +104,7 @@ export function PaymentsTab({ getSessionToken, userRole = "admin", username = "A
           const errData = await res.json();
           serverMsg = errData.error || errData.message || "";
         } catch (_) {}
-        throw new Error(serverMsg || `Failed to fetch payment records (Status ${res.status})`);
+        throw new Error(serverMsg || "Couldn't load payments. Please try again.");
       }
 
       const data = await res.json().catch(() => ({}));
@@ -124,7 +124,7 @@ export function PaymentsTab({ getSessionToken, userRole = "admin", username = "A
       }
     } catch (err: any) {
       console.error("Error fetching payments data:", err);
-      setErrorMsg(err.message || "Unable to connect to database payments server.");
+      setErrorMsg(err.message || "Couldn't load payments. Check your internet connection and try again.");
     } finally {
       setIsRefreshing(false);
     }
@@ -168,7 +168,7 @@ export function PaymentsTab({ getSessionToken, userRole = "admin", username = "A
       });
 
       if (!orderRes.ok) {
-        throw new Error("Failed to generate Razorpay order from server.");
+        throw new Error("Couldn't start the Razorpay payment. Please try again.");
       }
 
       const orderData = await orderRes.json().catch(() => ({}));
@@ -242,7 +242,7 @@ export function PaymentsTab({ getSessionToken, userRole = "admin", username = "A
 
     } catch (err: any) {
       console.error("Razorpay Checkout Error:", err);
-      setErrorMsg(err.message || "Failed to launch Razorpay payment gateway.");
+      setErrorMsg(err.message || "Couldn't open Razorpay. Please try again.");
     }
   };
 
@@ -270,13 +270,13 @@ export function PaymentsTab({ getSessionToken, userRole = "admin", username = "A
           link: data.paymentLink,
           memberName: tx.memberName
         });
-        setSuccessMsg(`Payment link generated and dispatched to ${tx.memberName} via WhatsApp, SMS, and Email.`);
+        setSuccessMsg(`Payment link sent to ${tx.memberName} on WhatsApp, SMS and email.`);
         fetchPaymentsData();
       } else {
         throw new Error(data.error || "Failed to send payment link.");
       }
     } catch (err: any) {
-      setErrorMsg(err.message || "Failed to dispatch payment link.");
+      setErrorMsg(err.message || "Couldn't send the payment link. Please try again.");
     }
   };
 
@@ -373,7 +373,7 @@ export function PaymentsTab({ getSessionToken, userRole = "admin", username = "A
         <ShieldAlert className="h-12 w-12 text-amber-500 mx-auto mb-4" />
         <h2 className="text-xl font-bold text-slate-900">Payment Access Restricted</h2>
         <p className="text-sm text-slate-500 mt-2">
-          Coaches do not have permission to access financial ledger management. Please contact the Super Admin or Academy Manager for fee records.
+          Coaches can't view payments. Please ask the Super Admin or Academy Manager for fee details.
         </p>
       </div>
     );
@@ -385,9 +385,9 @@ export function PaymentsTab({ getSessionToken, userRole = "admin", username = "A
       {/* HEADER SECTION */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
-          <span className="text-xs font-black tracking-widest text-sky-600 uppercase block mb-1">FINANCIAL MANAGEMENT ENGINE</span>
-          <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Payments & Revenue Ledger</h1>
-          <p className="text-sm text-slate-500 font-medium mt-1">Real-time MySQL collection auditing, automated Razorpay order tracking, and receipt generation.</p>
+          <span className="text-xs font-black tracking-widest text-sky-600 uppercase block mb-1">Fees & payments</span>
+          <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Payments & Revenue</h1>
+          <p className="text-sm text-slate-500 font-medium mt-1">See every fee collected, track Razorpay payments and download receipts.</p>
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
@@ -414,7 +414,7 @@ export function PaymentsTab({ getSessionToken, userRole = "admin", username = "A
             className="inline-flex items-center gap-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold px-4 py-2 rounded-2xl shadow-xs text-xs md:text-sm transition-all cursor-pointer disabled:opacity-50"
           >
             <RefreshCw className={`h-4 w-4 text-slate-500 ${isRefreshing ? "animate-spin" : ""}`} />
-            <span>{isRefreshing ? "Syncing..." : "Refresh"}</span>
+            <span>{isRefreshing ? "Refreshing..." : "Refresh"}</span>
           </button>
         </div>
       </div>
@@ -425,7 +425,7 @@ export function PaymentsTab({ getSessionToken, userRole = "admin", username = "A
           <div className="flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
             <div>
-              <h5 className="text-sm font-bold text-rose-800">Operational Notice</h5>
+              <h5 className="text-sm font-bold text-rose-800">Something went wrong</h5>
               <p className="text-xs text-rose-700 mt-0.5 font-medium">{errorMsg}</p>
             </div>
           </div>
@@ -460,7 +460,7 @@ export function PaymentsTab({ getSessionToken, userRole = "admin", username = "A
             </div>
             <div className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight mt-2">{formatCurrency(summary.totalRevenue)}</div>
           </div>
-          <span className="text-[10px] text-emerald-600 font-extrabold tracking-wide block mt-3">✓ 100% Real MySQL Database</span>
+          <span className="text-[10px] text-emerald-600 font-extrabold tracking-wide block mt-3">All payments to date</span>
         </div>
 
         {/* Today's Revenue */}
@@ -474,7 +474,7 @@ export function PaymentsTab({ getSessionToken, userRole = "admin", username = "A
             </div>
             <div className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight mt-2">{formatCurrency(summary.todaysRevenue)}</div>
           </div>
-          <span className="text-[10px] text-sky-600 font-extrabold tracking-wide block mt-3">● Real-time Razorpay webhook</span>
+          <span className="text-[10px] text-sky-600 font-extrabold tracking-wide block mt-3">Collected today</span>
         </div>
 
         {/* Monthly Revenue */}
@@ -656,7 +656,7 @@ export function PaymentsTab({ getSessionToken, userRole = "admin", username = "A
       <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-xs">
         <div className="border-b border-slate-200 px-6 py-4 flex justify-between items-center bg-slate-50">
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-extrabold uppercase text-slate-800 tracking-wider">Payments Ledger</h3>
+            <h3 className="text-sm font-extrabold uppercase text-slate-800 tracking-wider">All Payments</h3>
             <span className="bg-slate-200 text-slate-700 text-[10px] font-black px-2 py-0.5 rounded-full">{transactions.length} Records</span>
           </div>
           <span className="text-xs font-mono font-bold text-slate-400">All amounts in INR (₹)</span>
@@ -745,7 +745,7 @@ export function PaymentsTab({ getSessionToken, userRole = "admin", username = "A
 
                     {/* Approved By */}
                     <td className="p-4 font-bold text-slate-600 text-[11px]">
-                      {tx.approvedBy || "System Admin"}
+                      {tx.approvedBy || "Admin"}
                     </td>
 
                     {/* Actions */}
@@ -770,7 +770,7 @@ export function PaymentsTab({ getSessionToken, userRole = "admin", username = "A
                         {(tx.status === "Pending" || tx.status === "Failed") && (
                           <button
                             onClick={() => handleOpenRazorpayCheckout(tx)}
-                            title="Collect Fee via Razorpay Gateway"
+                            title="Collect fee online with Razorpay"
                             className="p-1.5 hover:bg-emerald-50 text-emerald-600 rounded-lg transition-colors cursor-pointer"
                           >
                             <CreditCard className="h-4 w-4" />
@@ -823,7 +823,7 @@ export function PaymentsTab({ getSessionToken, userRole = "admin", username = "A
                   <FileText className="h-6 w-6" />
                 </div>
                 <div>
-                  <span className="text-[10px] font-black text-sky-600 uppercase tracking-widest block">TRANSACTION AUDIT VIEW</span>
+                  <span className="text-[10px] font-black text-sky-600 uppercase tracking-widest block">Payment details</span>
                   <h3 className="text-xl font-extrabold text-slate-900">Payment & Receipt Details</h3>
                 </div>
               </div>
@@ -896,7 +896,7 @@ export function PaymentsTab({ getSessionToken, userRole = "admin", username = "A
 
               {/* Gateway & Technical Details */}
               <div className="bg-slate-900 text-slate-200 p-4 rounded-2xl space-y-2 font-mono text-xs mb-6">
-                <div className="text-[10px] font-bold uppercase text-slate-400 mb-1">Razorpay Gateway Technical Log</div>
+                <div className="text-[10px] font-bold uppercase text-slate-400 mb-1">Razorpay details</div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Order ID:</span>
                   <span className="text-sky-400">{selectedTx.orderId}</span>
@@ -907,7 +907,7 @@ export function PaymentsTab({ getSessionToken, userRole = "admin", username = "A
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Approved By:</span>
-                  <span className="text-slate-300">{selectedTx.approvedBy || "System Admin"}</span>
+                  <span className="text-slate-300">{selectedTx.approvedBy || "Admin"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Payment Date:</span>
@@ -979,7 +979,7 @@ export function PaymentsTab({ getSessionToken, userRole = "admin", username = "A
               </div>
 
               <p className="text-xs text-slate-500 mb-4 font-medium">
-                Refunding payment for <strong className="text-slate-800">{refundTx.memberName}</strong> ({refundTx.membershipNo}). This action updates the database record and initiates a Razorpay refund.
+                Refunding payment for <strong className="text-slate-800">{refundTx.memberName}</strong> ({refundTx.membershipNo}). This marks the payment as refunded and starts a Razorpay refund.
               </p>
 
               <div className="space-y-4 mb-6">
@@ -1051,12 +1051,12 @@ export function PaymentsTab({ getSessionToken, userRole = "admin", username = "A
                 </div>
                 <div>
                   <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest block">PAYMENT LINK GENERATED</span>
-                  <h3 className="text-lg font-extrabold text-slate-900">Dispatched Successfully</h3>
+                  <h3 className="text-lg font-extrabold text-slate-900">Sent Successfully</h3>
                 </div>
               </div>
 
               <p className="text-xs text-slate-600 mb-4 font-medium">
-                Payment request link has been dispatched to <strong className="text-slate-900">{sentLinkData.memberName}</strong> via WhatsApp, Email, and SMS.
+                The payment link has been sent to <strong className="text-slate-900">{sentLinkData.memberName}</strong> via WhatsApp, Email, and SMS.
               </p>
 
               <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 mb-6 font-mono text-xs break-all text-slate-700">
@@ -1099,7 +1099,7 @@ export function PaymentsTab({ getSessionToken, userRole = "admin", username = "A
                   <Sparkles className="h-6 w-6" />
                 </div>
                 <div>
-                  <span className="text-[10px] font-black text-sky-600 uppercase tracking-widest block">AUDIT BREAKDOWN</span>
+                  <span className="text-[10px] font-black text-sky-600 uppercase tracking-widest block">Breakdown</span>
                   <h3 className="text-xl font-extrabold text-slate-900">Financial Reports & Analytics</h3>
                 </div>
               </div>
@@ -1150,7 +1150,7 @@ export function PaymentsTab({ getSessionToken, userRole = "admin", username = "A
                   onClick={() => generateCSVReport(reportsData.transactions || [])}
                   className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-5 py-2.5 rounded-2xl text-xs transition-all cursor-pointer shadow-xs"
                 >
-                  Export Full Ledger CSV
+                  Download All Payments (CSV)
                 </button>
               </div>
 

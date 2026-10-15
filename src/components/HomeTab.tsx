@@ -127,14 +127,14 @@ export function HomeTab({
       id: "members",
       label: "Members Directory",
       icon: Users,
-      description: "Search, inspect, or manage active swimmers",
+      description: "Search, view or manage your swimmers",
       allowed: true, // Everyone can see member list
     },
     {
       id: "revenue",
-      label: "Payments Ledger",
+      label: "Payments",
       icon: IndianRupee,
-      description: "View gross revenue & transaction logs",
+      description: "See fees collected and past payments",
       allowed: isAdmin,
     },
     {
@@ -169,7 +169,7 @@ export function HomeTab({
       id: "reports",
       label: "Reports",
       icon: Database,
-      description: "Generate roster & operational stats reports",
+      description: "Download member, attendance & fee reports",
       allowed: isAdmin,
     }
   ];
@@ -202,21 +202,12 @@ export function HomeTab({
       <div className="bg-gradient-to-r from-ink-950 via-ink-900 to-ink-950 text-white rounded-3xl p-6 md:p-8 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative overflow-hidden border border-white/10">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(14,165,233,0.12),transparent_50%)] animate-pulse" />
         <div className="text-left relative z-10 space-y-3">
-          <div className="flex items-center gap-2">
-            <span className="text-[9px] font-extrabold uppercase tracking-widest text-aqua-300 bg-aqua-400/10 px-2.5 py-1 rounded-full border border-aqua-400/25">
-              {isSwim ? "Swim Academy Management" : "Cricket Academy Management"}
-            </span>
-            <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 font-bold">
-              ● Live System Operational
-            </span>
-          </div>
-
           <h2 className="text-2xl md:text-3xl font-black tracking-tight">
             {getGreeting()} {displayName} 👋
           </h2>
 
           <p className="text-xs text-slate-300 max-w-xl font-normal leading-relaxed">
-            Baroda Swim Front Management System is synced with MySQL database.
+            {isSwim ? "Here's what's happening at the pool today." : "Here's what's happening at the academy today."}
           </p>
 
           {/* Today's Tasks Badge Summary */}
@@ -250,7 +241,7 @@ export function HomeTab({
               className="w-full md:w-auto px-5 py-3 rounded-xl bg-aqua-500 hover:bg-aqua-600 text-white text-xs font-bold uppercase tracking-wider transition-all shadow-md hover:shadow-aqua-500/20 active:scale-[0.97] cursor-pointer flex items-center justify-center gap-2"
             >
               <UserPlus className="h-4 w-4" />
-              <span>Walk-in Intake</span>
+              <span>Add Walk-in</span>
             </button>
           )}
         </div>
@@ -294,7 +285,7 @@ export function HomeTab({
       {/* 3. TODAY'S ALERTS (Pending Approvals, Renewals, Revenue) */}
       <div className="space-y-4">
         <div className="text-left">
-          <span className="text-[10px] font-mono tracking-wider text-ink-400 uppercase font-bold">Operational Pulses</span>
+          <span className="text-[10px] font-mono tracking-wider text-ink-400 uppercase font-bold">At a glance</span>
           <h3 className="text-base font-extrabold text-ink-900 uppercase tracking-tight mt-0.5">Today's Alerts</h3>
         </div>
 
@@ -354,7 +345,7 @@ export function HomeTab({
                 <span className="text-[9px] font-bold text-emerald-600 font-mono">INR</span>
               </div>
               <span className="text-[9.5px] md:text-11px text-emerald-600 font-semibold block mt-3 pt-2.5 border-t border-slate-50">
-                Audit gross ledger →
+                View payments →
               </span>
             </button>
           ) : (
@@ -366,7 +357,7 @@ export function HomeTab({
                 </span>
               </div>
               <span className="text-[9.5px] md:text-11px text-ink-600 font-medium block mt-3 pt-2.5 border-t border-ink-100">
-                Lobby directory is online
+                Members with an active plan
               </span>
             </div>
           )}
@@ -410,9 +401,9 @@ export function HomeTab({
                       {m.fullName}
                     </h5>
                     <p className="text-[10.5px] text-ink-400 font-medium leading-relaxed mt-0.5">
-                      {isApproved ? "Registration verified & biometric token active" : 
+                      {isApproved ? "Registration approved" : 
                        isRejected ? `Profile registration rejected (Reason: ${m.remarks || "Bad details"})` :
-                       "New enrollment submitted & awaiting manager verification"}
+                       "New registration waiting for approval"}
                     </p>
                     <div className="flex items-center gap-2 mt-1.5 text-[9px] font-mono text-ink-400">
                       <span className="bg-ink-50 border border-ink-100 px-1.5 py-0.5 rounded">
@@ -440,8 +431,8 @@ export function HomeTab({
 
           {recentActivities.length === 0 && (
             <div className="py-12 text-center text-ink-400 space-y-2">
-              <span className="text-sm font-medium">No recent operations recorded</span>
-              <p className="text-xs">Incoming walk-ins or online enrollments will stream here in real-time.</p>
+              <span className="text-sm font-medium">No recent activity yet</span>
+              <p className="text-xs">New walk-ins and online registrations will show up here.</p>
             </div>
           )}
         </div>

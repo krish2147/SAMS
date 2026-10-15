@@ -297,7 +297,7 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
           return;
         }
         if (!email.includes("@")) {
-          setAuthError("Please specify a valid corporate email.");
+          setAuthError("Please enter a valid email address.");
           return;
         }
         if (password.length < MIN_PASSWORD_LENGTH) {
@@ -349,7 +349,7 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
           })
           .catch((err) => {
             setIsVerifying(false);
-            setAuthError(err.message || "Could not register corporate account.");
+            setAuthError(err.message || "Couldn't create the account. Please try again.");
           });
       } else {
         const identifier = email.trim();
@@ -407,7 +407,7 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
           })
           .catch((err) => {
             setIsVerifying(false);
-            setAuthError(err.message || "Access Denied: Invalid credentials.");
+            setAuthError(err.message || "Wrong email or password. Please try again.");
           });
       }
     }
@@ -556,7 +556,7 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
             </div>
             <div className="flex-grow text-left">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-sky-300">SAMS</span>
+                <span className="text-xs font-semibold text-sky-300">Messages</span>
                 <span className="text-[9px] opacity-40">just now</span>
               </div>
               <p className="text-xs font-semibold leading-relaxed mt-1 text-slate-100">{smsNotification}</p>

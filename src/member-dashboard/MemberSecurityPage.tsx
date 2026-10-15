@@ -50,7 +50,7 @@ export function MemberSecurityPage({ onLogout }: { onLogout?: () => void }) {
         </Row>
 
         <Row icon={ShieldCheck} title="Changing your registered mobile number">
-          Your mobile number is how the system identifies you, so it cannot be changed from here. Please visit the
+          Your mobile number is how we identify you, so it cannot be changed from here. Please visit the
           academy reception with photo identification and staff will update it for you.
         </Row>
       </section>

@@ -161,7 +161,7 @@ export const CommunicationTab: React.FC = () => {
       });
       const data = await res.json().catch(() => ({}));
       if (data.success) {
-        setActionMessage({ type: "success", text: "Message re-dispatched successfully." });
+        setActionMessage({ type: "success", text: "Message sent again." });
         fetchLogsAndStats();
       } else {
         setActionMessage({ type: "error", text: data.error || "Retry failed." });
@@ -203,7 +203,7 @@ export const CommunicationTab: React.FC = () => {
         fetchLogsAndStats();
         setActiveTab("logs");
       } else {
-        setActionMessage({ type: "error", text: data.error || "Failed to dispatch bulk announcement." });
+        setActionMessage({ type: "error", text: data.error || "Couldn't send the announcement. Please try again." });
       }
     } catch (err: any) {
       setActionMessage({ type: "error", text: "Network request failed while sending bulk message." });
@@ -263,11 +263,11 @@ export const CommunicationTab: React.FC = () => {
       });
       const data = await res.json().catch(() => ({}));
       if (data.success) {
-        setActionMessage({ type: "success", text: `Test notification '${testEventKey}' dispatched successfully!` });
+        setActionMessage({ type: "success", text: `Test message '${testEventKey}' sent.` });
         fetchLogsAndStats();
         setActiveTab("logs");
       } else {
-        setActionMessage({ type: "error", text: data.error || "Test trigger failed." });
+        setActionMessage({ type: "error", text: data.error || "Test message failed. Please try again." });
       }
     } catch (err) {
       setActionMessage({ type: "error", text: "Failed to send test notification." });
@@ -313,11 +313,11 @@ export const CommunicationTab: React.FC = () => {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 relative z-10">
           <div>
             <div className="flex items-center gap-2 text-sky-400 text-xs font-bold uppercase tracking-wider mb-1">
-              <Sparkles className="w-4 h-4" /> BSF Communication & Messaging Hub
+              <Sparkles className="w-4 h-4" /> Messages
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Communication Center</h1>
             <p className="text-slate-300 text-sm mt-1 max-w-xl">
-              Automated multi-channel notifications via WhatsApp Business API, MSG91 SMS Gateway, and HTML Email for Baroda Swim Front.
+              Automatic and manual WhatsApp, SMS and email messages to Baroda Swim Front members.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -344,7 +344,7 @@ export const CommunicationTab: React.FC = () => {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Dispatches</p>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Messages Sent</p>
             <p className="text-2xl font-black text-slate-900 mt-1">{stats.totalSent}</p>
             <p className="text-[11px] text-slate-400 mt-0.5">Automated & Manual</p>
           </div>
@@ -454,7 +454,7 @@ export const CommunicationTab: React.FC = () => {
           }`}
         >
           <FileText className="w-4 h-4" />
-          Message Templates Manager
+          Message Templates
         </button>
 
         <button
@@ -466,7 +466,7 @@ export const CommunicationTab: React.FC = () => {
           }`}
         >
           <Zap className="w-4 h-4" />
-          Manual Test Trigger Bench
+          Send a Test Message
         </button>
       </div>
 
@@ -505,7 +505,7 @@ export const CommunicationTab: React.FC = () => {
 
               <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200 text-xs text-slate-600">
                 <Filter className="w-3.5 h-3.5 text-slate-400" />
-                <span className="font-semibold text-slate-500">Trigger:</span>
+                <span className="font-semibold text-slate-500">Message type:</span>
                 <select
                   value={selectedEvent}
                   onChange={(e) => setSelectedEvent(e.target.value)}
@@ -550,7 +550,7 @@ export const CommunicationTab: React.FC = () => {
                       <td colSpan={8} className="text-center py-12 text-slate-400">
                         <MessageSquare className="w-10 h-10 mx-auto mb-2 text-slate-300" />
                         <p className="font-semibold text-slate-600">No communication logs found.</p>
-                        <p className="text-xs text-slate-400">Trigger an event or send a bulk announcement to populate real-time logs.</p>
+                        <p className="text-xs text-slate-400">Messages you send will show up here.</p>
                       </td>
                     </tr>
                   ) : (
@@ -631,7 +631,7 @@ export const CommunicationTab: React.FC = () => {
             <div>
               <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
                 <Send className="w-5 h-5 text-sky-600" />
-                Dispatch Bulk Announcement
+                Send an Announcement to Everyone
               </h2>
               <p className="text-xs text-slate-500 mt-1">
                 Send official announcements instantly across WhatsApp, MSG91 SMS, and HTML Email to selected member groups.
@@ -701,7 +701,7 @@ export const CommunicationTab: React.FC = () => {
                   className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs transition shadow-lg shadow-sky-600/25 disabled:opacity-50"
                 >
                   <Send className={`w-4 h-4 ${bulkSending ? "animate-bounce" : ""}`} />
-                  {bulkSending ? "Dispatching..." : "Send Announcement Now"}
+                  {bulkSending ? "Sending..." : "Send Announcement Now"}
                 </button>
               </div>
             </form>
@@ -714,7 +714,7 @@ export const CommunicationTab: React.FC = () => {
               Dynamic Personalization Variables
             </h3>
             <p className="text-xs text-slate-500">
-              You can insert variables into your messages. The backend automatically populates them per member:
+              You can add these placeholders to your messages. Each member will see their own details in their place:
             </p>
             <div className="space-y-2 text-xs font-mono">
               <div className="p-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-700">
@@ -768,7 +768,7 @@ export const CommunicationTab: React.FC = () => {
                 <div className="flex items-center justify-between border-b pb-3">
                   <div>
                     <h3 className="font-extrabold text-base text-slate-900">{editingTemplate.title}</h3>
-                    <p className="text-xs font-mono text-slate-400">Trigger: {editingTemplate.event_key}</p>
+                    <p className="text-xs font-mono text-slate-400">Type: {editingTemplate.event_key}</p>
                   </div>
                   <button
                     type="submit"
@@ -852,17 +852,17 @@ export const CommunicationTab: React.FC = () => {
           <div>
             <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
               <Zap className="w-5 h-5 text-amber-500" />
-              Manual Test Trigger Bench
+              Send a Test Message
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              Instantly test backend trigger events to verify WhatsApp, SMS, and Email integrations in real-time.
+              Send yourself a test message to check that WhatsApp, SMS and email are working.
             </p>
           </div>
 
           <form onSubmit={handleTestTrigger} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Select Event Trigger
+                Choose message type
               </label>
               <select
                 value={testEventKey}
@@ -925,7 +925,7 @@ export const CommunicationTab: React.FC = () => {
                 className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs transition shadow-lg shadow-amber-500/25 disabled:opacity-50"
               >
                 <Zap className={`w-4 h-4 ${testSending ? "animate-bounce" : ""}`} />
-                {testSending ? "Dispatching Test Event..." : "Send Test Notification"}
+                {testSending ? "Sending test..." : "Send Test Notification"}
               </button>
             </div>
           </form>

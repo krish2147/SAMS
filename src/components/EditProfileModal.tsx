@@ -182,7 +182,7 @@ export function EditProfileModal({ isOpen, onClose, currentProfile, onSave, isSw
       };
 
       await onSave(updatedData);
-      setSuccessMessage("Profile updated and synchronized successfully!");
+      setSuccessMessage("Profile updated successfully!");
       setTimeout(() => {
         setSuccessMessage("");
         onClose();
@@ -233,7 +233,7 @@ export function EditProfileModal({ isOpen, onClose, currentProfile, onSave, isSw
 
         {/* Header */}
         <div className="p-6 md:p-8 pb-4 border-b border-slate-100 shrink-0 text-left">
-          <span className="text-[10px] font-mono tracking-widest text-slate-400 uppercase">SAMS PROFILE SYSTEM</span>
+          <span className="text-[10px] font-mono tracking-widest text-slate-400 uppercase">Your profile</span>
           <h3 className="text-xl font-black mt-1 text-slate-900">Update Member Information</h3>
           <p className="text-xs text-slate-500 mt-0.5">Keep your photo, personal contact details, residential address, and emergency contacts current.</p>
         </div>

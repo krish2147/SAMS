@@ -77,7 +77,7 @@ export function ReceptionKioskModal({
       setActiveConfirmation({
         member: { fullName: "Unknown Pass", membershipNo: qrValue },
         time: new Date().toLocaleTimeString(),
-        errorReason: "Invalid QR Code - Member not found in database!"
+        errorReason: "Invalid QR code — member not found."
       });
       return;
     }

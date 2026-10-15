@@ -14,6 +14,8 @@ import { MemberTimelineModal } from "./MemberTimelineModal";
 import { DailyClosingReportModal } from "./DailyClosingReportModal";
 import { NotificationDrawer, SysNotification } from "./NotificationDrawer";
 import { sessionStore } from "../utils/sessionStore";
+import { useStaffNotifications } from "../utils/useStaffNotifications";
+import { NotificationCountBadge } from "./NotificationCountBadge";
 
 interface ReceptionistDashboardProps {
   academyId: AcademyId;
@@ -73,11 +75,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
   const [isTimelineModalOpen, setIsTimelineModalOpen] = useState(false);
   const [isClosingReportModalOpen, setIsClosingReportModalOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<SysNotification[]>([
-    { id: 101, text: "New member registration pending front-desk review", time: "5m ago", read: false, type: "registration", title: "Member Verification" },
-    { id: 102, text: "3 memberships due for quarterly renewal this week", time: "30m ago", read: false, type: "renewal", title: "Expiration Notice" },
-    { id: 103, text: "Morning Batch 07:00 AM swum check-ins synchronized", time: "1h ago", read: true, type: "system", title: "Attendance Logged" }
-  ]);
+  const staffFeed = useStaffNotifications();
   
   // Local persistent state for walk-in inquiries
   const [walkInInquiries, setWalkInInquiries] = useState<any[]>(() => {
@@ -134,7 +132,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
       }
     } catch (err) {
       console.error("Failed to load receptionist dashboard data:", err);
-      showToast("Failed to fetch real-time database records", "error");
+      showToast("Couldn't load the latest records. Please try again.", "error");
     } finally {
       setIsDataLoading(false);
       setIsRefreshing(false);
@@ -296,7 +294,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
 
   // Send Reminder function (staff restricted capability simulation with visual toast/activity log)
   const handleSendReminder = (member: any) => {
-    showToast(`Payment reminder dispatched to ${member.fullName}'s parent via SMS & WhatsApp!`);
+    showToast(`Payment reminder sent to ${member.fullName}'s parent on SMS & WhatsApp!`);
   };
 
   // Notify Admin function (staff capability simulation)
@@ -313,16 +311,16 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
         <div className="p-5 bg-red-500/10 text-red-500 border border-red-500/20 rounded-full mb-6">
           <ShieldAlert className="h-10 w-10" />
         </div>
-        <h3 className="text-xl font-bold mb-2">Restricted Access Terminal</h3>
+        <h3 className="text-xl font-bold mb-2">Reception staff only</h3>
         <p className="text-sm text-slate-500 max-w-md leading-relaxed">
-          The Baroda Swim Front Front Reception Console is restricted to authorized desk staff. Your current role is <strong className="uppercase text-red-500">[{sessionUser?.role || "unknown"}]</strong>.
+          The Baroda Swim Front reception screen is only for front desk staff. Your current role is <strong className="uppercase text-red-500">[{sessionUser?.role || "unknown"}]</strong>.
         </p>
         {onLogout && (
           <button 
             onClick={onLogout} 
             className="mt-6 px-6 py-2.5 bg-slate-950 hover:bg-slate-900 text-white rounded-xl text-xs font-bold cursor-pointer transition-all shadow-sm"
           >
-            Sign Out of Console
+            Log Out
           </button>
         )}
       </div>
@@ -363,14 +361,14 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
               <h1 className="text-lg font-black tracking-tight text-slate-950">Baroda Swim Front</h1>
               <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400">
                 <span className="h-2 w-2 rounded-full bg-sky-400 inline-block animate-pulse"></span>
-                <span>FRONT DESK OPERATIONS CONSOLE</span>
+                <span>Reception</span>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-3.5 w-full sm:w-auto justify-between sm:justify-end">
             <div className="text-right hidden md:block">
-              <span className="text-[10px] font-bold font-mono text-slate-400 block uppercase">OPERATOR</span>
+              <span className="text-[10px] font-bold font-mono text-slate-400 block uppercase">LOGGED IN AS</span>
               <span className="text-sm font-extrabold text-slate-800">{userName || "Receptionist"}</span>
             </div>
 
@@ -406,7 +404,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
                 onClick={fetchDashboardData}
                 disabled={isRefreshing}
                 className="p-2.5 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl transition-all cursor-pointer border border-slate-100 relative group"
-                title="Refresh Real-time Records"
+                title="Refresh"
                 id="btn-refresh-dashboard"
               >
                 <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin text-sky-500" : ""}`} />
@@ -415,13 +413,11 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
               <button
                 onClick={() => setNotificationsOpen(!notificationsOpen)}
                 className="p-2.5 bg-white hover:bg-slate-50 text-slate-700 rounded-xl transition-all cursor-pointer border border-slate-200 relative group shadow-2xs"
-                title="Recent System Alerts & Desk Notifications"
+                title="Notifications" aria-label="Notifications"
                 id="btn-receptionist-bell"
               >
                 <Bell className="h-4 w-4" />
-                {notifications.some(n => !n.read) && (
-                  <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-rose-500 rounded-full border border-white" />
-                )}
+                <NotificationCountBadge count={staffFeed.unreadCount} />
               </button>
 
               {onLogout && (
@@ -550,7 +546,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
               
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-5">
                 <div>
-                  <span className="text-[9px] font-mono tracking-widest text-slate-400 uppercase">Verification Hub</span>
+                  <span className="text-[9px] font-mono tracking-widest text-slate-400 uppercase">Member check-in</span>
                   <h2 className="text-base font-extrabold text-slate-900 mt-0.5">Quick Member Search</h2>
                 </div>
                 <button
@@ -621,7 +617,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
               )}
 
               <p className="text-[11px] font-semibold text-slate-400 mt-3 leading-relaxed">
-                Scan or input Swimmer credentials above. Once selected, their profile details, health checks, and quick Check-In controls will render below.
+                Scan a member's card or search above. Their details, health notes and check-in button will appear here.
               </p>
             </div>
 
@@ -741,7 +737,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
                   <User className="h-10 w-10 mx-auto opacity-35 mb-3.5 text-slate-400" />
                   <p className="text-xs font-bold">No Swimmer Selected</p>
                   <p className="text-[11px] font-medium opacity-70 max-w-sm mx-auto mt-1 leading-relaxed">
-                    Type a query in the verification hub search bar above to look up, verify credentials, and trigger lobby check-ins.
+                    Search for a member above by name, phone or member ID to check them in.
                   </p>
                 </div>
               )}
@@ -751,7 +747,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
             <div className="bg-white p-5 md:p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4" id="today-checkins-panel">
               <div className="flex justify-between items-center pb-2">
                 <div>
-                  <span className="text-[9px] font-mono tracking-widest text-slate-400 uppercase">Real-Time Registry</span>
+                  <span className="text-[9px] font-mono tracking-widest text-slate-400 uppercase">Today's check-ins</span>
                   <h3 className="text-base font-extrabold text-slate-900 mt-0.5">Today's Check-Ins</h3>
                 </div>
                 <span className="text-[10px] font-extrabold bg-sky-50 text-sky-600 border border-sky-100 px-3 py-1 rounded-full font-mono">
@@ -762,7 +758,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
               {isDataLoading ? (
                 <div className="py-12 flex flex-col items-center justify-center gap-2 opacity-55">
                   <RefreshCw className="h-5 w-5 animate-spin" />
-                  <span className="text-xs font-medium">Synchronizing live attendance log...</span>
+                  <span className="text-xs font-medium">Loading today's attendance...</span>
                 </div>
               ) : todayCheckIns.length > 0 ? (
                 <div className="overflow-x-auto border border-slate-100 rounded-2xl">
@@ -852,7 +848,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
             <div className="bg-white p-5 md:p-6 rounded-3xl border border-slate-100 shadow-sm" id="pending-approvals-panel">
               <div className="flex justify-between items-center mb-4">
                 <div>
-                  <span className="text-[9px] font-mono tracking-widest text-slate-400 uppercase">Verification pipeline</span>
+                  <span className="text-[9px] font-mono tracking-widest text-slate-400 uppercase">Waiting for approval</span>
                   <h3 className="text-base font-extrabold text-slate-900 mt-0.5">Pending Approvals</h3>
                 </div>
                 <span className="text-[10px] font-extrabold bg-amber-50 text-amber-600 border border-amber-100 px-2 py-0.5 rounded-full font-mono">
@@ -996,7 +992,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
               <div className="p-5 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
                 <div className="flex items-center gap-2.5">
                   <User className="h-5 w-5 text-sky-500" />
-                  <h3 className="text-base font-black text-slate-900 uppercase">Swimmer Audit Dossier</h3>
+                  <h3 className="text-base font-black text-slate-900 uppercase">Swimmer Details</h3>
                 </div>
                 <button
                   onClick={() => setIsProfileModalOpen(false)}
@@ -1105,7 +1101,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
                   onClick={() => setIsProfileModalOpen(false)}
                   className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold rounded-xl text-xs uppercase cursor-pointer"
                 >
-                  Close Dossier
+                  Close
                 </button>
               </div>
             </motion.div>
@@ -1262,7 +1258,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
                 
                 <div className="bg-amber-50/50 p-4 rounded-2xl border border-amber-200/40 text-amber-800 leading-relaxed">
                   <p className="font-extrabold flex items-center gap-2 mb-1">
-                    <Clock className="h-4 w-4 text-amber-600" /> Status: Under Operational Review
+                    <Clock className="h-4 w-4 text-amber-600" /> Status: Under Review
                   </p>
                   <span>This application has been successfully logged. Front desk staff can view profiles and notify Swimmer Ops Administrators to expedite approvals below.</span>
                 </div>
@@ -1452,19 +1448,11 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
       <NotificationDrawer
         isOpen={notificationsOpen}
         onClose={() => setNotificationsOpen(false)}
-        notifications={notifications}
-        onMarkRead={(id) => {
-          setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-        }}
-        onMarkAllRead={() => {
-          setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-        }}
-        onDelete={(id) => {
-          setNotifications(prev => prev.filter(n => n.id !== id));
-        }}
-        onClearAll={() => {
-          setNotifications([]);
-        }}
+        notifications={staffFeed.notifications}
+        onMarkRead={staffFeed.markRead}
+        onMarkAllRead={staffFeed.markAllRead}
+        onDelete={staffFeed.remove}
+        onClearAll={staffFeed.clearAll}
       />
 
     </div>

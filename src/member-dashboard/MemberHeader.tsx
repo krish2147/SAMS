@@ -17,7 +17,7 @@ export function MemberHeader({ currentSection, userName, avatar, onSelect, onLog
     <header className="sticky top-0 z-30 h-16 border-b border-ink-100 bg-white/90 backdrop-blur-xl">
       <div className="flex h-full items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <div className="hidden min-w-0 items-center gap-2 text-sm lg:flex">
-          <span className="font-medium text-ink-400">Member Portal</span>
+          <span className="font-medium text-ink-400">Member dashboard</span>
           <ChevronRight className="h-4 w-4 text-ink-200" />
           <span className="truncate font-semibold text-ink-900">{currentSection.label}</span>
         </div>

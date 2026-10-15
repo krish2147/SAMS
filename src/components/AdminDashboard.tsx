@@ -32,6 +32,8 @@ import { RegisterPage } from "./RegisterPage";
 import { DailyClosingReportModal } from "./DailyClosingReportModal";
 import { sessionStore } from "../utils/sessionStore";
 import { useRememberedState } from "../utils/useRememberedState";
+import { useStaffNotifications } from "../utils/useStaffNotifications";
+import { NotificationCountBadge } from "./NotificationCountBadge";
 
 
 
@@ -108,7 +110,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [mobileMenuDrawerOpen, setMobileMenuDrawerOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const staffFeed = useStaffNotifications();
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [isClosingReportModalOpen, setIsClosingReportModalOpen] = useState(false);
 
@@ -346,7 +348,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
         else setStaffErrors({ form: message });
       }
     } catch (err: any) {
-      setStaffErrors({ form: "Could not reach the server. Check your internet connection and try again." });
+      setStaffErrors({ form: "Couldn't connect. Check your internet connection and try again." });
     }
   };
 
@@ -534,7 +536,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
       }
     } catch (err) {
       console.error(err);
-      alert("Network error: Could not reach approval server.");
+      alert("Couldn't approve right now. Check your internet connection and try again.");
     }
   };
   const handleSendWhatsAppPaymentLink = async (membershipNo: string, mobileNo?: string) => {
@@ -552,11 +554,11 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
       if (res.ok && data.success && data.whatsappStatus === "Delivered") {
         alert(data.message || `WhatsApp payment link sent successfully to ${mobileNo || "the member"}!`);
       } else {
-        alert(data.error || data.message || "Failed to dispatch WhatsApp message via MSG91.");
+        alert(data.error || data.message || "Couldn't send the WhatsApp message. Please try again.");
       }
     } catch (err: any) {
       console.error("WhatsApp dispatch error:", err);
-      alert(err.message || "Network error while connecting to WhatsApp API gateway.");
+      alert(err.message || "Couldn't send the WhatsApp message. Check your internet connection and try again.");
     }
   };
 
@@ -603,7 +605,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
       }
     } catch (err) {
       console.error(err);
-      alert("Network error: Could not reach rejection server.");
+      alert("Couldn't reject right now. Check your internet connection and try again.");
     }
   };
 
@@ -897,7 +899,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
     { id: "renewals", label: "Membership Renewals", icon: RefreshCw, hideForCoach: true },
     { id: "revenue", label: "Payments", icon: IndianRupee, adminOnly: true },
     { id: "communication", label: "Communication Center", icon: MessageSquare, hideForCoach: true },
-    { id: "calendar", label: "SAMS Calendar", icon: Calendar },
+    { id: "calendar", label: "Calendar", icon: Calendar },
     { id: "staff", label: "Staff & Coaches", icon: UserPlus },
     { id: "reports", label: "Reports", icon: Database },
     { id: "settings", label: "Settings", icon: Sliders, hideForCoach: true }
@@ -926,7 +928,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
               Baroda Swim Front
             </span>
             <span className="text-[11px] font-medium tracking-wide text-aqua-300 mt-1 truncate">
-              Staff Console
+              Admin dashboard
             </span>
           </div>
         </div>
@@ -1003,7 +1005,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
             )}
             <div>
               <span className="text-xs font-black text-slate-800 block tracking-tight">Baroda Swim Front</span>
-              <span className="text-[9px] font-mono text-sky-600 font-bold uppercase tracking-wider block leading-none">SAMS SYSTEM</span>
+              <span className="text-[9px] font-mono text-sky-600 font-bold uppercase tracking-wider block leading-none">Admin dashboard</span>
             </div>
           </div>
 
@@ -1027,9 +1029,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
               className="p-1.5 text-slate-500 hover:text-sky-600 hover:bg-slate-50 rounded-lg relative cursor-pointer"
             >
               <Bell className="h-4.5 w-4.5" />
-              {notifications.some(n => !n.read) && (
-                <span className="absolute top-1 right-1 h-1.5 w-1.5 bg-red-500 rounded-full" />
-              )}
+              <NotificationCountBadge count={staffFeed.unreadCount} className="-top-1 -right-1" />
             </button>
           </div>
         </header>
@@ -1084,12 +1084,10 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
               <button 
                 onClick={() => setNotificationsOpen(!notificationsOpen)}
                 className="p-2 text-slate-500 hover:text-sky-600 hover:bg-slate-50 rounded-xl relative cursor-pointer border border-slate-150 bg-white shadow-xs transition-colors"
-                title="System Notifications"
+                title="Notifications"
               >
                 <Bell className="h-4.5 w-4.5" />
-                {notifications.some(n => !n.read) && (
-                  <span className="absolute top-2 right-2 h-2 w-2 bg-red-500 rounded-full border border-white" />
-                )}
+                <NotificationCountBadge count={staffFeed.unreadCount} />
               </button>
             </div>
           </header>
@@ -1305,7 +1303,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                                         ? "bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-400 border border-emerald-500/30 animate-bounce"
                                         : "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500"
                                   }`}
-                                  title={m.status === "Approved" ? "Suspend member access" : m.status === "Pending Approval" ? "Approve Member & Dispatch WhatsApp Link" : "Re-activate access"}
+                                  title={m.status === "Approved" ? "Suspend member access" : m.status === "Pending Approval" ? "Approve member & send WhatsApp payment link" : "Re-activate access"}
                                 >
                                   <Check className="h-4.5 w-4.5" />
                                 </button>
@@ -1332,7 +1330,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                       ) : (
                         <tr>
                           <td colSpan={6} className="text-center py-12 opacity-50 font-light">
-                            No matching member ledger directories found.
+                            No matching members found.
                           </td>
                         </tr>
                       )}
@@ -1441,10 +1439,10 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                     <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-3">
                       <div className="flex items-center gap-2">
                         <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-[9px] font-mono uppercase tracking-widest font-black text-emerald-700">SAMS WhatsApp Gate Dispatcher</span>
+                        <span className="text-[9px] font-mono uppercase tracking-widest font-black text-emerald-700">Send on WhatsApp</span>
                       </div>
                       <p className="text-[11px] text-slate-600 leading-normal">
-                        Send registration updates, approval notifications, and instant secure payment gateway links straight to the user's mobile device via WhatsApp.
+                        Send registration updates, approval messages and online payment links straight to the member's phone on WhatsApp.
                       </p>
                       <div className="flex gap-2">
                         <a
@@ -1774,10 +1772,10 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
               <div className="absolute inset-0 z-50 bg-slate-900/40 backdrop-blur-sm rounded-3xl flex items-center justify-center p-4">
                 <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border border-slate-100 dark:border-slate-800 text-left space-y-5 animate-in zoom-in-95 duration-200">
                   <div className="space-y-2">
-                    <span className="text-[10px] font-mono uppercase tracking-widest text-red-500 font-bold block">CONFIRM ACCOUNT REVOCATION</span>
-                    <h4 className="text-lg font-black text-slate-900 dark:text-white">De-authorize SAMS Account?</h4>
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-red-500 font-bold block">Remove staff account</span>
+                    <h4 className="text-lg font-black text-slate-900 dark:text-white">Remove this account?</h4>
                     <p className="text-xs text-slate-500 leading-relaxed">
-                      Are you absolutely sure you want to permanently remove this credential? The employee will immediately lose access to front desk panels, coaching tools, and active SAMS dashboards. This action cannot be undone.
+                      Are you sure you want to remove this account? This person will no longer be able to log in to the reception, coach or admin screens. This can't be undone.
                     </p>
                   </div>
                   <div className="flex gap-3 justify-end">
@@ -1793,7 +1791,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                       onClick={() => handleRemoveStaff(deleteConfirmStaffId)}
                       className="px-4 py-2 text-xs font-bold bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-md transition-colors cursor-pointer"
                     >
-                      Yes, De-authorize
+                      Yes, remove
                     </button>
                   </div>
                 </div>
@@ -1804,8 +1802,8 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
             <div className={`lg:col-span-7 p-6 md:p-8 rounded-3xl border ${bgCard} text-left space-y-6`}>
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                  <span className="text-[10px] font-mono tracking-widest opacity-60 uppercase">AUTHORITY REGISTRY</span>
-                  <h3 className="text-lg font-bold mt-1">Authorized SAMS Staff & Coaches</h3>
+                  <span className="text-[10px] font-mono tracking-widest opacity-60 uppercase">Team</span>
+                  <h3 className="text-lg font-bold mt-1">Staff & Coaches</h3>
                 </div>
                 
                 {/* Filters */}
@@ -1900,7 +1898,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                                     <span className="font-semibold text-slate-400">Employee ID:</span> <span className="text-sky-600 font-bold">EMP-{st.role === "developer" ? "DEV" : (st.role === "admin" || st.role === "super_admin") ? "ADM" : st.role === "coach" ? "COA" : "REC"}-0{st.id?.toString().replace(/\D/g, "") || "9"}</span>
                                   </div>
                                   <div>
-                                    <span className="font-semibold text-slate-400">Department:</span> <span className="text-slate-700 font-bold">{st.role === "developer" ? "System Developer" : (st.role === "admin" || st.role === "super_admin") ? "Board of Directors" : st.role === "coach" ? "Athletics & Training" : "Front Office / Reception"}</span>
+                                    <span className="font-semibold text-slate-400">Department:</span> <span className="text-slate-700 font-bold">{st.role === "developer" ? "Developer" : (st.role === "admin" || st.role === "super_admin") ? "Board of Directors" : st.role === "coach" ? "Athletics & Training" : "Front Office / Reception"}</span>
                                   </div>
                                   <div className="sm:col-span-2">
                                     <span className="font-semibold text-slate-400">Email:</span> <span className="text-slate-700">{st.email}</span>
@@ -1920,7 +1918,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                                   id={`btn-admin-remove-staff-${st.id}`}
                                   onClick={() => setDeleteConfirmStaffId(st.id)}
                                   className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
-                                  title="De-authorize Account"
+                                  title="Remove account"
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </button>
@@ -1931,7 +1929,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                       })
                   ) : (
                     <div className="text-center py-12 opacity-50 font-light text-xs">
-                      No personnel matching this criteria was found in SAMS.
+                      No staff or coaches match this filter.
                     </div>
                   )}
                 </div>
@@ -1942,9 +1940,9 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
             <div className={`lg:col-span-5 p-6 md:p-8 rounded-3xl border ${bgCard} text-left`}>
               {(currentUserRole === "super_admin" || currentUserRole === "admin") ? (
                 <form onSubmit={handleAddStaff} noValidate className="space-y-4">
-                  <span className="text-[10px] font-mono uppercase tracking-widest opacity-50 block">Admin Security Control</span>
+                  <span className="text-[10px] font-mono uppercase tracking-widest opacity-50 block">Add a team member</span>
                   <h3 className="text-lg font-bold">Register Admin, Coach, or Staff</h3>
-                  <p className="text-xs opacity-65 leading-relaxed mb-4">Directly provision secure access credentials for institutional personnel. Public registration is fully locked down.</p>
+                  <p className="text-xs opacity-65 leading-relaxed mb-4">Create login details for your staff and coaches. Only admins can add new team accounts.</p>
 
                   <div className="space-y-4">
                     <div className="flex flex-col gap-1.5">
@@ -1976,7 +1974,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                         )}
                         <option value="coach">Professional Coach / Trainer</option>
                         <option value="receptionist">Receptionist / Front Desk Staff</option>
-                        <option value="staff">Corporate Office Staff</option>
+                        <option value="staff">Office Staff</option>
                       </select>
                     </div>
 
@@ -2000,7 +1998,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label htmlFor="new-staff-email" className="text-[9.5px] font-mono uppercase text-slate-500">Corporate Email Address <span className="text-rose-600" aria-hidden="true">*</span></label>
+                      <label htmlFor="new-staff-email" className="text-[9.5px] font-mono uppercase text-slate-500">Email Address <span className="text-rose-600" aria-hidden="true">*</span></label>
                       <input
                         id="new-staff-email"
                         type="email"
@@ -2014,7 +2012,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label htmlFor="new-staff-password" className="text-[9.5px] font-mono uppercase text-slate-500">Secure Password <span className="text-rose-600" aria-hidden="true">*</span></label>
+                      <label htmlFor="new-staff-password" className="text-[9.5px] font-mono uppercase text-slate-500">Password <span className="text-rose-600" aria-hidden="true">*</span></label>
                       <input
                         id="new-staff-password"
                         type="password"
@@ -2048,9 +2046,9 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                     <AlertTriangle className="h-8 w-8" />
                   </div>
                   <div className="space-y-1.5 max-w-sm">
-                    <h4 className="text-sm font-bold text-slate-800 dark:text-white">Read-Only Access Terminal</h4>
+                    <h4 className="text-sm font-bold text-slate-800 dark:text-white">View-only access</h4>
                     <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                      Your logged-in SAMS account has read-only access. Direct credential provisioning and personnel de-authorization are strictly restricted to Directors and Academy Partners.
+                      Your account can only view this page. Only Directors and Academy Partners can add or remove staff accounts.
                     </p>
                   </div>
                 </div>
@@ -2364,8 +2362,8 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                 <X className="h-5 w-5" />
               </button>
 
-              <h3 className="text-xl font-bold mb-2">On-Counter Paper Enrollment Onboarding</h3>
-              <p className="text-xs opacity-60 leading-relaxed mb-6">Manually register a walk-in member here to generate their SAMS ID card instantly.</p>
+              <h3 className="text-xl font-bold mb-2">Register a Walk-in Member</h3>
+              <p className="text-xs opacity-60 leading-relaxed mb-6">Fill in the walk-in member's details here to create their membership card straight away.</p>
 
               <form onSubmit={handleAddMemberManual} className="space-y-4 text-xs">
                 
@@ -2465,7 +2463,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                     type="submit"
                     className={`px-5 py-3 rounded-xl uppercase tracking-wider font-extrabold cursor-pointer shadow-md ${buttonPrimary}`}
                   >
-                    Generate SAMS Card
+                    Create Membership Card
                   </button>
                 </div>
 
@@ -2549,7 +2547,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                   className="w-full py-3.5 rounded-xl bg-red-50 hover:bg-red-100/50 text-red-600 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2.5 transition-colors cursor-pointer"
                 >
                   <LogOut className="h-4 w-4" />
-                  <span>Log Out of System</span>
+                  <span>Log Out</span>
                 </button>
               </div>
             </motion.div>
@@ -2561,19 +2559,11 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
       <NotificationDrawer
         isOpen={notificationsOpen}
         onClose={() => setNotificationsOpen(false)}
-        notifications={notifications}
-        onMarkRead={(id) => {
-          setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-        }}
-        onMarkAllRead={() => {
-          setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-        }}
-        onDelete={(id) => {
-          setNotifications(prev => prev.filter(n => n.id !== id));
-        }}
-        onClearAll={() => {
-          setNotifications([]);
-        }}
+        notifications={staffFeed.notifications}
+        onMarkRead={staffFeed.markRead}
+        onMarkAllRead={staffFeed.markAllRead}
+        onDelete={staffFeed.remove}
+        onClearAll={staffFeed.clearAll}
       />
 
       {/* Global Command Palette */}
