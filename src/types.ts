@@ -18,7 +18,7 @@ export interface AcademyTheme {
   }[];
 }
 
-export type UserRole = "parent" | "member" | "coach" | "receptionist" | "admin" | "super_admin" | "staff";
+export type UserRole = "parent" | "member" | "coach" | "receptionist" | "admin" | "super_admin" | "developer" | "staff";
 
 export interface UserSession {
   id: string;

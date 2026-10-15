@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { UserService } from "../services/user.service";
+import { accessRole } from "../utils/roles";
 
 function parseCookies(cookieStr: string) {
   const list: { [key: string]: string } = {};
@@ -29,8 +30,8 @@ export function requireAuth(allowedRoles: string[]) {
       return res.status(401).json({ error: "Session expired or invalid. Please login again." });
     }
 
-    // Normalize roles (e.g. support receptionist as staff)
-    let userRole = session.role;
+    // Normalize roles (e.g. support receptionist as staff; a developer passes as super_admin)
+    let userRole = accessRole(session.role);
     if (userRole === "receptionist") userRole = "staff";
 
     // Normalize allowedRoles

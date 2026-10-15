@@ -3,6 +3,7 @@ import { UserService } from "../services/user.service";
 import { ActivityService } from "../services/activity.service";
 import { getDbPool, getConnectionError } from "../config/db";
 import bcrypt from "bcryptjs";
+import { isStaffRole } from "../utils/roles";
 
 
 
@@ -102,6 +103,13 @@ export class UserController {
       const requesterRole = req.user?.role;
       const targetRole = req.body?.role;
 
+      if (!isStaffRole(targetRole)) {
+        return res.status(400).json({ error: "Choose a valid role: Admin, Reception, Receptionist or Coach." });
+      }
+      // Only a developer can create another developer account.
+      if (targetRole === "developer" && requesterRole !== "developer") {
+        return res.status(403).json({ error: "Access denied. Only a developer can create a developer account." });
+      }
       if (requesterRole === "admin") {
         if (targetRole === "admin" || targetRole === "super_admin") {
           return res.status(403).json({ error: "Access denied. Admins can only create Staff, Receptionist, or Coach accounts." });
@@ -136,7 +144,12 @@ export class UserController {
 
       const target = rows[0];
 
-      // 3. Admin permissions check
+      // 3. A developer account can only be removed by a developer.
+      if (target.role === "developer" && requesterRole !== "developer") {
+        return res.status(403).json({ error: "Access denied. Only a developer can remove a developer account." });
+      }
+
+      // 4. Admin permissions check
       if (requesterRole === "admin") {
         if (target.role === "super_admin" || target.role === "admin") {
           return res.status(403).json({ error: "Access denied. Admins cannot delete Super Admins or other Admins." });

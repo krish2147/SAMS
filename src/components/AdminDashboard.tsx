@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { accessRole, roleLabel } from "../utils/roles";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Sparkles, IndianRupee, Users, Award, TrendingUp, Cpu, 
@@ -831,7 +832,9 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
     } catch (e) {}
     return { id: "0", name: userName, role: userRole };
   })();
-  const currentUserRole = loggedInSession?.role || activeUser.role || "admin";
+  // Permission checks use the access role (a developer passes as super_admin); labels show the real role.
+  const isDeveloper = (loggedInSession?.role || activeUser.role) === "developer";
+  const currentUserRole = accessRole(loggedInSession?.role || activeUser.role || "admin");
   const currentUserId = loggedInSession?.id || loggedInSession?.userId;
 
   // Shared surface tokens. Every console tab reads these, so the design system is applied
@@ -851,7 +854,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
   }`;
 
   // Normalize userRole based on activeUser
-  const normalizedRole = (activeUser.role === "super_admin" || activeUser.role === "admin") 
+  const normalizedRole = (["developer", "super_admin", "admin"].includes(activeUser.role)) 
     ? "admin" 
     : (activeUser.role === "receptionist" || activeUser.role === "staff") 
       ? "staff" 
@@ -915,7 +918,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
             <div className="min-w-0 flex-1">
               <div className="text-sm font-semibold text-white truncate">{activeUser.name}</div>
               <div className="text-[10px] font-semibold text-ink-300 uppercase truncate tracking-[0.1em] mt-0.5">
-                {activeUser.role.replace("_", " ")}
+                {roleLabel(activeUser.role)}
               </div>
             </div>
           </div>
@@ -979,7 +982,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
           <div className="flex items-center gap-3">
             <div className="text-right">
               <span className="text-[11px] font-bold text-slate-800 block leading-tight">{activeUser.name}</span>
-              <span className="text-[9px] font-mono text-sky-600 font-bold uppercase tracking-wider block leading-none">{activeUser.role.replace("_", " ")}</span>
+              <span className="text-[9px] font-mono text-sky-600 font-bold uppercase tracking-wider block leading-none">{roleLabel(activeUser.role)}</span>
             </div>
 
             <button
@@ -1035,7 +1038,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-150 bg-slate-50/50">
                   <span className="text-xs font-black text-slate-800">{activeUser.name}</span>
                   <span className="text-[9px] font-mono bg-sky-500/10 text-sky-600 px-1.5 py-0.5 rounded-md uppercase font-bold tracking-wider">
-                    {activeUser.role.replace("_", " ")}
+                    {roleLabel(activeUser.role)}
                   </span>
                 </div>
               </div>
@@ -1124,7 +1127,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                   events={events}
                   holidays={holidays}
                   settings={settings}
-                  userRole={activeUser.role}
+                  userRole={accessRole(activeUser.role)}
                   userName={activeUser.name}
                   onNavigate={setActiveTab}
                   onOpenAddMember={() => setShowAddMemberModal(true)}
@@ -1816,14 +1819,14 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                 <div className="space-y-3.5 max-h-[480px] overflow-y-auto pr-1">
                   {staffList.filter((st: any) => {
                     if (staffRoleFilter === "coaches") return st.role === "coach";
-                    if (staffRoleFilter === "admins") return st.role === "admin" || st.role === "super_admin";
+                    if (staffRoleFilter === "admins") return st.role === "admin" || st.role === "super_admin" || st.role === "developer";
                     if (staffRoleFilter === "staff") return st.role === "receptionist" || st.role === "staff";
                     return true;
                   }).length > 0 ? (
                     staffList
                       .filter((st: any) => {
                         if (staffRoleFilter === "coaches") return st.role === "coach";
-                        if (staffRoleFilter === "admins") return st.role === "admin" || st.role === "super_admin";
+                        if (staffRoleFilter === "admins") return st.role === "admin" || st.role === "super_admin" || st.role === "developer";
                         if (staffRoleFilter === "staff") return st.role === "receptionist" || st.role === "staff";
                         return true;
                       })
@@ -1832,14 +1835,19 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                         // Super Admin: delete anyone except self.
                         // Admin: delete Staff, Receptionist, Coach. Cannot delete Super Admin, Admin, or self.
                         // Staff/Coach: cannot delete anyone.
-                        const canDelete = (currentUserRole === "super_admin" && String(st.id) !== String(currentUserId)) ||
-                                          (currentUserRole === "admin" && String(st.id) !== String(currentUserId) && st.role !== "super_admin" && st.role !== "admin");
+                        // A developer account can only be removed by a developer (the server enforces this too).
+                        const canDelete = (st.role !== "developer" || isDeveloper) && (
+                          (currentUserRole === "super_admin" && String(st.id) !== String(currentUserId)) ||
+                          (currentUserRole === "admin" && String(st.id) !== String(currentUserId) && st.role !== "super_admin" && st.role !== "admin")
+                        );
 
                         return (
                           <div key={st.id} className="p-4 rounded-2xl bg-current/5 border border-current/10 flex items-center justify-between">
                             <div className="flex items-center gap-3.5">
                               <div className={`h-11 w-11 rounded-2xl flex items-center justify-center font-black text-sm uppercase ${
-                                st.role === "admin" || st.role === "super_admin" 
+                                st.role === "developer"
+                                  ? "bg-ink-950 text-white"
+                                  : st.role === "admin" || st.role === "super_admin"
                                   ? "bg-amber-400 text-slate-950" 
                                   : st.role === "coach"
                                     ? "bg-sky-500 text-white"
@@ -1851,19 +1859,20 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                                 <div className="flex items-center gap-2">
                                   <span className="text-sm font-bold block text-slate-800">{st.name}</span>
                                   <span className={`text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded uppercase ${
+                                    st.role === "developer" ? "bg-ink-950/10 text-ink-800" :
                                     st.role === "super_admin" ? "bg-red-500/10 text-red-500" :
                                     st.role === "admin" ? "bg-amber-400/10 text-amber-500" :
                                     st.role === "coach" ? "bg-sky-500/10 text-sky-500" : "bg-emerald-500/10 text-emerald-500"
                                   }`}>
-                                    {st.role}
+                                    {roleLabel(st.role)}
                                   </span>
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0.5 text-[10px] opacity-85 font-mono text-slate-500">
                                   <div>
-                                    <span className="font-semibold text-slate-400">Employee ID:</span> <span className="text-sky-600 font-bold">EMP-{(st.role === "admin" || st.role === "super_admin") ? "ADM" : st.role === "coach" ? "COA" : "REC"}-0{st.id?.toString().replace(/\D/g, "") || "9"}</span>
+                                    <span className="font-semibold text-slate-400">Employee ID:</span> <span className="text-sky-600 font-bold">EMP-{st.role === "developer" ? "DEV" : (st.role === "admin" || st.role === "super_admin") ? "ADM" : st.role === "coach" ? "COA" : "REC"}-0{st.id?.toString().replace(/\D/g, "") || "9"}</span>
                                   </div>
                                   <div>
-                                    <span className="font-semibold text-slate-400">Department:</span> <span className="text-slate-700 font-bold">{(st.role === "admin" || st.role === "super_admin") ? "Board of Directors" : st.role === "coach" ? "Athletics & Training" : "Front Office / Reception"}</span>
+                                    <span className="font-semibold text-slate-400">Department:</span> <span className="text-slate-700 font-bold">{st.role === "developer" ? "System Developer" : (st.role === "admin" || st.role === "super_admin") ? "Board of Directors" : st.role === "coach" ? "Athletics & Training" : "Front Office / Reception"}</span>
                                   </div>
                                   <div className="sm:col-span-2">
                                     <span className="font-semibold text-slate-400">Email:</span> <span className="text-slate-700">{st.email}</span>
@@ -2034,7 +2043,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
             isSwim={isSwim}
             members={members}
             coaches={coachesList}
-            userRole={activeUser.role}
+            userRole={accessRole(activeUser.role)}
           />
         )}
 
@@ -2045,7 +2054,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
 
         {/* TAB: REVENUE (ADMIN ONLY) */}
         {(activeTab === "revenue" || activeTab === "payments") && (
-          <PaymentsTab getSessionToken={getSessionToken} userRole={activeUser.role} username={activeUser.name} />
+          <PaymentsTab getSessionToken={getSessionToken} userRole={accessRole(activeUser.role)} username={activeUser.name} />
         )}
 
         {/* TAB: COMMUNICATION CENTER */}
@@ -2074,7 +2083,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
 
         {/* TAB: SAMS UNIFIED CALENDAR / EVENTS / HOLIDAYS */}
         {(activeTab === "calendar" || activeTab === "events" || activeTab === "holidays") && (
-          <CalendarTab isSwim={isSwim} userRole={activeUser.role} />
+          <CalendarTab isSwim={isSwim} userRole={accessRole(activeUser.role)} />
         )}
 
         {/* TAB: SYSTEM SETTINGS */}
