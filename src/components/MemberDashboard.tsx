@@ -13,6 +13,7 @@ import { EditProfileModal } from "./EditProfileModal";
 import { DigitalMembershipCard } from "./DigitalMembershipCard";
 import { NotificationDrawer } from "./NotificationDrawer";
 import { jsPDF } from "jspdf";
+import { MIN_PASSWORD_LENGTH } from "../utils/password";
 
 const formatDateToIndian = (dateStr?: string | null) => {
   if (!dateStr) return "N/A";
@@ -450,8 +451,8 @@ export function MemberDashboard({ academyId, userName, onLogout }: MemberDashboa
       return;
     }
 
-    if (newPassword.length < 6) {
-      setPasswordError("New password must be at least 6 characters long.");
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
+      setPasswordError(`New password must be at least ${MIN_PASSWORD_LENGTH} characters long.`);
       return;
     }
 

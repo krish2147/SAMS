@@ -5,6 +5,7 @@ import {
   Sparkles, Eye, EyeOff, User, BellRing, ChevronRight
 } from "lucide-react";
 import { AcademyId, UserRole, UserSession } from "../types";
+import { MIN_PASSWORD_LENGTH } from "../utils/password";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -242,8 +243,8 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
           setAuthError("Please specify a valid corporate email.");
           return;
         }
-        if (password.length < 4) {
-          setAuthError("Secure password must be at least 4 characters.");
+        if (password.length < MIN_PASSWORD_LENGTH) {
+          setAuthError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
           return;
         }
 
