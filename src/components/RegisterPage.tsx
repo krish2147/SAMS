@@ -488,7 +488,7 @@ export function RegisterPage({ academyId, onCancel, embedded = false }: Register
       both("academyId", "academy_id", academyId);
       both("hasMedicalCondition", "has_medical_condition", String(form.hasMedicalCondition));
       both("medicalDetails", "medical_details", form.hasMedicalCondition ? form.medicalDetails.trim() : "");
-      if (form.photoFile) data.append("photo", form.photoFile);
+      // Member photos are no longer collected: the app keeps no file storage.
 
       const response = await fetch("/api/register", { method: "POST", body: data });
       const result = await response.json().catch(() => ({}));
@@ -759,26 +759,6 @@ export function RegisterPage({ academyId, onCancel, embedded = false }: Register
       case "you":
         return (
           <div className="space-y-6">
-            <div className="flex items-center gap-5">
-              <div
-                onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
-                onDragLeave={() => setIsDragging(false)}
-                onDrop={e => { e.preventDefault(); setIsDragging(false); if (e.dataTransfer.files?.[0]) processFile(e.dataTransfer.files[0]); }}
-                className={`relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-dashed transition ${isDragging ? "border-aqua-500 bg-aqua-500/10" : "border-ink-200 bg-ink-50"}`}
-              >
-                {form.photoUrl ? <img src={form.photoUrl} alt="Your photo" className="h-full w-full object-cover" /> : <Upload className="h-6 w-6 text-ink-400" />}
-              </div>
-              <div>
-                <p className="text-[13px] font-semibold text-ink-800">Profile photo <span className="ml-1 font-normal text-ink-400">Optional</span></p>
-                <p className="mt-0.5 text-[13px] text-ink-600">Helps reception recognise you. JPEG, PNG or WEBP, up to 2 MB.</p>
-                <div className="mt-2.5 flex flex-wrap gap-2">
-                  <PhotoPicker onPick={processFile} accept="image/jpeg,image/png,image/webp" />
-                  {form.photoUrl && <button type="button" onClick={() => setForm(p => ({ ...p, photoFile: null, photoUrl: "" }))} className="rounded-lg px-3 py-1.5 text-sm font-semibold text-ink-600 hover:bg-ink-50">Remove</button>}
-                </div>
-                <input ref={fileInputRef} name="photoUrl" type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={e => e.target.files?.[0] && processFile(e.target.files[0])} />
-                <FieldError message={errors.photoUrl} />
-              </div>
-            </div>
 
             <div>
               <Label htmlFor="reg-fullName">Full name</Label>

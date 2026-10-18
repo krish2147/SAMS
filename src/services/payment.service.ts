@@ -1,3 +1,4 @@
+import fs from "fs";
 import Razorpay from "razorpay";
 import crypto from "crypto";
 import { getDbPool, isMockDatabase } from "../config/db";
@@ -1747,7 +1748,8 @@ export class PaymentService {
       paymentMethod: payment.paymentMethod,
       transactionId: payment.transactionId,
       status: payment.status,
-      gstin: "24AAACB1234F1Z0",
+      // Only the academy's real GSTIN may be printed; set INVOICE_GSTIN to show one.
+      gstin: (process.env.INVOICE_GSTIN || "").trim(),
       companyName: "Baroda Swim Front Academy"
     };
   }
@@ -1951,7 +1953,10 @@ export class PaymentService {
           amount: current.amount,
           startDate: current.membership_start_date,
           endDate: current.membership_end_date,
-          pdfFilePath: current.invoice_path || undefined
+          // The file may be gone on hosts without a permanent disk; rebuild it then.
+          ...(current.invoice_path && fs.existsSync(current.invoice_path)
+            ? { pdfFilePath: current.invoice_path }
+            : { pdfBuffer: (await this.ensureAndGetInvoicePDF(paymentId)).pdfResult.pdfBuffer })
         });
         await this.settlePipelineStage(paymentId, "invoice_whatsapp");
       } catch (error) {
@@ -2001,7 +2006,8 @@ export class PaymentService {
       paymentMethod: p.payment_method || "Razorpay",
       razorpayPaymentId: p.razorpay_payment_id || `TXN-${p.id}`,
       status: p.payment_status || "Paid",
-      gstin: "24AAACB1234F1Z0",
+      // Only the academy's real GSTIN may be printed; set INVOICE_GSTIN to show one.
+      gstin: (process.env.INVOICE_GSTIN || "").trim(),
       invoicePath: p.invoice_path
     };
 

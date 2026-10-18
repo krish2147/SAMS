@@ -5,6 +5,9 @@ import { requireAuth } from "./middleware/authMiddleware";
 import { uploadsDir } from "./config/multer";
 import { getDbPool, isMockDatabase } from "./config/db";
 import { getObject, objectStorageEnabled } from "./services/object-storage.service";
+import { PaymentService } from "./services/payment.service";
+import fs from "fs";
+import path from "path";
 
 const app = express();
 
@@ -61,6 +64,24 @@ if (objectStorageEnabled()) {
     }
   });
 } else {
+  // Hosts without a permanent disk lose generated invoices on restart. Rebuild a missing
+  // invoice from the payment record instead of answering "not found".
+  app.get("/uploads/invoices/:file", async (req, res, next) => {
+    try {
+      const file = String(req.params.file || "");
+      if (!/^[\w-]+\.pdf$/.test(file)) return res.status(400).json({ error: "Invalid invoice path." });
+      if (fs.existsSync(path.join(uploadsDir, "invoices", file))) return next();
+      const pool = await getDbPool();
+      const [rows]: any = await pool.query("SELECT id FROM payments WHERE invoice_url = ? LIMIT 1", [`/uploads/invoices/${file}`]);
+      if (!rows?.[0]) return res.status(404).json({ error: "Invoice not found." });
+      const { pdfResult } = await new PaymentService().ensureAndGetInvoicePDF(Number(rows[0].id));
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Cache-Control", "private, no-store");
+      return res.send(pdfResult.pdfBuffer);
+    } catch (err) {
+      next(err);
+    }
+  });
   app.use("/uploads", express.static(uploadsDir));
 }
 

@@ -111,9 +111,13 @@ export async function getDbPool(): Promise<mysql.Pool> {
       connectionLimit: Number.parseInt(process.env.DB_CONNECTION_LIMIT || "20", 10),
       queueLimit: 0,
       connectTimeout: Number.parseInt(process.env.DB_CONNECT_TIMEOUT_MS || "10000", 10),
+      // Hosted MySQL services (Aiven, TiDB, ...) require an encrypted connection:
+      // DB_CA_CERT pins their certificate; DB_SSL=true uses the system's trusted CAs.
       ssl: process.env.DB_CA_CERT
         ? { ca: process.env.DB_CA_CERT.replace(/\\n/g, "\n"), rejectUnauthorized: true }
-        : undefined,
+        : process.env.DB_SSL === "true"
+          ? { rejectUnauthorized: true }
+          : undefined,
       multipleStatements: true,
     };
 

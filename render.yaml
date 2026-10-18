@@ -1,0 +1,47 @@
+# Render blueprint for SAMS on the free plan (Render → New → Blueprint → pick this repo).
+# The database lives elsewhere (e.g. Aiven free MySQL); fill the secret values in Render's
+# dashboard when it asks. Free web services sleep after 15 minutes without visitors and
+# take about a minute to wake on the next visit.
+services:
+  - type: web
+    name: sams
+    runtime: docker
+    plan: free
+    branch: main
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: REQUIRE_OBJECT_STORAGE
+        value: "false"
+      - key: DB_SSL
+        value: "true"
+      - key: DB_CONNECTION_LIMIT
+        value: "10"
+      - key: DATABASE_URL
+        sync: false
+      - key: APP_URL
+        sync: false
+      - key: APP_BASE_URL
+        sync: false
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+      - key: MSG91_AUTH_KEY
+        sync: false
+      - key: MSG91_SENDER_ID
+        sync: false
+      - key: MSG91_OTP_DLT_TEMPLATE_ID
+        sync: false
+      - key: MSG91_WHATSAPP_NUMBER
+        sync: false
+      - key: MSG91_WHATSAPP_NAMESPACE
+        sync: false
+      - key: OTP_HASH_SECRET
+        sync: false
+      - key: INVOICE_LINK_SECRET
+        sync: false
