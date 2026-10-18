@@ -614,7 +614,9 @@ export function RegisterPage({ academyId, onCancel, embedded = false }: Register
 
   const BatchCard = ({ b }: { b: BatchOption; key?: React.Key }) => {
     const selected = form.batch === b.name;
-    const fillPct = b.capacity ? Math.round(((b.capacity - b.remaining) / b.capacity) * 100) : 0;
+    // Empty when nobody has booked; grows with every spot taken (kept visible from the first booking).
+    const taken = b.capacity ? Math.min(b.capacity, Math.max(0, b.capacity - b.remaining)) : 0;
+    const fillPct = !b.open ? 100 : taken === 0 ? 0 : Math.max(3, Math.round((taken / b.capacity) * 100));
     const low = b.open && b.remaining <= 5;
     return (
       <button
@@ -639,7 +641,7 @@ export function RegisterPage({ academyId, onCancel, embedded = false }: Register
           </span>
         </div>
         <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-ink-100">
-          <div className={`h-full rounded-full ${low ? "bg-amber-400" : "bg-aqua-400"}`} style={{ width: `${Math.max(4, fillPct)}%` }} />
+          <div className={`h-full rounded-full ${low ? "bg-amber-400" : "bg-aqua-400"}`} style={{ width: `${fillPct}%` }} />
         </div>
       </button>
     );
