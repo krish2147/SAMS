@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { AcademyId, UserSession } from "../types";
 import { NotificationDrawer } from "./NotificationDrawer";
+import { SideMenuDrawer } from "./SideMenuDrawer";
 import { MIN_PASSWORD_LENGTH } from "../utils/password";
 import { sessionStore } from "../utils/sessionStore";
 import { useRememberedState } from "../utils/useRememberedState";
@@ -1461,99 +1462,30 @@ export function CoachDashboard({ academyId, userName, onLogout, onSessionExpired
 
       </nav>
 
-      {/* MOBILE DRAWER: SLIDE-UP MENU */}
-      <AnimatePresence>
-        {mobileMenuDrawerOpen && (
-          <div className="fixed inset-0 z-50 md:hidden flex flex-col justify-end">
-            {/* Backdrop */}
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setMobileMenuDrawerOpen(false)}
-              className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs"
-            />
-            
-            {/* Drawer */}
-            <motion.div 
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 220 }}
-              className={`relative w-full rounded-t-3xl shadow-2xl border-t z-10 p-5 pb-8 flex flex-col max-h-[85vh] text-left ${
-                isSwim ? "bg-white border-slate-200" : "bg-emerald-950 border-emerald-900 text-emerald-100"
-              }`}
-            >
-              {/* Drag handle */}
-              <div className={`w-12 h-1 rounded-full mx-auto mb-5 shrink-0 ${isSwim ? "bg-slate-200" : "bg-emerald-900"}`} />
-              
-              <div className="flex items-center justify-between mb-4 px-2">
-                <div>
-                  <h3 className={`text-sm font-black uppercase tracking-wider ${isSwim ? "text-slate-900" : "text-white"}`}>All Modules Desk</h3>
-                  <p className="text-[10px] opacity-75 mt-0.5">Access {isSwim ? "Baroda Swim Front" : "The Cricket Academy"} coach dashboard</p>
-                </div>
-                <button 
-                  onClick={() => setMobileMenuDrawerOpen(false)}
-                  className={`p-1.5 rounded-full ${isSwim ? "bg-slate-100 text-slate-500 hover:text-slate-800" : "bg-emerald-900/40 text-emerald-300 hover:text-white"} cursor-pointer`}
-                >
-                  <XCircle className="h-4 w-4" />
-                </button>
-              </div>
-
-              {/* Tabs Grid */}
-              <div className="grid grid-cols-3 gap-3 overflow-y-auto max-h-[50vh] py-2 px-1">
-                {[
-                  { id: "home", label: "Dashboard", icon: LayoutDashboard },
-                  { id: "batches", label: "Batches", icon: Clock },
-                  { id: "members", label: "Members", icon: Users },
-                  { id: "attendance", label: "Attendance Logs", icon: CheckCircle },
-                  { id: "schedule", label: "Timeline Schedule", icon: Calendar },
-                  { id: "notifications", label: "Notifications", icon: Bell },
-                  { id: "profile", label: "Settings", icon: Sliders }
-                ].map((tab) => {
-                  const Icon = tab.icon;
-                  const isActive = activeTab === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => {
-                        setActiveTab(tab.id as any);
-                        setMobileMenuDrawerOpen(false);
-                      }}
-                      className={`p-3.5 rounded-xl border flex flex-col items-center justify-center gap-2 text-center transition-all cursor-pointer ${
-                        isActive 
-                          ? isSwim
-                            ? "bg-sky-50 border-sky-200 text-sky-600 font-bold shadow-xs" 
-                            : "bg-emerald-900 border-emerald-800 text-amber-300 font-bold shadow-xs"
-                          : isSwim
-                            ? "border-slate-100 bg-slate-50 text-slate-600 hover:bg-slate-100/55"
-                            : "border-emerald-900/30 bg-emerald-950/20 text-emerald-100/70 hover:bg-emerald-900/20"
-                      }`}
-                    >
-                      <Icon className="h-5 w-5" />
-                      <span className="text-[10px] font-semibold tracking-tight truncate w-full">{tab.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Drawer footer logout */}
-              <div className="mt-6 pt-4 border-t border-slate-100">
-                <button
-                  onClick={() => {
-                    setMobileMenuDrawerOpen(false);
-                    onLogout?.();
-                  }}
-                  className="w-full py-3.5 rounded-xl bg-red-50 hover:bg-red-100/50 text-red-600 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2.5 transition-colors cursor-pointer"
-                >
-                  <LogOut className="h-4 w-4" />
-                  <span>Log Out</span>
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {/* PHONE MENU */}
+      <SideMenuDrawer
+        open={mobileMenuDrawerOpen}
+        onClose={() => setMobileMenuDrawerOpen(false)}
+        sections={[
+          { items: [
+            { id: "home", label: "Dashboard", icon: LayoutDashboard },
+            { id: "batches", label: "Batches", icon: Clock },
+            { id: "members", label: "Members", icon: Users },
+            { id: "schedule", label: "Timeline Schedule", icon: Calendar }
+          ] },
+          { heading: "More", items: [
+            { id: "attendance", label: "Attendance Logs", icon: CheckCircle },
+            { id: "notifications", label: "Notifications", icon: Bell, badge: staffFeed.unreadCount }
+          ] },
+          { heading: "Account", items: [{ id: "profile", label: "Settings", icon: Sliders }] }
+        ]}
+        activeId={activeTab}
+        onSelect={(id) => setActiveTab(id as any)}
+        subtitle="Coach dashboard"
+        user={{ name: userName || userSession?.name || "Coach", role: "Coach", avatar: userSession?.avatar }}
+        onProfile={() => setActiveTab("profile" as any)}
+        onLogout={() => onLogout?.()}
+      />
 
       {/* Side Panel Notification Drawer */}
       <NotificationDrawer

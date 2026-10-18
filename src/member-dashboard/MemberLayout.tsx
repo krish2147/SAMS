@@ -38,7 +38,7 @@ export function MemberLayout({ activeSection, userName, avatar, membershipStatus
           </div>
         </main>
       </div>
-      <MobileNavigation activeSection={activeSection} moreOpen={moreOpen} onMoreChange={setMoreOpen} onSelect={onSelect} />
+      <MobileNavigation activeSection={activeSection} moreOpen={moreOpen} onMoreChange={setMoreOpen} onSelect={onSelect} userName={userName} avatar={avatar} onLogout={onLogout} />
     </div>
   );
 }
