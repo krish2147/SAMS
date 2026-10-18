@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { getDbPool, isMockDatabase } from "../config/db";
 import { ActivityService } from "./activity.service";
 import { sendEventNotification } from "./communication.service";
-import { PdfInvoiceService } from "./pdf-invoice.service";
+import { PdfInvoiceService, ACADEMY_GSTIN } from "./pdf-invoice.service";
 import { sendPaymentReminder, sendPaymentSuccessWhatsApp, sendPaymentInvoiceWhatsApp } from "./whatsapp.service";
 import { enqueuePaymentWhatsApp } from "./notification-worker.service";
 import { calculateActivationMembershipPeriod } from "../utils/membership-date";
@@ -1747,7 +1747,7 @@ export class PaymentService {
       paymentMethod: payment.paymentMethod,
       transactionId: payment.transactionId,
       status: payment.status,
-      gstin: "24AAACB1234F1Z0",
+      gstin: ACADEMY_GSTIN,
       companyName: "Baroda Swim Front Academy"
     };
   }
@@ -2001,7 +2001,7 @@ export class PaymentService {
       paymentMethod: p.payment_method || "Razorpay",
       razorpayPaymentId: p.razorpay_payment_id || `TXN-${p.id}`,
       status: p.payment_status || "Paid",
-      gstin: "24AAACB1234F1Z0",
+      gstin: ACADEMY_GSTIN,
       invoicePath: p.invoice_path
     };
 
