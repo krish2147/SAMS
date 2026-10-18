@@ -1437,27 +1437,6 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                       </div>
                     </div>
 
-                    {/* SAMS WhatsApp Dispatch Panel */}
-                    <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-3">
-                      <div className="flex items-center gap-2">
-                        <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-[9px] font-mono uppercase tracking-widest font-black text-emerald-700">Send on WhatsApp</span>
-                      </div>
-                      <p className="text-[11px] text-slate-600 leading-normal">
-                        Send registration updates, approval messages and online payment links straight to the member's phone on WhatsApp.
-                      </p>
-                      <div className="flex gap-2">
-                        <a
-                          href={`https://wa.me/${selectedMember.mobileNo.replace(/\D/g, "")}?text=Hello%20${encodeURIComponent(selectedMember.fullName)},%20your%20registration%20for%20${encodeURIComponent(isSwim ? "Baroda Swim Front" : "The Cricket Academy")}%20is%20APPROVED!%20Please%20complete%20your%20membership%20payment%20here:%20${encodeURIComponent(window.location.origin + "?payment_link=" + selectedMember.membershipNo)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[10px] uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
-                        >
-                          💬 Send Approval & Payment Link
-                        </a>
-                      </div>
-                    </div>
-
                     {/* Specifications categories */}
                     <div className="space-y-4 text-xs">
                       
