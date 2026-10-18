@@ -21,6 +21,7 @@ import { AdminDashboard } from "./components/AdminDashboard";
 import { sessionStore } from "./utils/sessionStore";
 import { useRememberedState, clearRememberedViews } from "./utils/useRememberedState";
 import { InstallAppPrompt } from "./components/InstallAppPrompt";
+import { LogoutConfirmDialog } from "./components/LogoutConfirmDialog";
 
 export default function App() {
   // Global States
@@ -133,7 +134,12 @@ export default function App() {
     });
   };
 
+  // Every "Log out" button asks first; handleLogout itself signs out straight away.
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
+  const requestLogout = () => setIsLogoutConfirmOpen(true);
+
   const handleLogout = () => {
+    setIsLogoutConfirmOpen(false);
     const token = userSession?.token;
     if (token) {
       // End the session on the server too, so the token and cookie stop working.
@@ -164,16 +170,16 @@ export default function App() {
       case "parent":
         return <ParentDashboard academyId={selectedAcademyId!} userName={userSession.name} />;
       case "member":
-        return <MemberDashboardShell userName={userSession.name} avatar={userSession.avatar} onLogout={handleLogout} />;
+        return <MemberDashboardShell userName={userSession.name} avatar={userSession.avatar} onLogout={requestLogout} />;
       case "coach":
-        return <CoachDashboard academyId={selectedAcademyId!} userName={userSession.name} onLogout={handleLogout} userSession={userSession} />;
+        return <CoachDashboard academyId={selectedAcademyId!} userName={userSession.name} onLogout={requestLogout} onSessionExpired={handleLogout} userSession={userSession} />;
       case "staff":
       case "receptionist":
-        return <ReceptionistDashboard academyId={selectedAcademyId!} userName={userSession.name} onLogout={handleLogout} />;
+        return <ReceptionistDashboard academyId={selectedAcademyId!} userName={userSession.name} onLogout={requestLogout} />;
       case "developer":
       case "super_admin":
       case "admin":
-        return <AdminDashboard academyId={selectedAcademyId!} userName={userSession.name} userRole={userSession.role} onLogout={handleLogout} userSession={userSession} onProfileUpdated={handleProfileUpdated} />;
+        return <AdminDashboard academyId={selectedAcademyId!} userName={userSession.name} userRole={userSession.role} onLogout={requestLogout} userSession={userSession} onProfileUpdated={handleProfileUpdated} />;
       default:
         return null;
     }
@@ -211,7 +217,7 @@ export default function App() {
           onSelectAcademy={handleSelectAcademy}
           onOpenLogin={() => setIsLoginOpen(true)}
           userSession={userSession}
-          onLogout={handleLogout}
+          onLogout={requestLogout}
           isRegisterPageActive={isRegisterPageActive}
           isPhotoBackdrop={isOnAcademyExplore}
         />
@@ -392,6 +398,7 @@ export default function App() {
       )}
 
       <InstallAppPrompt />
+      <LogoutConfirmDialog open={isLogoutConfirmOpen} onCancel={() => setIsLogoutConfirmOpen(false)} onConfirm={handleLogout} />
 
       {/* 4. Luxury Credit Footer for selected academy pages */}
       {selectedAcademyId && !isFullScreenDashboard && !isRegisterPageActive && (

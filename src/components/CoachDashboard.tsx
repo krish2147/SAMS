@@ -23,10 +23,11 @@ interface CoachDashboardProps {
   academyId: AcademyId;
   userName: string;
   onLogout?: () => void;
+  onSessionExpired?: () => void; // signs out without asking (the session is already gone)
   userSession?: UserSession;
 }
 
-export function CoachDashboard({ academyId, userName, onLogout, userSession }: CoachDashboardProps) {
+export function CoachDashboard({ academyId, userName, onLogout, onSessionExpired, userSession }: CoachDashboardProps) {
   const isSwim = academyId === "swim";
   
   // Theme styling declarations
@@ -574,7 +575,7 @@ export function CoachDashboard({ academyId, userName, onLogout, userSession }: C
                 </div>
                 {apiError === "SESSION_EXPIRED" && onLogout ? (
                   <button 
-                    onClick={onLogout}
+                    onClick={onSessionExpired || onLogout}
                     className={`px-6 py-3 rounded-xl font-bold text-xs inline-flex items-center gap-2 cursor-pointer ${btnPrimary}`}
                   >
                     <LogOut className="h-4 w-4" />
