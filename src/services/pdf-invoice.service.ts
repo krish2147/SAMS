@@ -7,6 +7,9 @@ import { getObject, objectStorageEnabled, uploadObject } from "./object-storage.
 import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-logo";
 import { BSF_SIGNATURE_DATA_URI } from "../assets/baroda-swim-front-signature";
 
+/** Academy GSTIN printed on invoices (GST REG-06 certificate, Baroda Swim Front, Vadodara). */
+export const ACADEMY_GSTIN = (process.env.INVOICE_GSTIN || "24ABBFB0936E2Z0").trim();
+
 /** Name printed under the signature on member invoices. */
 export const INVOICE_SIGNATORY_NAME = "Sanjay Kumar";
 
@@ -155,6 +158,7 @@ Txn ID: ${data.razorpayPaymentId || "N/A"}`;
     y += 5;
     value(data.membershipNo || "-", M, y);
     value("Vadodara, Gujarat", M + 62, y);
+    if (gstin) value(`GSTIN: ${gstin}`, M + 62, y + 5);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(...MUTED);
