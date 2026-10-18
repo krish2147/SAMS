@@ -7,6 +7,7 @@ import {
 import { AcademyId, UserRole, UserSession } from "../types";
 import { MIN_PASSWORD_LENGTH } from "../utils/password";
 import { CHARACTER_AVATARS } from "../utils/avatars";
+import { isInstalledApp } from "../utils/installedApp";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -145,7 +146,8 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
         check: "accent-amber-400",
       };
 
-  const rememberBox = (suffix: string) => (
+  // Staying signed in is only offered in the installed app; on the website people log in each visit.
+  const rememberBox = (suffix: string) => !isInstalledApp() ? null : (
     <label htmlFor={`login-remember-${suffix}`} className="flex items-start gap-3 cursor-pointer select-none">
       <input
         id={`login-remember-${suffix}`}
@@ -156,7 +158,7 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
       />
       <span className="text-sm leading-snug">
         <span className={`font-medium ${ui.title}`}>Keep me logged in</span>
-        <span className={`block text-xs mt-0.5 ${ui.muted}`}>Don't tick this on a shared computer.</span>
+        <span className={`block text-xs mt-0.5 ${ui.muted}`}>Open the app later without logging in again.</span>
       </span>
     </label>
   );
