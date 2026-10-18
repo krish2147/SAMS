@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Download, RefreshCw, Share, X } from "lucide-react";
+import { isInstalledApp } from "../utils/installedApp";
 
 // Offers "Install app" (adds SAMS to the home screen / desktop like a normal app) and tells
 // people when a newer release is live so they can switch to it with one tap.
@@ -9,9 +10,6 @@ type InstallEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{
 const DISMISS_KEY = "sams_install_dismissed_at";
 const DISMISS_FOR_MS = 3 * 24 * 60 * 60 * 1000;
 const UPDATE_CHECK_MS = 5 * 60 * 1000;
-
-const isStandalone = () =>
-  window.matchMedia?.("(display-mode: standalone)").matches || (navigator as any).standalone === true;
 
 const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent) ||
   (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -39,7 +37,7 @@ export function InstallAppPrompt() {
   const [updateReady, setUpdateReady] = useState(false);
 
   useEffect(() => {
-    if (isStandalone()) return;
+    if (isInstalledApp()) return;
     const onPrompt = (e: Event) => {
       e.preventDefault(); // show our own button instead of Chrome's mini bar
       setInstallEvent(e as InstallEvent);
