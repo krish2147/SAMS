@@ -56,7 +56,7 @@ export function PhotoPicker({ onPick, accept = "image/png, image/jpeg, image/web
   );
 }
 
-function CameraCapture({ onClose, onCapture, onUnavailable }: { onClose: () => void; onCapture: (file: File) => void; onUnavailable: () => void }) {
+export function CameraCapture({ onClose, onCapture, onUnavailable }: { onClose: () => void; onCapture: (file: File) => void; onUnavailable: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [facing, setFacing] = useState<"user" | "environment">("user");

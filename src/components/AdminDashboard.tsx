@@ -2131,6 +2131,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
         {activeTab === "settings" && (
           <SettingsTab
             activeUser={activeUser}
+            onLogout={() => onLogout?.()}
             buttonPrimary={buttonPrimary}
             inputStyle={inputStyle}
             onProfileUpdated={(updated) => {
