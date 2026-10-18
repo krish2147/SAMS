@@ -23,6 +23,7 @@ import { ApprovalsTab } from "./ApprovalsTab";
 import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-logo";
 import { SettingsTab } from "./SettingsTab";
 import { NotificationDrawer } from "./NotificationDrawer";
+import { SideMenuDrawer } from "./SideMenuDrawer";
 import { CalendarTab } from "./CalendarTab";
 import { CommunicationTab } from "./CommunicationTab";
 import { AnalyticsDashboard } from "./AnalyticsDashboard";
@@ -912,6 +913,21 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
     if (tab.hideForCoach && normalizedRole === "coach") return false;
     return true;
   });
+
+  // Phone menu: the everyday pages first, then the rest grouped like the office thinks of them.
+  const MENU_GROUPS: { heading?: string; ids: string[] }[] = [
+    { ids: ["home", "members", "registrations", "revenue", "calendar"] },
+    { heading: "Manage", ids: ["register", "batches", "renewals", "staff", "communication"] },
+    { heading: "Insights", ids: ["analytics", "reports", "activity"] },
+    { heading: "Account", ids: ["settings"] }
+  ];
+  const menuSections = MENU_GROUPS.map((g) => ({
+    heading: g.heading,
+    items: g.ids
+      .map((id) => visibleTabs.find((t) => t.id === id))
+      .filter((t): t is (typeof visibleTabs)[number] => Boolean(t))
+      .map((t) => ({ id: t.id, label: t.label, icon: t.icon }))
+  })).filter((g) => g.items.length > 0);
 
   return (
     <div className="flex flex-col md:flex-row h-screen h-[100dvh] w-full bg-canvas text-ink-900 font-sans text-left overflow-hidden relative">
@@ -2453,87 +2469,20 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
         )}
       </AnimatePresence>
 
-      {/* MOBILE DRAWER: SLIDE-UP MENU */}
-      <AnimatePresence>
-        {mobileMenuDrawerOpen && (
-          <div className="fixed inset-0 z-50 md:hidden flex flex-col justify-end">
-            {/* Backdrop */}
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setMobileMenuDrawerOpen(false)}
-              className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs"
-            />
-            
-            {/* Drawer */}
-            <motion.div 
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 220 }}
-              className="relative w-full bg-white rounded-t-3xl shadow-2xl border-t border-slate-200 z-10 p-5 pb-8 flex flex-col max-h-[85vh] text-left"
-            >
-              {/* Drag handle */}
-              <div className="w-12 h-1 bg-slate-200 rounded-full mx-auto mb-5 shrink-0" />
-              
-              <div className="flex items-center justify-between mb-4 px-2">
-                <div>
-                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">All Modules Desk</h3>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Access Baroda Swim Front controls</p>
-                </div>
-                <button 
-                  onClick={() => setMobileMenuDrawerOpen(false)}
-                  className="p-1.5 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 cursor-pointer"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-
-              {/* Tabs Grid */}
-              <div className="grid grid-cols-3 gap-3 overflow-y-auto max-h-[50vh] py-2 px-1">
-                {visibleTabs.map((tab) => {
-                  const Icon = tab.icon;
-                  const isActive = activeTab === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      id={`drawer-tab-btn-${tab.id}`}
-                      onClick={() => {
-                        setActiveTab(tab.id);
-                        setSelectedMember(null);
-                        setMobileMenuDrawerOpen(false);
-                      }}
-                      className={`p-3.5 rounded-xl border flex flex-col items-center justify-center gap-2 text-center transition-all cursor-pointer ${
-                        isActive 
-                          ? "bg-sky-50 border-sky-200 text-sky-600 font-bold shadow-xs" 
-                          : "border-slate-100 bg-slate-50 text-slate-600 hover:bg-slate-100/55"
-                      }`}
-                    >
-                      <Icon className="h-5 w-5" />
-                      <span className="text-[10px] font-semibold tracking-tight truncate w-full">{tab.label.replace(" (Admin only)", "")}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Drawer footer logout */}
-              <div className="mt-6 pt-4 border-t border-slate-100">
-                <button
-                  onClick={() => {
-                    setMobileMenuDrawerOpen(false);
-                    onLogout?.();
-                  }}
-                  className="w-full py-3.5 rounded-xl bg-red-50 hover:bg-red-100/50 text-red-600 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2.5 transition-colors cursor-pointer"
-                >
-                  <LogOut className="h-4 w-4" />
-                  <span>Log Out</span>
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {/* PHONE MENU */}
+      <SideMenuDrawer
+        open={mobileMenuDrawerOpen}
+        onClose={() => setMobileMenuDrawerOpen(false)}
+        sections={menuSections}
+        activeId={activeTab}
+        onSelect={(id) => { setActiveTab(id); setSelectedMember(null); }}
+        subtitle={normalizedRole === "coach" ? "Coach dashboard" : "Admin dashboard"}
+        user={{ name: activeUser.name, role: roleLabel(activeUser.role), avatar: activeUser.avatar }}
+        onProfile={visibleTabs.some((t) => t.id === "settings") ? () => { setActiveTab("settings"); setSelectedMember(null); } : undefined}
+        onSearch={() => setCommandPaletteOpen(true)}
+        onLogout={() => onLogout?.()}
+        primaryAction={visibleTabs.some((t) => t.id === "register") ? { label: "New member", icon: Plus, onClick: () => { setActiveTab("register"); setSelectedMember(null); } } : undefined}
+      />
 
       {/* SYSTEM NOTIFICATIONS DRAWER */}
       <NotificationDrawer
