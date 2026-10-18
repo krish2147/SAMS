@@ -11,13 +11,13 @@ import {
 import { AcademyId, UserSession } from "../types";
 import { NotificationDrawer } from "./NotificationDrawer";
 import { SideMenuDrawer } from "./SideMenuDrawer";
+import { SettingsTab } from "./SettingsTab";
 import { MIN_PASSWORD_LENGTH } from "../utils/password";
 import { sessionStore } from "../utils/sessionStore";
 import { useRememberedState } from "../utils/useRememberedState";
 import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-logo";
 import { useStaffNotifications } from "../utils/useStaffNotifications";
 import { NotificationCountBadge } from "./NotificationCountBadge";
-import { PasswordInput } from "./PasswordInput";
 import { CHARACTER_AVATARS } from "../utils/avatars";
 
 interface CoachDashboardProps {
@@ -108,26 +108,8 @@ export function CoachDashboard({ academyId, userName, onLogout, onSessionExpired
   const [performanceRemarks, setPerformanceRemarks] = useState("");
   const [isSavingRemarks, setIsSavingRemarks] = useState(false);
 
-  // Profile Settings form state
-  const [profileName, setProfileName] = useState(sessionUser?.name || "");
-  const [profileEmail, setProfileEmail] = useState(sessionUser?.email || "");
-  const [profilePhone, setProfilePhone] = useState(sessionUser?.phoneNumber || sessionUser?.phone || "");
-  const [photoUrl, setPhotoUrl] = useState(sessionUser?.avatar || sessionUser?.photoUrl || "");
-  const [isSavingProfile, setIsSavingProfile] = useState(false);
-
-  // Password Settings form state
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [isSavingPassword, setIsSavingPassword] = useState(false);
-
-  // Pre-loaded preset avatar lists
-  const AVATAR_PRESETS = [
-    CHARACTER_AVATARS[0],
-    CHARACTER_AVATARS[1],
-    CHARACTER_AVATARS[2],
-    CHARACTER_AVATARS[3]
-  ];
+  // The coach's current photo; follows Settings saves through sessionUser.
+  const photoUrl: string = sessionUser?.avatar || sessionUser?.photoUrl || "";
 
   // Primary Data Fetch Function
   const fetchDashboardData = async (silent = false) => {
@@ -223,107 +205,6 @@ export function CoachDashboard({ academyId, userName, onLogout, onSessionExpired
       alert("Error: " + err.message);
     } finally {
       setIsSavingRemarks(false);
-    }
-  };
-
-  // Handle Profile Update Operation
-  const handleSaveProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!profileName.trim() || !profileEmail.trim()) {
-      alert("Full Name and Email ID are mandatory fields.");
-      return;
-    }
-
-    try {
-      setIsSavingProfile(true);
-      const token = getSessionToken();
-      const response = await fetch("/api/staff/update-profile", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { "x-session-token": token } : {})
-        },
-        body: JSON.stringify({
-          name: profileName,
-          email: profileEmail,
-          phoneNumber: profilePhone,
-          photoUrl: photoUrl
-        })
-      });
-
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(data.error || "Couldn't save your profile. Please try again.");
-      }
-
-      setSuccessToast("Coaching profile updated successfully!");
-      
-      // Update local storage session
-      try {
-        const saved = sessionStore.get();
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          parsed.name = profileName;
-          parsed.email = profileEmail;
-          parsed.phone = profilePhone;
-          parsed.phoneNumber = profilePhone;
-          parsed.photoUrl = photoUrl;
-          parsed.avatar = photoUrl;
-          sessionStore.set(JSON.stringify(parsed));
-          setSessionUser(parsed);
-        }
-      } catch (e) {}
-
-      setTimeout(() => setSuccessToast(null), 4000);
-    } catch (err: any) {
-      alert("Couldn't save: " + err.message);
-    } finally {
-      setIsSavingProfile(false);
-    }
-  };
-
-  // Handle Password Update Operation
-  const handleUpdatePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentPassword) {
-      alert("Current account password is required.");
-      return;
-    }
-    if (newPassword.length < MIN_PASSWORD_LENGTH) {
-      alert(`New password must contain at least ${MIN_PASSWORD_LENGTH} characters.`);
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      alert("New passwords do not match.");
-      return;
-    }
-
-    try {
-      setIsSavingPassword(true);
-      const token = getSessionToken();
-      const response = await fetch("/api/staff/update-password", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { "x-session-token": token } : {})
-        },
-        body: JSON.stringify({ currentPassword, newPassword })
-      });
-
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to change password.");
-      }
-
-      setSuccessToast("Password updated successfully!");
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-      setTimeout(() => setSuccessToast(null), 4000);
-    } catch (err: any) {
-      alert("Error: " + err.message);
-    } finally {
-      setIsSavingPassword(false);
     }
   };
 
@@ -1192,193 +1073,27 @@ export function CoachDashboard({ academyId, userName, onLogout, onSessionExpired
 
               {/* TAB 7: PROFILE SETTINGS */}
               {activeTab === "profile" && (
-                <div className="space-y-8">
-                  <div>
-                    <h3 className={`text-lg font-black tracking-tight ${textTitle}`}>My Coaching Profile</h3>
-                    <p className="text-xs text-slate-500">Update your profile photo, phone number and password.</p>
-                  </div>
-
-                  {/* SPLIT FOR PROFILE INFO AND SECURITY */}
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                    
-                    {/* LEFT AREA: PROFILE DETAILS */}
-                    <div className={`lg:col-span-8 rounded-3xl p-6 border ${bgCard} space-y-6`}>
-                      <div className="flex items-center gap-2 pb-3 border-b border-current/10">
-                        <User className="h-5 w-5 text-indigo-500" />
-                        <h4 className={`text-sm font-black uppercase tracking-wider ${isSwim ? "text-slate-900" : "text-white"}`}>Coaching Details</h4>
-                      </div>
-
-                      {/* PHOTO UPLOADER */}
-                      <div className="space-y-3">
-                        <label className="text-[10px] font-mono uppercase opacity-65 font-extrabold tracking-wider">Profile Avatar Preset</label>
-                        <div className="flex gap-4 items-center">
-                          <div className="h-16 w-16 rounded-2xl overflow-hidden border border-current/10 bg-current/5 shrink-0">
-                            <img src={photoUrl || CHARACTER_AVATARS[0]} alt="Preview avatar" className="h-full w-full object-cover" />
-                          </div>
-                          
-                          <div className="flex gap-2">
-                            {AVATAR_PRESETS.map((preset, idx) => (
-                              <button
-                                key={idx}
-                                type="button"
-                                onClick={() => setPhotoUrl(preset)}
-                                className={`h-10 w-10 rounded-xl overflow-hidden border-2 transition-all hover:scale-105 ${
-                                  photoUrl === preset 
-                                    ? `border-${themeAccent}-500 ring-2 ring-${themeAccent}-300`
-                                    : "border-transparent opacity-60 hover:opacity-100"
-                                }`}
-                              >
-                                <img src={preset} alt={`Preset ${idx + 1}`} className="h-full w-full object-cover" />
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-
-                      <form onSubmit={handleSaveProfile} className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <div className="flex flex-col gap-1.5">
-                          <label className="text-[10px] font-mono uppercase opacity-65 font-extrabold">Full Name</label>
-                          <input 
-                            type="text" 
-                            value={profileName}
-                            onChange={(e) => setProfileName(e.target.value)}
-                            className={`w-full p-3.5 text-xs focus:outline-none rounded-xl font-bold border ${
-                              isSwim 
-                                ? "bg-slate-50 border-slate-200 text-slate-900 focus:bg-white focus:ring-1 focus:ring-sky-400" 
-                                : "bg-emerald-900/20 border-emerald-900/40 text-emerald-50 focus:bg-emerald-900/30 focus:ring-1 focus:ring-amber-400"
-                            }`}
-                            required
-                          />
-                        </div>
-
-                        <div className="flex flex-col gap-1.5">
-                          <label className="text-[10px] font-mono uppercase opacity-65 font-extrabold">Email Address</label>
-                          <input 
-                            type="email" 
-                            value={profileEmail}
-                            onChange={(e) => setProfileEmail(e.target.value)}
-                            className={`w-full p-3.5 text-xs focus:outline-none rounded-xl font-bold border ${
-                              isSwim 
-                                ? "bg-slate-50 border-slate-200 text-slate-900 focus:bg-white focus:ring-1 focus:ring-sky-400" 
-                                : "bg-emerald-900/20 border-emerald-900/40 text-emerald-50 focus:bg-emerald-900/30 focus:ring-1 focus:ring-amber-400"
-                            }`}
-                            required
-                          />
-                        </div>
-
-                        <div className="flex flex-col gap-1.5 md:col-span-2">
-                          <label className="text-[10px] font-mono uppercase opacity-65 font-extrabold">Contact Number</label>
-                          <input 
-                            type="text" 
-                            value={profilePhone}
-                            onChange={(e) => setProfilePhone(e.target.value)}
-                            className={`w-full p-3.5 text-xs focus:outline-none rounded-xl font-bold border ${
-                              isSwim 
-                                ? "bg-slate-50 border-slate-200 text-slate-900 focus:bg-white focus:ring-1 focus:ring-sky-400" 
-                                : "bg-emerald-900/20 border-emerald-900/40 text-emerald-50 focus:bg-emerald-900/30 focus:ring-1 focus:ring-amber-400"
-                            }`}
-                          />
-                        </div>
-
-                        <div className="md:col-span-2 pt-2">
-                          <button 
-                            type="submit" 
-                            disabled={isSavingProfile}
-                            className={`px-6 py-3.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${btnPrimary}`}
-                          >
-                            {isSavingProfile ? (
-                              <>
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                <span>Updating Profile...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Check className="h-3.5 w-3.5" />
-                                <span>Save Profile Changes</span>
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      </form>
-                    </div>
-
-                    {/* RIGHT AREA: ACCOUNT SECURITY */}
-                    <div className={`lg:col-span-4 rounded-3xl p-6 border ${bgCard} space-y-6`}>
-                      <div className="flex items-center gap-2 pb-3 border-b border-current/10">
-                        <Lock className="h-5 w-5 text-rose-500" />
-                        <h4 className={`text-sm font-black uppercase tracking-wider ${isSwim ? "text-slate-900" : "text-white"}`}>Account Security</h4>
-                      </div>
-
-                      <form onSubmit={handleUpdatePassword} className="space-y-4">
-                        <div className="flex flex-col gap-1.5">
-                          <label className="text-[10px] font-mono uppercase opacity-65 font-extrabold">Current Password</label>
-                          <PasswordInput 
-                            value={currentPassword}
-                            onChange={(e) => setCurrentPassword(e.target.value)}
-                            placeholder="••••••••"
-                            className={`w-full p-3.5 text-xs focus:outline-none rounded-xl font-bold border ${
-                              isSwim 
-                                ? "bg-slate-50 border-slate-200 text-slate-900 focus:bg-white focus:ring-1 focus:ring-sky-400" 
-                                : "bg-emerald-900/20 border-emerald-900/40 text-emerald-50 focus:bg-emerald-900/30 focus:ring-1 focus:ring-amber-400"
-                            }`}
-                            required
-                          />
-                        </div>
-
-                        <div className="flex flex-col gap-1.5">
-                          <label className="text-[10px] font-mono uppercase opacity-65 font-extrabold">New Password</label>
-                          <PasswordInput 
-                            value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
-                            placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
-                            className={`w-full p-3.5 text-xs focus:outline-none rounded-xl font-bold border ${
-                              isSwim 
-                                ? "bg-slate-50 border-slate-200 text-slate-900 focus:bg-white focus:ring-1 focus:ring-sky-400" 
-                                : "bg-emerald-900/20 border-emerald-900/40 text-emerald-50 focus:bg-emerald-900/30 focus:ring-1 focus:ring-amber-400"
-                            }`}
-                            required
-                          />
-                        </div>
-
-                        <div className="flex flex-col gap-1.5">
-                          <label className="text-[10px] font-mono uppercase opacity-65 font-extrabold">Confirm New Password</label>
-                          <PasswordInput 
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            placeholder="••••••••"
-                            className={`w-full p-3.5 text-xs focus:outline-none rounded-xl font-bold border ${
-                              isSwim 
-                                ? "bg-slate-50 border-slate-200 text-slate-900 focus:bg-white focus:ring-1 focus:ring-sky-400" 
-                                : "bg-emerald-900/20 border-emerald-900/40 text-emerald-50 focus:bg-emerald-900/30 focus:ring-1 focus:ring-amber-400"
-                            }`}
-                            required
-                          />
-                        </div>
-
-                        <div className="pt-2">
-                          <button 
-                            type="submit" 
-                            disabled={isSavingPassword}
-                            className={`w-full py-3.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white`}
-                          >
-                            {isSavingPassword ? (
-                              <>
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                <span>Updating Password...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Lock className="h-3.5 w-3.5" />
-                                <span>Update Account Password</span>
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      </form>
-                    </div>
-
-                  </div>
-                </div>
+                <SettingsTab
+                  activeUser={{
+                    name: sessionUser?.name || userName || "",
+                    role: "coach",
+                    email: sessionUser?.email || "",
+                    phoneNumber: sessionUser?.phoneNumber || sessionUser?.phone || "",
+                    avatar: sessionUser?.avatar || sessionUser?.photoUrl || ""
+                  }}
+                  onLogout={() => onLogout?.()}
+                  onProfileUpdated={(updated) => {
+                    try {
+                      const saved = sessionStore.get();
+                      if (saved) {
+                        const parsed = JSON.parse(saved);
+                        Object.assign(parsed, { name: updated.name, email: updated.email, phone: updated.phoneNumber, phoneNumber: updated.phoneNumber, photoUrl: updated.avatar, avatar: updated.avatar });
+                        sessionStore.set(JSON.stringify(parsed));
+                        setSessionUser(parsed);
+                      }
+                    } catch { /* ignore */ }
+                  }}
+                />
               )}
 
             </motion.div>
@@ -1482,7 +1197,7 @@ export function CoachDashboard({ academyId, userName, onLogout, onSessionExpired
         activeId={activeTab}
         onSelect={(id) => setActiveTab(id as any)}
         subtitle="Coach dashboard"
-        user={{ name: userName || userSession?.name || "Coach", role: "Coach", avatar: userSession?.avatar }}
+        user={{ name: sessionUser?.name || userName || "Coach", role: "Coach", avatar: photoUrl || undefined }}
         onProfile={() => setActiveTab("profile" as any)}
         onLogout={() => onLogout?.()}
       />

@@ -1,16 +1,18 @@
 import React, { useState, useRef, useEffect } from "react";
-import { motion } from "motion/react";
-import { 
-  Sliders, User, Shield, Bell, Eye, Database, CheckCircle, 
-  AlertCircle, Cpu, Wifi, HelpCircle, Key, Mail, Phone, Moon, Sun,
-  Camera, Upload, Check, RefreshCw
+import { AnimatePresence, motion } from "motion/react";
+import {
+  User, Bell, KeyRound, Palette, LogOut, ChevronRight, ArrowLeft, Check, X, Shuffle,
+  Smile, Image as ImageIcon, Camera, CheckCircle, AlertCircle, RefreshCw
 } from "lucide-react";
 import { MIN_PASSWORD_LENGTH } from "../utils/password";
 import { sessionStore } from "../utils/sessionStore";
 import { PasswordInput } from "./PasswordInput";
-import { CHARACTER_AVATARS } from "../utils/avatars";
-import { PhotoPicker } from "./PhotoPicker";
+import { CHARACTER_AVATARS, CHARACTER_AVATAR_LABELS } from "../utils/avatars";
+import { CameraCapture } from "./PhotoPicker";
 import { ACCENTS, getAccent, saveAccent, type AccentId } from "../utils/accent";
+import { roleLabel } from "../utils/roles";
+
+// Settings laid out like a phone settings app: one list of rows, each opening its own page.
 
 interface SettingsTabProps {
   activeUser: {
@@ -21,12 +23,13 @@ interface SettingsTabProps {
     phoneNumber?: string;
     avatar?: string;
   };
-  buttonPrimary: string;
-  inputStyle: string;
+  buttonPrimary?: string;
+  inputStyle?: string;
   onProfileUpdated?: (updatedUser: { name: string; email: string; phoneNumber: string; avatar: string }) => void;
+  onLogout?: () => void;
 }
 
-const AVATAR_PRESETS = CHARACTER_AVATARS;
+type Page = "home" | "profile" | "password" | "notifications" | "appearance";
 
 // "+91 98765 43210", "919876543210" or "9876543210" -> "9876543210"
 const nationalDigits = (phone?: string) => {
@@ -34,8 +37,19 @@ const nationalDigits = (phone?: string) => {
   return d.length > 10 && d.startsWith("91") ? d.slice(-10) : d.slice(0, 10);
 };
 
-export function SettingsTab({ activeUser, buttonPrimary, inputStyle, onProfileUpdated }: SettingsTabProps) {
-  // Local states for sections
+const sessionToken = () => {
+  try {
+    const saved = sessionStore.get();
+    if (saved) return JSON.parse(saved)?.token || "";
+  } catch { /* ignore */ }
+  return "";
+};
+
+const field = "w-full h-14 px-4 rounded-2xl border border-slate-200 bg-white text-[16px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-aqua-500 focus:ring-4 focus:ring-aqua-500/15";
+
+export function SettingsTab({ activeUser, onProfileUpdated, onLogout }: SettingsTabProps) {
+  const [page, setPage] = useState<Page>("home");
+
   const [profileName, setProfileName] = useState(activeUser.name);
   const [profileEmail, setProfileEmail] = useState(activeUser.email || "");
   const [profilePhone, setProfilePhone] = useState(nationalDigits(activeUser.phoneNumber));
@@ -61,449 +75,415 @@ export function SettingsTab({ activeUser, buttonPrimary, inputStyle, onProfileUp
 
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const [dragActive, setDragActive] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [photoSheetOpen, setPhotoSheetOpen] = useState(false);
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const galleryRef = useRef<HTMLInputElement>(null);
+  const nativeCameraRef = useRef<HTMLInputElement>(null);
 
-  const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
+  const go = (next: Page) => {
+    setErrorMsg(null);
+    setSaveSuccess(null);
+    setPage(next);
+    window.scrollTo?.({ top: 0 });
+  };
+
+  const flash = (msg: string) => {
+    setErrorMsg(null);
+    setSaveSuccess(msg);
+    setTimeout(() => setSaveSuccess(null), 4000);
+  };
+
+  const saveProfile = async (overrides: { photoUrl?: string } = {}) => {
+    setErrorMsg(null);
+    setSaveSuccess(null);
+    const nextPhoto = overrides.photoUrl ?? photoUrl;
+    if (!profileName.trim() || !profileEmail.trim()) {
+      setErrorMsg("Name and email are required.");
+      return false;
+    }
+    if (profilePhone && !/^[6-9]\d{9}$/.test(profilePhone)) {
+      setErrorMsg("Enter a 10-digit Indian mobile number starting with 6, 7, 8 or 9.");
+      return false;
+    }
+    const fullPhone = profilePhone ? `+91 ${profilePhone}` : "";
+    setIsSaving(true);
+    try {
+      const response = await fetch("/api/staff/update-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-session-token": sessionToken() },
+        body: JSON.stringify({ name: profileName, email: profileEmail, phoneNumber: fullPhone, photoUrl: nextPhoto })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Couldn't save your profile. Please try again.");
+      setPhotoUrl(nextPhoto);
+      onProfileUpdated?.({ name: profileName, email: profileEmail, phoneNumber: fullPhone, avatar: nextPhoto });
+      flash(overrides.photoUrl !== undefined ? "Photo updated." : "Profile updated.");
+      return true;
+    } catch (err: any) {
+      setErrorMsg(err.message || "Couldn't save your profile. Please try again.");
+      return false;
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFile(e.dataTransfer.files[0]);
-    }
-  };
-
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      handleFile(e.target.files[0]);
-    }
-  };
-
-  const handleFile = (file: File) => {
+  const handlePhotoFile = (file: File) => {
     if (!file.type.startsWith("image/")) {
       setErrorMsg("Only image files (JPEG, PNG, WEBP) are supported.");
       return;
     }
     if (file.size > 4 * 1024 * 1024) {
-      setErrorMsg("Image size exceeds the 4MB limit.");
+      setErrorMsg("That photo is bigger than 4 MB. Please choose a smaller one.");
       return;
     }
-
     const reader = new FileReader();
-    reader.onloadend = () => {
-      setPhotoUrl(reader.result as string);
-      setErrorMsg(null);
-    };
+    reader.onloadend = () => { void saveProfile({ photoUrl: reader.result as string }); };
     reader.readAsDataURL(file);
   };
 
-  const handleSaveProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg(null);
-    setSaveSuccess(null);
-    setIsSavingProfile(true);
+  const fromInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handlePhotoFile(file);
+    e.target.value = "";
+  };
 
-    if (!profileName.trim() || !profileEmail.trim()) {
-      setErrorMsg("Name and Email are required fields.");
-      setIsSavingProfile(false);
-      return;
-    }
-    if (profilePhone && !/^[6-9]\d{9}$/.test(profilePhone)) {
-      setErrorMsg("Enter a 10-digit Indian mobile number starting with 6, 7, 8 or 9.");
-      setIsSavingProfile(false);
-      return;
-    }
-    const fullPhone = profilePhone ? `+91 ${profilePhone}` : "";
-
-    try {
-      const response = await fetch("/api/staff/update-profile", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-session-token": (() => {
-            try {
-              const saved = sessionStore.get();
-              if (saved) return JSON.parse(saved)?.token || "";
-            } catch (err) {}
-            return "";
-          })()
-        },
-        body: JSON.stringify({
-          name: profileName,
-          email: profileEmail,
-          phoneNumber: fullPhone,
-          photoUrl: photoUrl
-        })
-      });
-
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to update profile.");
-      }
-
-      setSaveSuccess("Profile details and photo updated successfully!");
-      if (onProfileUpdated) {
-        onProfileUpdated({
-          name: profileName,
-          email: profileEmail,
-          phoneNumber: fullPhone,
-          avatar: photoUrl
-        });
-      }
-      setTimeout(() => setSaveSuccess(null), 4000);
-    } catch (err: any) {
-      setErrorMsg(err.message || "An error occurred while updating your profile.");
-    } finally {
-      setIsSavingProfile(false);
-    }
+  const takePhoto = () => {
+    if (navigator.mediaDevices?.getUserMedia) setCameraOpen(true);
+    else nativeCameraRef.current?.click();
   };
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSaveSuccess(null);
-
-    if (!currentPassword) {
-      setErrorMsg("Current password is required to change password.");
-      return;
-    }
-    if (newPassword.length < MIN_PASSWORD_LENGTH) {
-      setErrorMsg(`New password must be at least ${MIN_PASSWORD_LENGTH} characters long.`);
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setErrorMsg("New password and confirm password do not match.");
-      return;
-    }
-
+    if (!currentPassword) return setErrorMsg("Enter your current password.");
+    if (newPassword.length < MIN_PASSWORD_LENGTH) return setErrorMsg(`New password must be at least ${MIN_PASSWORD_LENGTH} characters long.`);
+    if (newPassword !== confirmPassword) return setErrorMsg("The new passwords don't match.");
+    setIsSaving(true);
     try {
       const response = await fetch("/api/staff/update-password", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-session-token": (() => {
-            try {
-              const saved = sessionStore.get();
-              if (saved) return JSON.parse(saved)?.token || "";
-            } catch (err) {}
-            return "";
-          })()
-        },
-        body: JSON.stringify({
-          currentPassword,
-          newPassword
-        })
+        headers: { "Content-Type": "application/json", "x-session-token": sessionToken() },
+        body: JSON.stringify({ currentPassword, newPassword })
       });
-
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to update password.");
-      }
-
-      setSaveSuccess("Password updated successfully!");
+      if (!response.ok) throw new Error(data.error || "Couldn't change your password.");
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      setTimeout(() => setSaveSuccess(null), 4000);
+      flash("Password changed.");
     } catch (err: any) {
-      setErrorMsg(err.message || "An error occurred while updating your password.");
+      setErrorMsg(err.message || "Couldn't change your password.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const handleSavePreferences = () => {
-    setSaveSuccess("Preferences and appearance saved!");
-    setTimeout(() => setSaveSuccess(null), 4000);
-  };
+  const profileDirty =
+    profileName !== (activeUser.name || "") ||
+    profileEmail !== (activeUser.email || "") ||
+    profilePhone !== nationalDigits(activeUser.phoneNumber);
+
+  const accentLabel = ACCENTS.find((a) => a.id === accent)?.label || "";
+  const notifSummary = [notifEmail && "Email", notifSms && "SMS", notifPush && "App"].filter(Boolean).join(", ") || "Off";
+
+  const messages = (
+    <>
+      {saveSuccess && (
+        <div role="status" className="mb-4 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+          <CheckCircle className="h-5 w-5 shrink-0 text-emerald-600" />
+          <span className="text-sm font-semibold text-emerald-800">{saveSuccess}</span>
+        </div>
+      )}
+      {errorMsg && (
+        <div role="alert" className="mb-4 flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4">
+          <AlertCircle className="h-5 w-5 shrink-0 text-rose-600" />
+          <span className="text-sm font-semibold text-rose-800">{errorMsg}</span>
+        </div>
+      )}
+    </>
+  );
+
+  const header = (title: string) => (
+    <div className="mb-6 grid grid-cols-[44px_1fr_44px] items-center">
+      {page === "home" ? <span /> : (
+        <button type="button" onClick={() => go("home")} aria-label="Back to settings" className="h-11 w-11 -ml-2 rounded-full flex items-center justify-center text-slate-700 hover:bg-slate-100 cursor-pointer">
+          <ArrowLeft className="h-6 w-6" />
+        </button>
+      )}
+      <h1 className="text-center font-display text-2xl font-bold tracking-tight text-slate-900">{title}</h1>
+      <span />
+    </div>
+  );
+
+  const avatarCircle = (size: string, text: string) => (
+    <span className={`${size} shrink-0 rounded-full overflow-hidden bg-aqua-500 text-white font-bold flex items-center justify-center ${text}`}>
+      {photoUrl ? <img src={photoUrl} alt="" className="h-full w-full object-cover" /> : (profileName || "?").charAt(0).toUpperCase()}
+    </span>
+  );
 
   return (
-    <div className="space-y-6 md:space-y-8 max-w-4xl mx-auto px-4 md:px-0 text-left">
-      {/* HEADER SECTION */}
-      <div className="border-b border-slate-150 pb-5">
-        <span className="text-xs font-black tracking-widest text-sky-600 uppercase block mb-1">CONFIGURATION</span>
-        <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Settings</h1>
-        <p className="text-sm text-slate-500 font-medium mt-1">Manage your profile, password and preferences.</p>
-      </div>
+    <div className="mx-auto max-w-xl px-4 pb-32 text-left md:px-0 md:pb-10">
+      {page === "home" && (
+        <>
+          {header("Settings")}
+          {messages}
 
-      {saveSuccess && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-3">
-          <CheckCircle className="h-5 w-5 text-emerald-600 shrink-0" />
-          <span className="text-xs font-bold text-emerald-800">{saveSuccess}</span>
-        </div>
+          <button type="button" id="settings-account" onClick={() => go("profile")} className="mb-4 flex w-full items-center gap-4 rounded-3xl border border-slate-200 bg-white p-4 text-left hover:bg-slate-50 cursor-pointer">
+            {avatarCircle("h-14 w-14", "text-xl")}
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[17px] font-semibold text-slate-900">{profileName || "Your profile"}</span>
+              <span className="block truncate text-sm text-slate-500">{profileEmail}</span>
+            </span>
+            <span className="shrink-0 rounded-full bg-slate-900 px-3 py-1 text-xs font-bold text-white">{roleLabel(activeUser.role)}</span>
+          </button>
+
+          <Group>
+            <Row icon={User} title="Profile" onClick={() => go("profile")} />
+            <Row icon={KeyRound} title="Password" subtitle="Change your login password" onClick={() => go("password")} />
+          </Group>
+          <Group>
+            <Row icon={Bell} title="Notifications" subtitle={notifSummary} onClick={() => go("notifications")} />
+            <Row icon={Palette} title="Accent colour" subtitle={accentLabel} onClick={() => go("appearance")} />
+          </Group>
+          {onLogout && (
+            <Group>
+              <Row icon={LogOut} title="Log out" danger onClick={onLogout} />
+            </Group>
+          )}
+        </>
       )}
 
-      {errorMsg && (
-        <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex items-center gap-3">
-          <AlertCircle className="h-5 w-5 text-rose-600 shrink-0" />
-          <span className="text-xs font-bold text-rose-800">{errorMsg}</span>
-        </div>
-      )}
-
-      {/* SECTION 1: PROFILE */}
-      <div className="bg-white border border-slate-150 rounded-3xl p-6 shadow-xs space-y-4">
-        <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
-          <User className="h-5 w-5 text-sky-600" />
-          <h4 className="text-sm font-extrabold uppercase text-slate-800 tracking-wider">1. Profile Details</h4>
-        </div>
-
-        {/* PROFILE PHOTO UPLOAD BLOCK */}
-        <div className="p-4 bg-slate-50 border border-slate-150 rounded-2xl space-y-4">
-          <label className="text-xs font-extrabold text-slate-600 block uppercase tracking-wider">Profile Photo</label>
-          <div className="flex flex-col sm:flex-row gap-5 items-center">
-            {/* Photo Preview Container */}
-            <div className="relative group select-none shrink-0">
-              <img 
-                src={photoUrl || CHARACTER_AVATARS[4]} 
-                alt="Profile Preview" 
-                className="w-24 h-24 rounded-2xl object-cover border-2 border-sky-400 shadow-md animate-fade-in"
-              />
-              <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-slate-900 animate-pulse" />
-            </div>
-
-            {/* Take or choose a photo (drag & drop also works on a computer) */}
-            <div 
-              onDragEnter={handleDrag}
-              onDragOver={handleDrag}
-              onDragLeave={handleDrag}
-              onDrop={handleDrop}
-              className={`flex-1 w-full p-5 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center text-center gap-3 transition-all ${
-                dragActive 
-                  ? "border-sky-500 bg-sky-500/5 scale-[0.99]" 
-                  : "border-slate-200"
-              }`}
-            >
-              <PhotoPicker onPick={handleFile} className="justify-center" />
-              <p className="text-xs text-slate-400">JPEG, PNG or WEBP, up to 4 MB<span className="hidden sm:inline">. You can also drag a photo here.</span></p>
-            </div>
+      {page === "profile" && (
+        <>
+          {header("Profile")}
+          <div className="mb-8 flex flex-col items-center gap-4">
+            {avatarCircle("h-32 w-32", "text-5xl")}
+            <button type="button" id="settings-edit-photo" onClick={() => setPhotoSheetOpen(true)} disabled={isSaving} className="h-11 rounded-full border border-slate-300 bg-white px-5 text-[15px] font-semibold text-slate-900 hover:bg-slate-50 disabled:opacity-60 cursor-pointer">
+              {isSaving ? "Saving…" : "Edit photo"}
+            </button>
           </div>
+          {messages}
+          <form onSubmit={(e) => { e.preventDefault(); void saveProfile(); }} className="space-y-5">
+            <label className="block">
+              <span className="mb-2 block text-[15px] font-medium text-slate-700">Full name</span>
+              <input value={profileName} onChange={(e) => setProfileName(e.target.value)} autoComplete="name" className={field} />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-[15px] font-medium text-slate-700">Email</span>
+              <input type="email" value={profileEmail} onChange={(e) => setProfileEmail(e.target.value)} autoComplete="email" className={field} />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-[15px] font-medium text-slate-700">Mobile number</span>
+              <span className={`${field} flex items-center gap-0 !px-0 overflow-hidden focus-within:border-aqua-500 focus-within:ring-4 focus-within:ring-aqua-500/15`}>
+                <span className="shrink-0 border-r border-slate-200 px-4 font-semibold text-slate-700">+91</span>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  autoComplete="tel-national"
+                  value={profilePhone}
+                  onChange={(e) => setProfilePhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                  placeholder="98765 43210"
+                  className="h-full min-w-0 flex-1 bg-transparent px-4 focus:outline-none"
+                />
+              </span>
+            </label>
+            <button type="submit" disabled={!profileDirty || isSaving} className="h-14 w-full rounded-full bg-slate-900 text-[17px] font-semibold text-white hover:bg-slate-800 disabled:bg-slate-300 disabled:text-slate-500 cursor-pointer disabled:cursor-default flex items-center justify-center gap-2">
+              {isSaving && <RefreshCw className="h-4 w-4 animate-spin" />}
+              Update profile
+            </button>
+          </form>
+        </>
+      )}
 
-          {/* Quick Avatar Presets selector */}
-          <div className="space-y-1.5 pt-1">
-            <label className="text-xs font-semibold text-slate-500">Or pick a character</label>
-            <div className="flex flex-wrap gap-3">
-              {AVATAR_PRESETS.map((preset, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => setPhotoUrl(preset)}
-                  className={`h-11 w-11 rounded-xl overflow-hidden border-2 transition-all hover:scale-105 ${
-                    photoUrl === preset 
-                      ? "border-sky-500 ring-2 ring-sky-300"
-                      : "border-transparent opacity-65 hover:opacity-100"
-                  }`}
-                >
-                  <img src={preset} alt={`Preset ${idx + 1}`} className="h-full w-full object-cover" />
+      {page === "password" && (
+        <>
+          {header("Password")}
+          {messages}
+          <form onSubmit={handleUpdatePassword} className="space-y-5">
+            <label className="block">
+              <span className="mb-2 block text-[15px] font-medium text-slate-700">Current password</span>
+              <PasswordInput value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} autoComplete="current-password" className={field} />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-[15px] font-medium text-slate-700">New password</span>
+              <PasswordInput value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`} autoComplete="new-password" className={field} />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-[15px] font-medium text-slate-700">Confirm new password</span>
+              <PasswordInput value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} autoComplete="new-password" className={field} />
+            </label>
+            <button type="submit" disabled={isSaving || !currentPassword || !newPassword} className="h-14 w-full rounded-full bg-slate-900 text-[17px] font-semibold text-white hover:bg-slate-800 disabled:bg-slate-300 disabled:text-slate-500 cursor-pointer disabled:cursor-default">
+              Change password
+            </button>
+          </form>
+        </>
+      )}
+
+      {page === "notifications" && (
+        <>
+          {header("Notifications")}
+          <Group>
+            <ToggleRow title="Email" subtitle="Daily reports and important alerts" checked={notifEmail} onChange={setNotifEmail} />
+            <ToggleRow title="SMS & WhatsApp" subtitle="Batch changes, fee approvals and greetings to members" checked={notifSms} onChange={setNotifSms} />
+            <ToggleRow title="App notifications" subtitle="Red count on the bell and reminders" checked={notifPush} onChange={setNotifPush} />
+          </Group>
+        </>
+      )}
+
+      {page === "appearance" && (
+        <>
+          {header("Accent colour")}
+          <p className="mb-4 px-1 text-sm text-slate-500">Changes buttons, links and highlights. Saved on this device.</p>
+          <Group>
+            {ACCENTS.map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                role="radio"
+                aria-checked={accent === a.id}
+                onClick={() => { setAccent(a.id); saveAccent(a.id); }}
+                className="flex min-h-[60px] w-full items-center gap-4 px-4 text-left hover:bg-slate-50 cursor-pointer"
+              >
+                <span className="h-7 w-7 shrink-0 rounded-full" style={{ background: a.swatch }} />
+                <span className="flex-1 text-[17px] text-slate-900">{a.label}</span>
+                {accent === a.id && <Check className="h-5 w-5 text-slate-900" strokeWidth={3} />}
+              </button>
+            ))}
+          </Group>
+        </>
+      )}
+
+      <input ref={galleryRef} type="file" accept="image/png, image/jpeg, image/webp" className="hidden" onChange={fromInput} />
+      <input ref={nativeCameraRef} type="file" accept="image/*" capture="user" className="hidden" onChange={fromInput} />
+
+      {/* Edit photo: bottom sheet */}
+      <AnimatePresence>
+        {photoSheetOpen && (
+          <div className="fixed inset-0 z-[70] flex flex-col justify-end" role="dialog" aria-modal="true" aria-label="Edit photo">
+            <motion.button type="button" aria-label="Close" onClick={() => setPhotoSheetOpen(false)} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/40 cursor-default" />
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 30, stiffness: 300 }} className="relative mx-auto w-full max-w-xl rounded-t-[28px] bg-white px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-3">
+              <div className="mb-2 grid grid-cols-[44px_1fr_44px] items-center">
+                <button type="button" onClick={() => setPhotoSheetOpen(false)} aria-label="Close" className="h-11 w-11 rounded-full flex items-center justify-center text-slate-700 hover:bg-slate-100 cursor-pointer">
+                  <X className="h-6 w-6" />
                 </button>
-              ))}
-            </div>
+                <p className="text-center text-[17px] font-semibold text-slate-900">Edit photo</p>
+                <span />
+              </div>
+              <SheetRow icon={Smile} label="Choose an avatar" onClick={() => { setPhotoSheetOpen(false); setAvatarPickerOpen(true); }} />
+              <SheetRow icon={ImageIcon} label="Choose from photos" onClick={() => { setPhotoSheetOpen(false); galleryRef.current?.click(); }} />
+              <SheetRow icon={Camera} label="Take a photo" onClick={() => { setPhotoSheetOpen(false); takePhoto(); }} />
+            </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {avatarPickerOpen && (
+        <AvatarPicker
+          current={photoUrl}
+          onClose={() => setAvatarPickerOpen(false)}
+          onDone={(url) => { setAvatarPickerOpen(false); if (url !== photoUrl) void saveProfile({ photoUrl: url }); }}
+        />
+      )}
+
+      {cameraOpen && (
+        <CameraCapture
+          onClose={() => setCameraOpen(false)}
+          onCapture={(file) => { setCameraOpen(false); handlePhotoFile(file); }}
+          onUnavailable={() => { setCameraOpen(false); nativeCameraRef.current?.click(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function Group({ children }: { children: React.ReactNode }) {
+  return <div className="mb-4 overflow-hidden rounded-3xl border border-slate-200 bg-white divide-y divide-slate-100">{children}</div>;
+}
+
+function Row({ icon: Icon, title, subtitle, onClick, danger = false }: {
+  icon: React.ComponentType<{ className?: string }>; title: string; subtitle?: string; onClick: () => void; danger?: boolean;
+}) {
+  return (
+    <button type="button" onClick={onClick} className={`flex min-h-[64px] w-full items-center gap-4 px-4 py-3 text-left hover:bg-slate-50 cursor-pointer ${danger ? "text-rose-600" : "text-slate-900"}`}>
+      <Icon className={`h-6 w-6 shrink-0 ${danger ? "text-rose-500" : "text-slate-700"}`} />
+      <span className="min-w-0 flex-1">
+        <span className="block text-[17px]">{title}</span>
+        {subtitle && <span className="block truncate text-sm text-slate-500">{subtitle}</span>}
+      </span>
+      {!danger && <ChevronRight className="h-5 w-5 shrink-0 text-slate-300" />}
+    </button>
+  );
+}
+
+function ToggleRow({ title, subtitle, checked, onChange }: { title: string; subtitle: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className="flex min-h-[64px] w-full items-center gap-4 px-4 py-3 cursor-pointer">
+      <span className="min-w-0 flex-1">
+        <span className="block text-[17px] text-slate-900">{title}</span>
+        <span className="block text-sm text-slate-500">{subtitle}</span>
+      </span>
+      <input type="checkbox" role="switch" checked={checked} onChange={(e) => onChange(e.target.checked)} className="peer sr-only" />
+      <span className={`relative h-8 w-14 shrink-0 rounded-full transition-colors peer-focus-visible:ring-4 peer-focus-visible:ring-aqua-500/25 ${checked ? "bg-aqua-500" : "bg-slate-300"}`}>
+        <span className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition-all ${checked ? "left-7" : "left-1"}`} />
+      </span>
+    </label>
+  );
+}
+
+function SheetRow({ icon: Icon, label, onClick }: { icon: React.ComponentType<{ className?: string }>; label: string; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className="flex min-h-[60px] w-full items-center gap-4 rounded-2xl px-3 text-left text-[17px] text-slate-900 hover:bg-slate-50 cursor-pointer">
+      <Icon className="h-6 w-6 shrink-0 text-slate-700" />
+      {label}
+    </button>
+  );
+}
+
+function AvatarPicker({ current, onClose, onDone }: { current: string; onClose: () => void; onDone: (url: string) => void }) {
+  const [picked, setPicked] = useState(CHARACTER_AVATARS.includes(current) ? current : CHARACTER_AVATARS[0]);
+  const shuffle = () => {
+    const others = CHARACTER_AVATARS.filter((a) => a !== picked);
+    setPicked(others[Math.floor(Math.random() * others.length)]);
+  };
+  return (
+    <div className="fixed inset-0 z-[75] overflow-y-auto bg-white" role="dialog" aria-modal="true" aria-label="Choose an avatar">
+      <div className="mx-auto max-w-xl px-4 pb-10 pt-[max(1rem,env(safe-area-inset-top))]">
+        <div className="mb-6 grid grid-cols-[44px_1fr_44px] items-center">
+          <button type="button" onClick={onClose} aria-label="Cancel" className="h-11 w-11 rounded-full flex items-center justify-center text-slate-700 hover:bg-slate-100 cursor-pointer">
+            <X className="h-6 w-6" />
+          </button>
+          <p className="text-center text-[19px] font-semibold text-slate-900">Choose an avatar</p>
+          <button type="button" id="avatar-picker-done" onClick={() => onDone(picked)} aria-label="Use this avatar" className="h-11 w-11 rounded-full flex items-center justify-center text-slate-900 hover:bg-slate-100 cursor-pointer">
+            <Check className="h-6 w-6" />
+          </button>
         </div>
-
-        <form onSubmit={handleSaveProfile} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-extrabold text-slate-500">Administrator Full Name</label>
-            <input
-              type="text"
-              value={profileName}
-              onChange={(e) => setProfileName(e.target.value)}
-              className={inputStyle}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-extrabold text-slate-500">Official Email ID</label>
-            <input
-              type="email"
-              value={profileEmail}
-              onChange={(e) => setProfileEmail(e.target.value)}
-              className={inputStyle}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5 md:col-span-2">
-            <label htmlFor="settings-phone" className="text-xs font-extrabold text-slate-500">Contact Number</label>
-            <div className={`${inputStyle} !p-0 flex items-center overflow-hidden focus-within:border-sky-400`}>
-              <span className="shrink-0 pl-3.5 pr-3 py-2.5 text-sm font-semibold text-slate-700 border-r border-slate-200">+91</span>
-              <input
-                id="settings-phone"
-                type="tel"
-                inputMode="numeric"
-                autoComplete="tel-national"
-                value={profilePhone}
-                onChange={(e) => setProfilePhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                placeholder="98765 43210"
-                className="flex-1 min-w-0 px-3 py-2.5 bg-transparent border-0 text-sm font-medium focus:outline-none"
-              />
-            </div>
-          </div>
-          <div className="md:col-span-2 pt-2">
-            <button 
-              type="submit" 
-              disabled={isSavingProfile}
-              className={`px-4.5 py-2.5 rounded-xl text-xs font-bold ${buttonPrimary} cursor-pointer flex items-center gap-2`}
-            >
-              {isSavingProfile ? (
-                <>
-                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                  <span>Saving Changes...</span>
-                </>
-              ) : (
-                <>
-                  <Check className="h-3.5 w-3.5" />
-                  <span>Save Profile Changes</span>
-                </>
-              )}
-            </button>
-          </div>
-        </form>
-      </div>
-
-      {/* SECTION 2: SECURITY */}
-      <div className="bg-white border border-slate-150 rounded-3xl p-6 shadow-xs space-y-4">
-        <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
-          <Shield className="h-5 w-5 text-rose-600" />
-          <h4 className="text-sm font-extrabold uppercase text-slate-800 tracking-wider">2. Account Security</h4>
+        <div className="flex flex-col items-center gap-4">
+          <img src={picked} alt={CHARACTER_AVATAR_LABELS[CHARACTER_AVATARS.indexOf(picked)] || ""} className="h-40 w-40 rounded-full object-cover" />
+          <button type="button" onClick={shuffle} className="h-11 rounded-full border border-slate-300 px-5 text-[15px] font-semibold text-slate-900 hover:bg-slate-50 flex items-center gap-2 cursor-pointer">
+            <Shuffle className="h-4 w-4" /> Shuffle
+          </button>
         </div>
-
-        <form onSubmit={handleUpdatePassword} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-extrabold text-slate-500">Current Password</label>
-              <PasswordInput
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                placeholder="••••••••"
-                className={inputStyle}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-extrabold text-slate-500">New Password</label>
-              <PasswordInput
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
-                className={inputStyle}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-extrabold text-slate-500">Confirm New Password</label>
-              <PasswordInput
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="••••••••"
-                className={inputStyle}
-              />
-            </div>
-          </div>
-          <div className="pt-2">
-            <button type="submit" className={`px-4.5 py-2.5 rounded-xl text-xs font-bold ${buttonPrimary} cursor-pointer`}>
-              Update Account Password
-            </button>
-          </div>
-        </form>
-      </div>
-
-      {/* SECTION 3: NOTIFICATIONS */}
-      <div className="bg-white border border-slate-150 rounded-3xl p-6 shadow-xs space-y-4">
-        <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
-          <Bell className="h-5 w-5 text-amber-500" />
-          <h4 className="text-sm font-extrabold uppercase text-slate-800 tracking-wider">3. Notification Preferences</h4>
-        </div>
-
-        <div className="space-y-4">
-          <div className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-2xl transition-all">
-            <div>
-              <h5 className="text-xs font-extrabold text-slate-800">Email Notifications</h5>
-              <p className="text-[10px] text-slate-400 font-medium">Get daily reports and important alerts by email.</p>
-            </div>
-            <input 
-              type="checkbox" 
-              checked={notifEmail} 
-              onChange={() => setNotifEmail(!notifEmail)}
-              className="h-4 w-4 text-sky-600 focus:ring-sky-500 border-slate-300 rounded cursor-pointer"
-            />
-          </div>
-
-          <div className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-2xl transition-all">
-            <div>
-              <h5 className="text-xs font-extrabold text-slate-800">SMS / WhatsApp Alerts</h5>
-              <p className="text-[10px] text-slate-400 font-medium">Send members SMS alerts for batch changes, fee approvals and greetings.</p>
-            </div>
-            <input 
-              type="checkbox" 
-              checked={notifSms} 
-              onChange={() => setNotifSms(!notifSms)}
-              className="h-4 w-4 text-sky-600 focus:ring-sky-500 border-slate-300 rounded cursor-pointer"
-            />
-          </div>
-
-          <div className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-2xl transition-all">
-            <div>
-              <h5 className="text-xs font-extrabold text-slate-800">Desktop & Application Push Notifications</h5>
-              <p className="text-[10px] text-slate-400 font-medium">In-app notifications count badges and browser push reminders.</p>
-            </div>
-            <input 
-              type="checkbox" 
-              checked={notifPush} 
-              onChange={() => setNotifPush(!notifPush)}
-              className="h-4 w-4 text-sky-600 focus:ring-sky-500 border-slate-300 rounded cursor-pointer"
-            />
-          </div>
-
-          <div className="pt-2">
-            <button onClick={handleSavePreferences} className={`px-4.5 py-2.5 rounded-xl text-xs font-bold ${buttonPrimary} cursor-pointer`}>
-              Save Notification Choices
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* SECTION 4: APPEARANCE */}
-      <div className="bg-white border border-slate-150 rounded-3xl p-6 shadow-xs space-y-4">
-        <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
-          <Moon className="h-5 w-5 text-indigo-500" />
-          <h4 className="text-sm font-extrabold uppercase text-slate-800 tracking-wider">4. Appearance</h4>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="md:col-span-2 flex flex-col gap-3">
-            <div>
-              <p className="text-xs font-extrabold text-slate-500">Accent colour</p>
-              <p className="text-xs text-slate-400 mt-0.5">Changes buttons, links and highlights across the dashboard. Saved on this device.</p>
-            </div>
-            <div role="radiogroup" aria-label="Accent colour" className="flex flex-wrap gap-3">
-              {ACCENTS.map((a) => {
-                const selected = accent === a.id;
-                return (
-                  <button
-                    key={a.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={selected}
-                    onClick={() => { setAccent(a.id); saveAccent(a.id); }}
-                    className={`flex items-center gap-2.5 min-h-11 pl-2.5 pr-4 rounded-xl border-2 text-sm font-semibold cursor-pointer transition-colors ${
-                      selected ? "border-slate-900 bg-slate-50 text-slate-900" : "border-slate-200 text-slate-600 hover:border-slate-300"
-                    }`}
-                  >
-                    <span className="h-6 w-6 rounded-full flex items-center justify-center" style={{ background: a.swatch }}>
-                      {selected && <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />}
-                    </span>
-                    {a.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+        <div role="radiogroup" aria-label="Avatars" className="mt-8 grid grid-cols-3 gap-5 sm:grid-cols-4">
+          {CHARACTER_AVATARS.map((url, i) => {
+            const selected = url === picked;
+            return (
+              <button
+                key={i}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                aria-label={CHARACTER_AVATAR_LABELS[i]}
+                onClick={() => setPicked(url)}
+                className={`aspect-square rounded-full p-1 cursor-pointer ${selected ? "ring-[3px] ring-slate-900" : ""}`}
+              >
+                <img src={url} alt="" className="h-full w-full rounded-full object-cover" />
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
