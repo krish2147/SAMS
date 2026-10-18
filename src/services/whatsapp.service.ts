@@ -1,5 +1,6 @@
 import axios, { AxiosResponse } from "axios";
 import fs from "fs";
+import { isMetaWhatsAppEnabled, sendMetaTemplate } from "./meta-whatsapp.service";
 
 /**
  * Interface representing the MSG91 WhatsApp Outbound Request Payload
@@ -136,6 +137,11 @@ export async function sendPaymentSuccessWhatsApp(params: {
   endDate: string;
 }): Promise<Msg91WhatsAppResponse> {
   const templateName = process.env.MSG91_PAYMENT_SUCCESS_TEMPLATE || "payment_success";
+  if (isMetaWhatsAppEnabled()) {
+    return sendMetaTemplate(normalizePhoneNumber(params.phoneNumber), templateName, [
+      params.memberName, String(params.amount || "0"), params.membershipNo, params.receiptNo, params.startDate, params.endDate
+    ]);
+  }
   return sendMsg91Template(params.phoneNumber, templateName, {
     body_1: { type: "text", value: String(params.memberName).trim() },
     body_2: { type: "text", value: String(params.amount || "0") },
@@ -173,6 +179,14 @@ export async function sendPaymentInvoiceWhatsApp(params: {
   if (!fileBuffer) {
     throw new Error("sendPaymentInvoiceWhatsApp requires either pdfBuffer or pdfFilePath.");
   }
+  if (isMetaWhatsAppEnabled()) {
+    return sendMetaTemplate(
+      normalizePhoneNumber(params.phoneNumber),
+      templateName,
+      [params.memberName, params.invoiceNo, String(params.amount || "0"), params.startDate, params.endDate],
+      { buffer: fileBuffer, filename: `${params.invoiceNo || "invoice"}.pdf` }
+    );
+  }
   const dataUri = `data:application/pdf;base64,${fileBuffer.toString("base64")}`;
 
   return sendMsg91Template(params.phoneNumber, templateName, {
@@ -208,6 +222,16 @@ export async function sendPaymentReminder(
   amount: string | number,
   paymentLink: string
 ): Promise<Msg91WhatsAppResponse> {
+  if (isMetaWhatsAppEnabled()) {
+    if (!phoneNumber || !customerName || !paymentLink) {
+      throw new Error("Missing required parameters for WhatsApp payment reminder.");
+    }
+    const templateName = process.env.WHATSAPP_TEMPLATE_NAME || process.env.MSG91_PAYMENT_LINK_TEMPLATE || "payment_link";
+    return sendMetaTemplate(normalizePhoneNumber(phoneNumber), templateName, [
+      customerName, membershipNo, String(amount || "0"), paymentLink
+    ]);
+  }
+
   // Accept both .env.example's naming (MSG91_AUTHKEY/MSG91_INTEGRATED_NUMBER/WHATSAPP_NAMESPACE)
   // and the MSG91_-prefixed variants that ended up in this deployment's real .env.
   const authKey = process.env.MSG91_AUTHKEY || process.env.MSG91_AUTH_KEY || "";

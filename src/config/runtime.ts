@@ -19,8 +19,16 @@ export function validateRuntimeConfiguration(): void {
     { label: "Razorpay key secret (RAZORPAY_KEY_SECRET)", keys: ["RAZORPAY_KEY_SECRET"] },
     { label: "Razorpay webhook secret (RAZORPAY_WEBHOOK_SECRET)", keys: ["RAZORPAY_WEBHOOK_SECRET"] },
     { label: "MSG91 auth key (MSG91_AUTH_KEY / MSG91_AUTHKEY)", keys: ["MSG91_AUTH_KEY", "MSG91_AUTHKEY"] },
-    { label: "WhatsApp sender number (MSG91_WHATSAPP_NUMBER / MSG91_INTEGRATED_NUMBER)", keys: ["MSG91_WHATSAPP_NUMBER", "MSG91_INTEGRATED_NUMBER"] },
-    { label: "WhatsApp namespace (MSG91_WHATSAPP_NAMESPACE / WHATSAPP_NAMESPACE)", keys: ["MSG91_WHATSAPP_NAMESPACE", "WHATSAPP_NAMESPACE"] },
+    // WhatsApp goes through MSG91 by default, or straight through Meta with WHATSAPP_PROVIDER=meta.
+    ...((process.env.WHATSAPP_PROVIDER || "").trim().toLowerCase() === "meta"
+      ? [
+          { label: "Meta WhatsApp token (WHATSAPP_API_TOKEN)", keys: ["WHATSAPP_API_TOKEN"] },
+          { label: "Meta WhatsApp phone number ID (WHATSAPP_PHONE_NUMBER_ID)", keys: ["WHATSAPP_PHONE_NUMBER_ID"] }
+        ]
+      : [
+          { label: "WhatsApp sender number (MSG91_WHATSAPP_NUMBER / MSG91_INTEGRATED_NUMBER)", keys: ["MSG91_WHATSAPP_NUMBER", "MSG91_INTEGRATED_NUMBER"] },
+          { label: "WhatsApp namespace (MSG91_WHATSAPP_NAMESPACE / WHATSAPP_NAMESPACE)", keys: ["MSG91_WHATSAPP_NAMESPACE", "WHATSAPP_NAMESPACE"] }
+        ]),
     { label: "OTP hash secret (OTP_HASH_SECRET)", keys: ["OTP_HASH_SECRET"] }
   ];
 
