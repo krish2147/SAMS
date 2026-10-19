@@ -14,7 +14,7 @@ interface MobileNavigationProps {
   onLogout?: () => void;
 }
 
-const moreItems = [...primaryNavigation.filter((item) => item.id === "calendar" || item.id === "attendance" || item.id === "notifications"), ...accountNavigation];
+const moreItems = [...primaryNavigation.filter((item) => item.id === "calendar" || item.id === "notifications"), ...accountNavigation];
 
 export function MobileNavigation({ activeSection, unreadCount = 0, moreOpen, onMoreChange, onSelect, userName, avatar, onLogout }: MobileNavigationProps) {
   const moreActive = moreItems.some((item) => item.id === activeSection);
