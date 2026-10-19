@@ -1126,8 +1126,8 @@ export function RegisterPage({ academyId, onCancel, embedded = false, walkIn = f
               ? <img src={BARODA_SWIM_FRONT_LOGO_DATA_URI} alt="Baroda Swim Front" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
               : <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-ink-950 text-white"><Dumbbell className="h-4 w-4" /></span>}
             <div className="min-w-0">
-              <p className="truncate font-display text-[15px] font-semibold text-ink-950">Join {academyName}</p>
-              <p className="text-[12px] text-ink-600">Step {step + 1} of {STEPS.length} · about 3 minutes</p>
+              <p className="truncate font-display text-[15px] font-semibold text-ink-950">{walkIn ? "Register a member" : `Join ${academyName}`}</p>
+              <p className="text-[12px] text-ink-600">Step {step + 1} of {STEPS.length}{walkIn ? "" : " · about 3 minutes"}</p>
             </div>
           </div>
           <button type="button" onClick={onCancel} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-ink-600 hover:bg-ink-50 hover:text-ink-950">
