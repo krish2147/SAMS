@@ -324,7 +324,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
   }
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-800 flex font-sans" id="receptionist-terminal">
+    <div className="flex h-screen h-[100dvh] w-full overflow-hidden bg-[#f8fafc] text-slate-800 font-sans" id="receptionist-terminal">
       
       {/* Toast Alert */}
       <AnimatePresence>
@@ -347,7 +347,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
       </AnimatePresence>
 
       {/* 1. DESKTOP SIDEBAR (same layout as the coach and admin dashboards) */}
-      <aside className="hidden md:flex flex-col w-64 bg-slate-900 text-slate-300 border-r border-slate-800 shrink-0 h-screen sticky top-0">
+      <aside className="hidden md:flex flex-col w-64 bg-slate-900 text-slate-300 border-r border-slate-800 shrink-0 h-full">
         <div className="h-16 px-6 flex items-center gap-3 border-b border-slate-800 bg-slate-950/40 shrink-0">
           <img src={BARODA_SWIM_FRONT_LOGO_DATA_URI} alt="Baroda Swim Front" className="h-9 w-9 rounded-xl object-cover shadow-md shrink-0" />
           <div className="flex flex-col justify-center min-w-0">
@@ -400,7 +400,8 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
       </aside>
 
       {/* 2. MAIN AREA */}
-      <div className="flex-1 flex flex-col min-w-0">
+      {/* The app shell does not scroll the page, so this column is the scrolling area (as on the coach dashboard). */}
+      <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-y-auto overscroll-y-contain" id="reception-scroll">
 
         {/* Phone header: crest and page name; scan and bell on the right. The menu is in the bottom bar. */}
         <header className="md:hidden sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-slate-200/80 bg-white/95 px-4 backdrop-blur-md" id="dashboard-header">
