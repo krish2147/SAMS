@@ -85,8 +85,8 @@ export async function prepareCardImages(data: MemberDashboardData): Promise<Card
 }
 
 // ---------------------------------------------------------------------------------------------
-// A real pool photo (underwater lanes) under premium card details: a single-tone champagne foil
-// crest, a gold chip and engraved lettering. The front stays minimal like a premium bank card;
+// A real pool photo (underwater lanes) under premium card details: the academy crest in full
+// colour, a gold chip and engraved lettering. The front stays minimal like a premium bank card;
 // the back carries the photo, details and QR over a darker veil of the same pool.
 // ---------------------------------------------------------------------------------------------
 
@@ -102,11 +102,12 @@ const validThru = (value?: string | null) => {
   return m ? `${m[2]}/${m[1].slice(2)}` : "--/--";
 };
 
-/** Shared defs: pool-blue fallback, readability shades, champagne foil, engraving and foil-tint filters. */
+/** Shared defs: pool-blue fallback, readability shades, champagne gold and the engraving filter. */
 function sharedDefs(prefix: string) {
   return `
     <clipPath id="${prefix}Clip"><rect width="${CARD_WIDTH}" height="${CARD_HEIGHT}" rx="58"/></clipPath>
-    <clipPath id="${prefix}Crest"><rect x="104" y="96" width="92" height="92" rx="22"/></clipPath>
+    <clipPath id="${prefix}Crest"><rect x="100" y="82" width="140" height="140" rx="32"/></clipPath>
+    <filter id="crestShadow" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000814" flood-opacity="0.55"/></filter>
     <clipPath id="${prefix}CrestSmall"><rect x="1418" y="852" width="64" height="64" rx="16"/></clipPath>
     <linearGradient id="graphite" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#1468a8"/>
@@ -146,10 +147,6 @@ function sharedDefs(prefix: string) {
     <filter id="engrave" x="-5%" y="-30%" width="110%" height="160%">
       <feDropShadow dx="0" dy="-1.5" stdDeviation="0.4" flood-color="#ffffff" flood-opacity="0.35"/>
       <feDropShadow dx="0" dy="2.5" stdDeviation="1.2" flood-color="#000000" flood-opacity="0.85"/>
-    </filter>
-    <filter id="foil" color-interpolation-filters="sRGB">
-      <feColorMatrix type="matrix" values="0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0 0 0 1 0" result="g"/>
-      <feComponentTransfer in="g"><feFuncR type="linear" slope="1.05" intercept="0.12"/><feFuncG type="linear" slope="0.9" intercept="0.08"/><feFuncB type="linear" slope="0.6" intercept="0.02"/></feComponentTransfer>
     </filter>`;
 }
 
@@ -191,14 +188,16 @@ export function buildMembershipCardSvg(data: MemberDashboardData, images?: CardI
   <defs>${sharedDefs("front")}</defs>
   ${cardBody("front", images?.pool)}
 
-  <image href="${BARODA_SWIM_FRONT_LOGO_DATA_URI}" x="104" y="96" width="92" height="92" filter="url(#foil)" opacity="0.9" clip-path="url(#frontCrest)"/>
-  <rect x="104" y="96" width="92" height="92" rx="22" fill="none" stroke="url(#champagne)" stroke-width="2"/>
-  <text x="224" y="134" font-family="${FONT}" font-size="27" font-weight="600" letter-spacing="9" fill="url(#champagne)">BARODA SWIM FRONT</text>
-  <text x="224" y="172" font-family="${FONT}" font-size="18" font-weight="500" letter-spacing="7" fill="#b9cbe0">SWIM FOR LIFE · VADODARA</text>
+  <!-- The academy crest in its own colours, large and crisp, with a soft shadow and a gold edge. -->
+  <rect x="100" y="82" width="140" height="140" rx="32" fill="#0a3d7a" filter="url(#crestShadow)"/>
+  <image href="${BARODA_SWIM_FRONT_LOGO_DATA_URI}" x="100" y="82" width="140" height="140" preserveAspectRatio="xMidYMid slice" clip-path="url(#frontCrest)"/>
+  <rect x="101.5" y="83.5" width="137" height="137" rx="31" fill="none" stroke="url(#champagne)" stroke-width="3"/>
+  <text x="274" y="148" font-family="${FONT}" font-size="40" font-weight="700" letter-spacing="5" fill="#ffffff" filter="url(#engrave)">BARODA SWIM FRONT</text>
+  <text x="276" y="194" font-family="${FONT}" font-size="20" font-weight="600" letter-spacing="8" fill="url(#champagne)">SWIM FOR LIFE · VADODARA</text>
 
-  <text x="1482" y="134" text-anchor="end" font-family="${FONT}" font-size="22" font-weight="600" letter-spacing="10" fill="url(#champagne)">MEMBER</text>
-  <circle cx="${1482 - status.length * 16.6 - 16}" cy="166" r="6" fill="${statusColor(status)}"/>
-  <text x="1482" y="173" text-anchor="end" font-family="${FONT}" font-size="18" font-weight="500" letter-spacing="5" fill="#b9cbe0">${escapeXml(status.toUpperCase())}</text>
+  <text x="1482" y="146" text-anchor="end" font-family="${FONT}" font-size="24" font-weight="700" letter-spacing="10" fill="url(#champagne)">MEMBER</text>
+  <circle cx="${1482 - status.length * 16.6 - 16}" cy="184" r="6" fill="${statusColor(status)}"/>
+  <text x="1482" y="191" text-anchor="end" font-family="${FONT}" font-size="18" font-weight="500" letter-spacing="5" fill="#b9cbe0">${escapeXml(status.toUpperCase())}</text>
 
   ${chip}
 
@@ -254,7 +253,7 @@ export function buildMembershipCardBackSvg(data: MemberDashboardData, images: Ca
 
   <line x1="104" y1="830" x2="1482" y2="830" stroke="url(#champagne)" stroke-opacity="0.35" stroke-width="1.5"/>
   <text x="104" y="884" font-family="${FONT}" font-size="19" fill="#a9bdd4">This card is personal and non-transferable. If found, please return it to Baroda Swim Front, Vadodara.</text>
-  <image href="${BARODA_SWIM_FRONT_LOGO_DATA_URI}" x="1418" y="852" width="64" height="64" filter="url(#foil)" opacity="0.85" clip-path="url(#backCrestSmall)"/>
+  <image href="${BARODA_SWIM_FRONT_LOGO_DATA_URI}" x="1418" y="852" width="64" height="64" preserveAspectRatio="xMidYMid slice" clip-path="url(#backCrestSmall)"/>
   <rect x="1418" y="852" width="64" height="64" rx="16" fill="none" stroke="url(#champagne)" stroke-width="1.5"/>
 </svg>`;
 }
