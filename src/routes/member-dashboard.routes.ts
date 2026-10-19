@@ -296,6 +296,20 @@ router.get("/member/payments", requireAuth(["member", "parent"]), async (req: an
 });
 
 // 6. GET /api/member/notifications
+// Read/unread is kept per member, because academy-wide messages (member_id NULL) are shared by
+// everyone and the notifications.is_read column can only hold one answer for all of them.
+let memberReadTableReady = false;
+async function ensureMemberReadTable(pool: any) {
+  if (memberReadTableReady) return;
+  await pool.query(`CREATE TABLE IF NOT EXISTS member_notification_reads (
+    member_id INT UNSIGNED NOT NULL,
+    notification_id INT UNSIGNED NOT NULL,
+    read_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (member_id, notification_id)
+  ) ENGINE=InnoDB`);
+  memberReadTableReady = true;
+}
+
 router.get("/member/notifications", requireAuth(["member", "parent"]), async (req: any, res: Response, next) => {
   try {
     const member = await getAuthenticatedMember(req);
@@ -305,7 +319,44 @@ router.get("/member/notifications", requireAuth(["member", "parent"]), async (re
       "SELECT * FROM notifications WHERE member_id IS NULL OR member_id = ? ORDER BY id DESC LIMIT 20",
       [memberId]
     );
-    res.json(notifications || []);
+    let readIds = new Set<number>();
+    try {
+      await ensureMemberReadTable(pool);
+      const [reads]: any = await pool.query("SELECT notification_id FROM member_notification_reads WHERE member_id = ?", [memberId]);
+      readIds = new Set((reads || []).map((r: any) => Number(r.notification_id)));
+    } catch (err: any) {
+      console.warn("Member notification read state unavailable:", err?.message || err);
+    }
+    res.json((notifications || []).map((n: any) => ({
+      ...n,
+      isRead: readIds.has(Number(n.id)) || (n.member_id != null && Boolean(Number(n.is_read)))
+    })));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/member/notifications/read  { ids: number[] }
+router.post("/member/notifications/read", requireAuth(["member", "parent"]), async (req: any, res: Response, next) => {
+  try {
+    const member = await getAuthenticatedMember(req);
+    if (!member) return res.status(404).json({ error: "Authenticated member record not found" });
+    const ids: number[] = Array.isArray(req.body?.ids)
+      ? req.body.ids.map((v: any) => Number(v)).filter((v: number) => Number.isInteger(v) && v > 0).slice(0, 100)
+      : [];
+    if (ids.length === 0) return res.json({ success: true });
+    const pool = await getDbPool();
+    await ensureMemberReadTable(pool);
+    // Only messages this member can actually see are recorded.
+    const [visible]: any = await pool.query(
+      "SELECT id FROM notifications WHERE id IN (?) AND (member_id IS NULL OR member_id = ?)",
+      [ids, member.id]
+    );
+    const rows = (visible || []).map((v: any) => [member.id, v.id]);
+    if (rows.length) {
+      await pool.query("INSERT IGNORE INTO member_notification_reads (member_id, notification_id) VALUES ?", [rows]);
+    }
+    res.json({ success: true });
   } catch (err) {
     next(err);
   }

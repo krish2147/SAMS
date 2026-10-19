@@ -1,5 +1,6 @@
 import React from "react";
 import { Bell, ChevronRight } from "lucide-react";
+import { NotificationCountBadge } from "../components/NotificationCountBadge";
 import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-logo";
 import { AccountMenu } from "./AccountMenu";
 import type { MemberNavigationItem, MemberSection } from "./member-navigation";
@@ -9,10 +10,11 @@ interface MemberHeaderProps {
   userName: string;
   avatar?: string;
   onSelect: (section: MemberSection) => void;
+  unreadCount?: number;
   onLogout?: () => void;
 }
 
-export function MemberHeader({ currentSection, userName, avatar, onSelect, onLogout }: MemberHeaderProps) {
+export function MemberHeader({ currentSection, userName, avatar, onSelect, onLogout, unreadCount = 0 }: MemberHeaderProps) {
   return (
     <header className="sticky top-0 z-30 h-16 border-b border-ink-100 bg-white/90 backdrop-blur-xl">
       <div className="flex h-full items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
@@ -29,8 +31,9 @@ export function MemberHeader({ currentSection, userName, avatar, onSelect, onLog
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          <button type="button" onClick={() => onSelect("notifications")} className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-ink-600 outline-none transition-colors hover:bg-slate-100 hover:text-cyan-700 focus-visible:ring-2 focus-visible:ring-aqua-400" aria-label="Open notifications">
+          <button type="button" onClick={() => onSelect("notifications")} className="relative inline-flex h-11 w-11 items-center justify-center rounded-lg text-ink-600 outline-none transition-colors hover:bg-slate-100 hover:text-cyan-700 focus-visible:ring-2 focus-visible:ring-aqua-400" aria-label="Open notifications">
             <Bell className="h-[19px] w-[19px]" />
+            <NotificationCountBadge count={unreadCount} className="top-0.5 right-0.5" />
           </button>
           <AccountMenu userName={userName} avatar={avatar} onSelect={onSelect} onLogout={onLogout} />
         </div>

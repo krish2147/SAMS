@@ -8,6 +8,7 @@ interface MobileNavigationProps {
   moreOpen: boolean;
   onMoreChange: (open: boolean) => void;
   onSelect: (section: MemberSection) => void;
+  unreadCount?: number;
   userName: string;
   avatar?: string;
   onLogout?: () => void;
@@ -15,7 +16,7 @@ interface MobileNavigationProps {
 
 const moreItems = [...primaryNavigation.filter((item) => item.id === "calendar" || item.id === "attendance" || item.id === "notifications"), ...accountNavigation];
 
-export function MobileNavigation({ activeSection, moreOpen, onMoreChange, onSelect, userName, avatar, onLogout }: MobileNavigationProps) {
+export function MobileNavigation({ activeSection, unreadCount = 0, moreOpen, onMoreChange, onSelect, userName, avatar, onLogout }: MobileNavigationProps) {
   const moreActive = moreItems.some((item) => item.id === activeSection);
 
   return (
@@ -25,7 +26,7 @@ export function MobileNavigation({ activeSection, moreOpen, onMoreChange, onSele
         onClose={() => onMoreChange(false)}
         sections={[
           { items: primaryNavigation.filter((item) => mobilePrimarySections.includes(item.id)) },
-          { heading: "More", items: primaryNavigation.filter((item) => !mobilePrimarySections.includes(item.id)) },
+          { heading: "More", items: primaryNavigation.filter((item) => !mobilePrimarySections.includes(item.id)).map((item) => (item.id === "notifications" ? { ...item, badge: unreadCount } : item)) },
           { heading: "Account", items: accountNavigation }
         ]}
         activeId={activeSection}
@@ -52,7 +53,7 @@ export function MobileNavigation({ activeSection, moreOpen, onMoreChange, onSele
           })}
           <button type="button" onClick={() => onMoreChange(!moreOpen)} aria-expanded={moreOpen} className={`relative flex min-h-11 flex-col items-center justify-center gap-1 px-1 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-500 ${moreOpen || moreActive ? "text-cyan-800" : "text-slate-500 hover:text-slate-800"}`}>
             {(moreOpen || moreActive) && <span className="absolute top-0 h-0.5 w-8 rounded-b-full bg-cyan-600" />}
-            <Menu className="h-5 w-5" /><span>Menu</span>
+            <span className="relative"><Menu className="h-5 w-5" />{unreadCount > 0 && <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />}</span><span>Menu</span>
           </button>
         </div>
       </nav>

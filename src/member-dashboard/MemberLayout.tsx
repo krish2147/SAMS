@@ -6,6 +6,7 @@ import { findMemberNavigationItem, type MemberSection } from "./member-navigatio
 
 interface MemberLayoutProps {
   activeSection: MemberSection;
+  unreadCount?: number;
   userName: string;
   avatar?: string;
   membershipStatus?: string;
@@ -15,7 +16,7 @@ interface MemberLayoutProps {
   children: ReactNode;
 }
 
-export function MemberLayout({ activeSection, userName, avatar, membershipStatus, onSelect, onLogout, showSectionIntro = true, children }: MemberLayoutProps) {
+export function MemberLayout({ activeSection, unreadCount = 0, userName, avatar, membershipStatus, onSelect, onLogout, showSectionIntro = true, children }: MemberLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const currentSection = useMemo(() => findMemberNavigationItem(activeSection), [activeSection]);
@@ -24,7 +25,7 @@ export function MemberLayout({ activeSection, userName, avatar, membershipStatus
     <div className="min-h-dvh bg-canvas text-ink-950">
       <MemberSidebar activeSection={activeSection} collapsed={sidebarCollapsed} userName={userName} avatar={avatar} membershipStatus={membershipStatus} onToggle={() => setSidebarCollapsed((value) => !value)} onSelect={onSelect} onLogout={onLogout} />
       <div className={`member-app-frame min-h-dvh transition-[padding] duration-200 ease-out ${sidebarCollapsed ? "member-app-frame--collapsed" : ""}`}>
-        <MemberHeader currentSection={currentSection} userName={userName} avatar={avatar} onSelect={onSelect} onLogout={onLogout} />
+        <MemberHeader currentSection={currentSection} userName={userName} avatar={avatar} onSelect={onSelect} onLogout={onLogout} unreadCount={unreadCount} />
         <main className="pb-[calc(96px+env(safe-area-inset-bottom))] lg:pb-10">
           <div className="mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 sm:py-7 lg:px-8 lg:py-8">
             <div className={`mb-6 hidden lg:block ${showSectionIntro ? "" : "lg:hidden"}`}>
@@ -38,7 +39,7 @@ export function MemberLayout({ activeSection, userName, avatar, membershipStatus
           </div>
         </main>
       </div>
-      <MobileNavigation activeSection={activeSection} moreOpen={moreOpen} onMoreChange={setMoreOpen} onSelect={onSelect} userName={userName} avatar={avatar} onLogout={onLogout} />
+      <MobileNavigation activeSection={activeSection} unreadCount={unreadCount} moreOpen={moreOpen} onMoreChange={setMoreOpen} onSelect={onSelect} userName={userName} avatar={avatar} onLogout={onLogout} />
     </div>
   );
 }

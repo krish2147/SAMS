@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarClock, CircleHelp, CreditCard, ReceiptText, ShieldCheck, UserRound } from "lucide-react";
 import type { MemberSection } from "./member-navigation";
 import { DashboardSkeleton } from "./DashboardSkeleton";
-import { MemberUpdates } from "./MemberUpdates";
 import { MembershipOverviewCard } from "./MembershipOverviewCard";
 import { OverviewSummaryCards } from "./OverviewSummaryCards";
 import { RecentPayments } from "./RecentPayments";
@@ -73,9 +72,6 @@ export function MemberOverview({ sessionName, onNavigate }: MemberOverviewProps)
       <section aria-labelledby="quick-actions-title" className="order-1 lg:order-2"><div className="mb-3 flex items-center justify-between"><h2 id="quick-actions-title" className="text-base font-semibold text-slate-950">Quick actions</h2></div><div className="grid grid-cols-2 gap-3 lg:grid-cols-5">{actions.map(({ id, label, supporting, icon: Icon }) => <button key={id} type="button" onClick={() => onNavigate(id)} className="group min-h-[86px] rounded-2xl border border-slate-200 bg-white p-3.5 text-left shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition hover:border-cyan-200 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 sm:min-h-[82px]"><div className="flex items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-50 text-slate-600 transition group-hover:bg-cyan-50 group-hover:text-cyan-700"><Icon className="h-4.5 w-4.5" /></span><div className="min-w-0"><span className="block text-sm font-semibold text-slate-900">{label}</span><span className="mt-0.5 hidden truncate text-xs text-slate-500 sm:block">{supporting}</span></div></div></button>)}</div></section>
     </div>
 
-    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.75fr)_minmax(300px,0.9fr)]">
-      <RecentPayments payments={payments.slice(0, 3)} loading={paymentsLoading} error={paymentsError} onRetry={() => void loadPayments()} onViewAll={() => onNavigate("payments")} />
-      <MemberUpdates notifications={dashboard.notifications || []} onViewAll={() => onNavigate("notifications")} />
-    </div>
+    <RecentPayments payments={payments.slice(0, 3)} loading={paymentsLoading} error={paymentsError} onRetry={() => void loadPayments()} onViewAll={() => onNavigate("payments")} />
   </div>;
 }
