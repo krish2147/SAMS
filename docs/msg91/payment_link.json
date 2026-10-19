@@ -11,7 +11,7 @@
       },
       {
         "type": "BODY",
-        "text": "Hello {{1}}, your Baroda Swim Front membership {{2}} is ready. Please pay Rs {{3}} to activate it.\n\nPay securely here: {{4}}\n\nIf you have already paid, please ignore this message.",
+        "text": "Hello {{1}}, your Baroda Swim Front membership {{2}} has been approved. Please pay Rs {{3}} to activate it.\n\nPay securely here: {{4}}\n\nThank you!",
         "example": {
           "body_text": [["Priya Shah", "BSF-2026-0142", "9800", "https://sams.up.railway.app/pay?order_id=order_ABC123"]]
         }

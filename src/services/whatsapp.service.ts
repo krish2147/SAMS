@@ -135,33 +135,30 @@ async function sendMsg91Template(
 }
 
 /**
- * Sends the "payment_success" WhatsApp template once a membership is activated.
- * Confirmed live against MSG91's approved template body (Manage Templates -> payment_success):
- * {{1}} name, {{2}} amount paid, {{3}} membership number, {{4}} invoice number,
- * {{5}} start date, {{6}} end date.
+ * Sends the "payment_success_message" WhatsApp template once a membership is activated: only that
+ * the payment went through, the membership's valid period, and that the member portal is open.
+ * The template is in docs/msg91/payment_success.json. Body variables: {{1}} name,
+ * {{2}} start date, {{3}} end date.
+ * (Amount, membership and invoice numbers are in the invoice message that follows.)
  */
 export async function sendPaymentSuccessWhatsApp(params: {
   phoneNumber: string;
   memberName: string;
-  amount: string | number;
-  membershipNo: string;
-  invoiceNo: string;
+  amount?: string | number;
+  membershipNo?: string;
+  invoiceNo?: string;
   startDate: string | Date;
   endDate: string | Date;
 }): Promise<Msg91WhatsAppResponse> {
-  const templateName = process.env.MSG91_PAYMENT_SUCCESS_TEMPLATE || "payment_success";
+  const templateName = process.env.MSG91_PAYMENT_SUCCESS_TEMPLATE || "payment_success_message";
+  const values = [String(params.memberName || "").trim() || "Member", waDate(params.startDate), waDate(params.endDate)];
   if (isMetaWhatsAppEnabled()) {
-    return sendMetaTemplate(normalizePhoneNumber(params.phoneNumber), templateName, [
-      params.memberName, waAmount(params.amount), params.membershipNo, params.invoiceNo, waDate(params.startDate), waDate(params.endDate)
-    ]);
+    return sendMetaTemplate(normalizePhoneNumber(params.phoneNumber), templateName, values);
   }
   return sendMsg91Template(params.phoneNumber, templateName, {
-    body_1: { type: "text", value: String(params.memberName).trim() },
-    body_2: { type: "text", value: waAmount(params.amount) },
-    body_3: { type: "text", value: String(params.membershipNo || "").trim() },
-    body_4: { type: "text", value: String(params.invoiceNo || "").trim() },
-    body_5: { type: "text", value: waDate(params.startDate) },
-    body_6: { type: "text", value: waDate(params.endDate) }
+    body_1: { type: "text", value: values[0] },
+    body_2: { type: "text", value: values[1] },
+    body_3: { type: "text", value: values[2] }
   });
 }
 
