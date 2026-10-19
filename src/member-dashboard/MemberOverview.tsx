@@ -15,7 +15,7 @@ const actions = [
   { id: "membership", label: "Membership", supporting: "Plan and validity", icon: ShieldCheck },
   { id: "payments", label: "Payments", supporting: "Invoices and history", icon: CreditCard },
   { id: "batch", label: "My batch", supporting: "Timing and details", icon: CalendarClock },
-  { id: "profile", label: "Edit profile", supporting: "Personal information", icon: UserRound },
+  { id: "profile", label: "My profile", supporting: "Personal details", icon: UserRound },
   { id: "support", label: "Help & support", supporting: "Get assistance", icon: CircleHelp },
 ] satisfies Array<{ id: MemberSection; label: string; supporting: string; icon: React.ComponentType<{ className?: string }> }>;
 

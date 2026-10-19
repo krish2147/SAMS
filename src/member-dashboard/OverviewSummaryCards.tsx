@@ -1,6 +1,6 @@
 import React from "react";
-import { ArrowUpRight, CalendarRange, Clock3, CreditCard, Waves } from "lucide-react";
-import { formatBatchTime, formatMemberDate, invoiceHref, type MemberDashboardData, type MemberPayment } from "./member-overview-data";
+import { ArrowUpRight, CreditCard } from "lucide-react";
+import { formatMemberDate, invoiceHref, type MemberDashboardData, type MemberPayment } from "./member-overview-data";
 
 interface OverviewSummaryCardsProps {
   dashboard: MemberDashboardData;
@@ -11,7 +11,7 @@ interface OverviewSummaryCardsProps {
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
-    <article className="flex min-h-[172px] flex-col rounded-2xl border border-ink-100 bg-white p-5 shadow-card sm:min-h-[196px] sm:p-6 transition-shadow duration-200 hover:shadow-card-hover">
+    <article className="flex flex-col rounded-2xl border border-ink-100 bg-white p-5 shadow-card sm:p-6 transition-shadow duration-200 hover:shadow-card-hover">
       {children}
     </article>
   );
@@ -57,33 +57,13 @@ function CardLink({ onClick, href, children }: { onClick?: () => void; href?: st
   );
 }
 
-export function OverviewSummaryCards({ dashboard, latestPayment, paymentsLoading, onNavigate }: OverviewSummaryCardsProps) {
-  const start = formatMemberDate(dashboard.membership.startDate);
-  const expiry = formatMemberDate(dashboard.membership.expiryDate);
-  const batchStart = formatBatchTime(dashboard.batch?.startTime);
-  const batchEnd = formatBatchTime(dashboard.batch?.endTime);
+export function OverviewSummaryCards({ latestPayment, paymentsLoading, onNavigate }: OverviewSummaryCardsProps) {
   const paymentDate = formatMemberDate(latestPayment?.paymentDate);
   const invoiceUrl = invoiceHref(latestPayment);
-  const daysRemaining = Math.max(0, dashboard.membership.daysRemaining ?? 0);
 
   return (
-    <section aria-label="Membership information" className={`grid gap-4 ${start && expiry ? "md:grid-cols-3" : "md:grid-cols-2"}`}>
-      <Card>
-        <CardHeading icon={Waves} eyebrow="My batch" />
-        <Figure muted={!dashboard.batch}>{dashboard.batch?.name || "Not assigned yet"}</Figure>
-        {dashboard.batch ? (
-          <p className="mt-2.5 flex items-center gap-2 text-sm text-ink-600">
-            <Clock3 className="h-4 w-4 text-ink-400" />
-            {batchStart && batchEnd ? `${batchStart} – ${batchEnd}` : "Timing not available"}
-          </p>
-        ) : (
-          <p className="mt-2.5 text-sm leading-6 text-ink-600">Your assigned batch will appear here once confirmed.</p>
-        )}
-        <div className="mt-auto pt-4">
-          <CardLink onClick={() => onNavigate("batch")}>View batch</CardLink>
-        </div>
-      </Card>
-
+    // The membership card above already shows the batch and validity, so Home only adds the latest payment.
+    <section aria-label="Latest payment">
       <Card>
         {paymentsLoading ? (
           <div className="animate-pulse">
@@ -124,25 +104,6 @@ export function OverviewSummaryCards({ dashboard, latestPayment, paymentsLoading
         )}
       </Card>
 
-      {start && expiry && (
-        <Card>
-          <CardHeading icon={CalendarRange} eyebrow="Membership validity" />
-          <Figure>
-            {daysRemaining}
-            <span className="ml-1.5 text-base font-semibold text-ink-600">{daysRemaining === 1 ? "day left" : "days left"}</span>
-          </Figure>
-          <dl className="mt-auto grid grid-cols-2 gap-4 pt-5 text-sm">
-            <div>
-              <dt className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-400">Start</dt>
-              <dd className="mt-1 whitespace-nowrap font-semibold text-ink-900">{start}</dd>
-            </div>
-            <div>
-              <dt className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-400">Expiry</dt>
-              <dd className="mt-1 whitespace-nowrap font-semibold text-ink-900">{expiry}</dd>
-            </div>
-          </dl>
-        </Card>
-      )}
     </section>
   );
 }
