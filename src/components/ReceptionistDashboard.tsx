@@ -402,12 +402,9 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
       {/* 2. MAIN AREA */}
       <div className="flex-1 flex flex-col min-w-0">
 
-        {/* Phone header: menu, crest, page name; scan and bell on the right */}
-        <header className="md:hidden sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-slate-200/80 bg-white/95 px-3 backdrop-blur-md" id="dashboard-header">
-          <div className="flex min-w-0 items-center gap-2">
-            <button onClick={() => setMenuOpen(true)} aria-label="Open menu" className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg cursor-pointer">
-              <Menu className="h-5 w-5" />
-            </button>
+        {/* Phone header: crest and page name; scan and bell on the right. The menu is in the bottom bar. */}
+        <header className="md:hidden sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-slate-200/80 bg-white/95 px-4 backdrop-blur-md" id="dashboard-header">
+          <div className="flex min-w-0 items-center gap-2.5">
             <img src={BARODA_SWIM_FRONT_LOGO_DATA_URI} alt="Baroda Swim Front" className="h-8 w-8 rounded-lg object-cover shadow-sm shrink-0" />
             <div className="min-w-0">
               <span className="block truncate text-[11px] font-semibold text-slate-500 leading-tight">Baroda Swim Front</span>

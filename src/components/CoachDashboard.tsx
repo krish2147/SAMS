@@ -345,13 +345,8 @@ export function CoachDashboard({ academyId, userName, onLogout, onSessionExpired
         
         {/* MOBILE TOP HEADER (Sticky, Premium, Blur) */}
         <header className="md:hidden flex h-14 bg-white/95 border-b border-slate-200/80 justify-between items-center px-4 shrink-0 z-30 backdrop-blur-md">
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={() => setMobileMenuDrawerOpen(true)}
-              className="p-1.5 -ml-1 text-slate-500 hover:text-sky-600 hover:bg-slate-50 rounded-lg cursor-pointer"
-            >
-              <Menu className="h-5 w-5" />
-            </button>
+          {/* The menu is in the bottom bar, so the header only shows the academy. */}
+          <div className="flex items-center gap-2.5">
             {isSwim ? (
               <img src={BARODA_SWIM_FRONT_LOGO_DATA_URI} alt="Baroda Swim Front" className="h-8 w-8 rounded-lg object-cover shadow-sm shrink-0" />
             ) : (
