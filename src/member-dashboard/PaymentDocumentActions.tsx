@@ -2,7 +2,7 @@ import React from "react";
 import { Download, ExternalLink } from "lucide-react";
 import { invoiceDownloadHref, invoiceHref, type MemberPayment } from "./member-overview-data";
 
-// Members get the invoice only; the receipt is not shown in the member dashboard.
+// The invoice is the one payment document; members view and download it here.
 export function PaymentDocumentActions({ payment, compact = false }: { payment: MemberPayment; type?: "invoice"; compact?: boolean }) {
   const viewUrl = invoiceHref(payment);
   const downloadUrl = invoiceDownloadHref(payment);

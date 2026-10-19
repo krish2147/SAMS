@@ -87,7 +87,7 @@ export function RenewalsTab({ isSwim, members, onRenew }: RenewalsTabProps) {
         <span className="text-xs font-mono tracking-widest text-slate-400 uppercase">Renewals</span>
         <h3 className="text-xl font-bold mt-1">Membership Renewals</h3>
         <p className="text-xs opacity-65 mt-0.5">
-          Process payments and extend subscription dates for approved athletes. Receipts are calculated transparently.
+          Process payments and extend subscription dates for approved athletes. Fees are calculated transparently.
         </p>
       </div>
 
@@ -268,7 +268,7 @@ export function RenewalsTab({ isSwim, members, onRenew }: RenewalsTabProps) {
                     >
                       <option value="UPI">UPI Instant Pay (GPay / PhonePe / Paytm)</option>
                       <option value="Credit Card">Credit/Debit Card (Visa / Mastercard)</option>
-                      <option value="Cash">Cash Receipt at Front Counter</option>
+                      <option value="Cash">Cash at Front Counter</option>
                     </select>
                   </div>
                 </div>

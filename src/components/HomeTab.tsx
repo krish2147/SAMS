@@ -229,7 +229,7 @@ export function HomeTab({
               onClick={() => onNavigate("revenue")}
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs font-bold cursor-pointer transition-colors"
             >
-              <span>• {todaysCollectionsLabel} Today's Receipts</span>
+              <span>• {todaysCollectionsLabel} Today's Collections</span>
             </div>
           </div>
         </div>

@@ -513,7 +513,7 @@ export function ParentDashboard({ academyId, userName }: ParentDashboardProps) {
                       ✓
                     </div>
                     <h4 className="text-base font-bold">Transaction Confirmed</h4>
-                    <p className="text-xs opacity-60 font-light mt-1">Your receipt has been sent.</p>
+                    <p className="text-xs opacity-60 font-light mt-1">Your invoice has been sent.</p>
                   </motion.div>
                 ) : (
                   <form onSubmit={processPayment} className="space-y-5">

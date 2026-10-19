@@ -34,8 +34,8 @@ export function MemberTimelineModal({ isOpen, onClose, member }: MemberTimelineM
       badge: "Verified"
     },
     {
-      title: "Payment Received & Receipt Issued",
-      description: `Fee payment verified (Receipt: ${member.receiptNo || "REC-BSF-8821"}) via Razorpay / Cash`,
+      title: "Payment Received & Invoice Issued",
+      description: (member as any).invoiceNo ? `Fee payment verified (Invoice ${(member as any).invoiceNo}) via Razorpay / Cash` : "Fee payment verified via Razorpay / Cash",
       date: paymentDate,
       status: "completed",
       icon: CreditCard,
