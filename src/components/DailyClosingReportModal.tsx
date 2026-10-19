@@ -5,7 +5,6 @@ interface DailyClosingReportModalProps {
   isOpen: boolean;
   onClose: () => void;
   members: any[];
-  attendanceLogs?: any[];
   paymentsList?: any[];
   renewalsList?: any[];
 }
@@ -14,7 +13,6 @@ export function DailyClosingReportModal({
   isOpen,
   onClose,
   members = [],
-  attendanceLogs = [],
   paymentsList = [],
   renewalsList = []
 }: DailyClosingReportModalProps) {
@@ -25,7 +23,6 @@ export function DailyClosingReportModal({
 
   // Compute daily numbers for reportDate
   const todayMembers = members.filter(m => m.created_at && m.created_at.startsWith(reportDate));
-  const todayAttendance = attendanceLogs.filter(a => a.date === reportDate);
   const todayPayments = paymentsList.filter(p => p.date && p.date.startsWith(reportDate));
   
   const totalRevenue = todayPayments.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
@@ -40,16 +37,11 @@ export function DailyClosingReportModal({
       ["Generated At", new Date().toLocaleString()],
       [""],
       ["Metric", "Value"],
-      ["Total Attendance Today", todayAttendance.length],
       ["Total Revenue Collected (₹)", totalRevenue],
       ["New Registrations Today", todayMembers.length],
       ["Pending Approvals", pendingApprovalsCount],
       ["Pending Payments", pendingPaymentsCount],
       ["Renewals Due", renewalsCount],
-      [""],
-      ["TODAYS ATTENDANCE BREAKDOWN"],
-      ["Time", "Member Name", "Membership No", "Batch"],
-      ...todayAttendance.map(a => [a.time || "N/A", a.fullName || a.member_name || "N/A", a.membershipNo || "N/A", a.batchName || "Morning"]),
     ];
 
     const csvContent = "data:text/csv;charset=utf-8," + csvRows.map(e => e.join(",")).join("\n");
@@ -86,7 +78,7 @@ export function DailyClosingReportModal({
             </div>
             <div>
               <h3 className="text-lg font-black tracking-tight">Baroda Swim Front Daily Closing Report</h3>
-              <p className="text-xs text-slate-300 font-medium">Today's attendance and collections summary</p>
+              <p className="text-xs text-slate-300 font-medium">Today's collections and registrations</p>
             </div>
           </div>
 
@@ -144,12 +136,6 @@ export function DailyClosingReportModal({
         <div className="p-6 overflow-y-auto space-y-6">
           {/* Executive Metrics Grid */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <div className="p-4 rounded-2xl bg-sky-50 border border-sky-100">
-              <span className="text-[10px] font-bold text-sky-600 uppercase tracking-wider block">Total Attendance</span>
-              <span className="text-2xl font-black text-slate-900 block mt-1">{todayAttendance.length}</span>
-              <span className="text-[10px] text-slate-500 block mt-0.5">Check-ins on {reportDate}</span>
-            </div>
-
             <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-100">
               <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block">Total Revenue</span>
               <span className="text-2xl font-black text-slate-900 block mt-1">₹{totalRevenue.toLocaleString("en-IN")}</span>
@@ -179,39 +165,6 @@ export function DailyClosingReportModal({
               <span className="text-2xl font-black text-slate-900 block mt-1">{renewalsCount}</span>
               <span className="text-[10px] text-slate-500 block mt-0.5">Expiring or due</span>
             </div>
-          </div>
-
-          {/* Detailed Check-ins Table for today */}
-          <div className="space-y-3">
-            <h4 className="text-sm font-extrabold text-slate-900">Attendance Log for {reportDate}</h4>
-            {todayAttendance.length > 0 ? (
-              <div className="border border-slate-200 rounded-2xl overflow-hidden text-xs">
-                <table className="w-full text-left">
-                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase text-[10px]">
-                    <tr>
-                      <th className="p-3">Time</th>
-                      <th className="p-3">Member Name</th>
-                      <th className="p-3">Membership No</th>
-                      <th className="p-3">Batch Slot</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 font-medium">
-                    {todayAttendance.map((a, i) => (
-                      <tr key={i} className="hover:bg-slate-50/50">
-                        <td className="p-3 font-mono font-bold text-sky-600">{a.time || "N/A"}</td>
-                        <td className="p-3 font-bold text-slate-900">{a.fullName || a.member_name}</td>
-                        <td className="p-3 font-mono text-slate-500">{a.membershipNo}</td>
-                        <td className="p-3 text-slate-600">{a.batchName || "Morning Slot"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="p-6 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-slate-400 text-xs">
-                No attendance entries recorded for {reportDate}.
-              </div>
-            )}
           </div>
         </div>
 
