@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { MemberLayout } from "../member-dashboard/MemberLayout";
-import { findMemberNavigationItem, type MemberSection } from "../member-dashboard/member-navigation";
+import { findMemberNavigationItem, isMemberSection, type MemberSection } from "../member-dashboard/member-navigation";
 import { MemberOverview } from "../member-dashboard/MemberOverview";
 import { MyMembershipPage } from "../member-dashboard/MyMembershipPage";
 import { PaymentsPage } from "../member-dashboard/PaymentsPage";
@@ -8,7 +8,6 @@ import { MyBatchPage } from "../member-dashboard/MyBatchPage";
 import { MemberCalendarPage } from "../member-dashboard/MemberCalendarPage";
 import { MemberProfilePage } from "../member-dashboard/MemberProfilePage";
 import { MemberSecurityPage } from "../member-dashboard/MemberSecurityPage";
-import { MemberAttendancePage } from "../member-dashboard/MemberAttendancePage";
 import { MemberSupportPage } from "../member-dashboard/MemberSupportPage";
 import { MemberNotificationsPage } from "../member-dashboard/MemberNotificationsPage";
 import { MemberNotificationPopup } from "../member-dashboard/MemberNotificationPopup";
@@ -22,7 +21,8 @@ interface MemberDashboardShellProps {
 }
 
 export function MemberDashboardShell({ userName, avatar, onLogout }: MemberDashboardShellProps) {
-  const [activeSection, setActiveSection] = useRememberedState<MemberSection>("member.section", "overview");
+  const [rememberedSection, setActiveSection] = useRememberedState<MemberSection>("member.section", "overview");
+  const activeSection: MemberSection = isMemberSection(rememberedSection) ? rememberedSection : "overview";
   const [membershipStatus, setMembershipStatus] = useState<string>();
   const notices = useMemberNotifications();
   // "Later" hides the pop-up until the next visit or until another new message arrives.
@@ -50,7 +50,7 @@ export function MemberDashboardShell({ userName, avatar, onLogout }: MemberDashb
 
   return (
     <MemberLayout activeSection={activeSection} unreadCount={notices.unreadCount} userName={userName} avatar={photoUrl || avatar} membershipStatus={membershipStatus} onSelect={setActiveSection} onLogout={onLogout} showSectionIntro={!(["overview", "membership", "payments", "batch", "calendar", "profile", "security", "notifications", "support"] as MemberSection[]).includes(activeSection)}>
-      {activeSection === "overview" ? <MemberOverview sessionName={userName} onNavigate={setActiveSection} /> : activeSection === "membership" ? <MyMembershipPage onNavigate={setActiveSection} /> : activeSection === "payments" ? <PaymentsPage /> : activeSection === "batch" ? <MyBatchPage onNavigate={setActiveSection} /> : activeSection === "calendar" ? <MemberCalendarPage /> : activeSection === "attendance" ? <MemberAttendancePage /> : activeSection === "profile" ? <MemberProfilePage /> : activeSection === "security" ? <MemberSecurityPage onLogout={onLogout} /> : activeSection === "support" ? <MemberSupportPage onNavigate={setActiveSection} /> : activeSection === "notifications" ? <MemberNotificationsPage messages={notices.messages} loading={notices.loading} error={notices.error} onRetry={() => void notices.refresh()} onMarkRead={notices.markRead} /> : <section aria-labelledby="member-content-title" className="max-w-2xl rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      {activeSection === "overview" ? <MemberOverview sessionName={userName} onNavigate={setActiveSection} /> : activeSection === "membership" ? <MyMembershipPage onNavigate={setActiveSection} /> : activeSection === "payments" ? <PaymentsPage /> : activeSection === "batch" ? <MyBatchPage onNavigate={setActiveSection} /> : activeSection === "calendar" ? <MemberCalendarPage /> : activeSection === "profile" ? <MemberProfilePage /> : activeSection === "security" ? <MemberSecurityPage onLogout={onLogout} /> : activeSection === "support" ? <MemberSupportPage onNavigate={setActiveSection} /> : activeSection === "notifications" ? <MemberNotificationsPage messages={notices.messages} loading={notices.loading} error={notices.error} onRetry={() => void notices.refresh()} onMarkRead={notices.markRead} /> : <section aria-labelledby="member-content-title" className="max-w-2xl rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
         <h2 id="member-content-title" className="sr-only">{currentSection.label}</h2>
         <div className="flex min-h-[200px] items-center justify-center px-6 py-8">
           <div className="max-w-sm text-center">
