@@ -207,6 +207,25 @@ export class MemberController {
     }
   };
 
+  // Walk-in registered by staff and paid in cash at the counter: approve and activate in one step.
+  recordCashPayment = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { membershipNo } = req.body || {};
+      if (!membershipNo) {
+        return res.status(400).json({ error: "Membership number is required." });
+      }
+      const user = (req as any).user || {};
+      const result = await new PaymentService().recordCashPayment({
+        membershipNo: String(membershipNo),
+        receivedBy: user.name || user.fullName || "Front desk"
+      });
+      if (result.selectedBatchId) await this.memberService.syncBatchStrength(result.selectedBatchId);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  };
+
   pay = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { membershipNo, paymentMethod, amountPaid, txnId } = req.body;

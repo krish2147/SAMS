@@ -28,6 +28,7 @@ router.get("/members/admin/stats", requireAuth(["admin", "super_admin"]), member
 router.post("/members/approve", requireAuth(["admin", "super_admin", "staff", "receptionist"]), memberController.approve);
 router.post("/members/resend-whatsapp", requireAuth(["admin", "super_admin", "staff", "receptionist"]), memberController.resendWhatsApp);
 router.post("/members/reject", requireAuth(["admin", "super_admin", "staff", "receptionist"]), memberController.reject);
+router.post("/members/cash-payment", requireAuth(["admin", "super_admin", "staff", "receptionist"]), memberController.recordCashPayment);
 router.post("/members/pay", requireAuth(["admin", "super_admin", "staff", "receptionist"]), memberController.pay);
 router.post("/members/delete-batch", requireAuth(["admin", "super_admin", "staff", "receptionist"]), memberController.deleteBatch);
 router.delete("/members/:membershipNo", requireAuth(["admin", "super_admin", "staff", "receptionist"]), memberController.delete);
