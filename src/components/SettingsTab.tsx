@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
-  User, Bell, KeyRound, Palette, LogOut, ChevronRight, ArrowLeft, Check, X, Shuffle,
+  User, Bell, KeyRound, Palette, LogOut, ArrowLeft, Check, X, Shuffle,
   Smile, Image as ImageIcon, Camera, CheckCircle, AlertCircle, RefreshCw
 } from "lucide-react";
 import { MIN_PASSWORD_LENGTH } from "../utils/password";
@@ -9,6 +9,7 @@ import { sessionStore } from "../utils/sessionStore";
 import { PasswordInput } from "./PasswordInput";
 import { CHARACTER_AVATARS, CHARACTER_AVATAR_LABELS } from "../utils/avatars";
 import { CameraCapture } from "./PhotoPicker";
+import { SettingsGroup as Group, SettingsRow as Row } from "./SettingsList";
 import { ACCENTS, getAccent, saveAccent, type AccentId } from "../utils/accent";
 import { roleLabel } from "../utils/roles";
 
@@ -397,25 +398,6 @@ export function SettingsTab({ activeUser, onProfileUpdated, onLogout }: Settings
         />
       )}
     </div>
-  );
-}
-
-function Group({ children }: { children: React.ReactNode }) {
-  return <div className="mb-4 overflow-hidden rounded-3xl border border-slate-200 bg-white divide-y divide-slate-100">{children}</div>;
-}
-
-function Row({ icon: Icon, title, subtitle, onClick, danger = false }: {
-  icon: React.ComponentType<{ className?: string }>; title: string; subtitle?: string; onClick: () => void; danger?: boolean;
-}) {
-  return (
-    <button type="button" onClick={onClick} className={`flex min-h-[64px] w-full items-center gap-4 px-4 py-3 text-left hover:bg-slate-50 cursor-pointer ${danger ? "text-rose-600" : "text-slate-900"}`}>
-      <Icon className={`h-6 w-6 shrink-0 ${danger ? "text-rose-500" : "text-slate-700"}`} />
-      <span className="min-w-0 flex-1">
-        <span className="block text-[17px]">{title}</span>
-        {subtitle && <span className="block truncate text-sm text-slate-500">{subtitle}</span>}
-      </span>
-      {!danger && <ChevronRight className="h-5 w-5 shrink-0 text-slate-300" />}
-    </button>
   );
 }
 

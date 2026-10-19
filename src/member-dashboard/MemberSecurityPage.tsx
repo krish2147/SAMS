@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { KeyRound, LogOut, ShieldCheck, Smartphone } from "lucide-react";
+import { KeyRound, LogOut, MonitorSmartphone, ShieldCheck, Smartphone } from "lucide-react";
+import { SettingsGroup, SettingsRow, SettingsTitle } from "../components/SettingsList";
 
 /** Shows only the last four digits, so the page is safe to read over someone's shoulder. */
 function maskMobile(value?: string) {
@@ -7,20 +8,6 @@ function maskMobile(value?: string) {
   if (digits.length < 4) return "your registered mobile number";
   const last4 = digits.slice(-4);
   return `+91 ••••• •${last4}`;
-}
-
-function Row({ icon: Icon, title, children }: { icon: React.ComponentType<{ className?: string }>; title: string; children: React.ReactNode }) {
-  return (
-    <div className="flex gap-4 border-b border-ink-100 py-5 last:border-b-0 last:pb-0 first:pt-0">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-aqua-400/10 text-aqua-600 ring-1 ring-inset ring-aqua-400/20">
-        <Icon className="h-[17px] w-[17px]" />
-      </span>
-      <div className="min-w-0">
-        <h3 className="text-[15px] font-semibold text-ink-950">{title}</h3>
-        <div className="mt-1.5 text-sm leading-6 text-ink-600">{children}</div>
-      </div>
-    </div>
-  );
 }
 
 export function MemberSecurityPage({ onLogout }: { onLogout?: () => void }) {
@@ -36,42 +23,40 @@ export function MemberSecurityPage({ onLogout }: { onLogout?: () => void }) {
   }, []);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
-      <section className="rounded-2xl border border-ink-100 bg-white p-5 shadow-card sm:p-6">
-        <Row icon={Smartphone} title="How you sign in">
-          Your account uses a one-time password. Each time you sign in, a six-digit code is sent by SMS to{" "}
-          <span className="font-semibold text-ink-900">{maskMobile(mobile)}</span>. There is no password to remember or
-          leak.
-        </Row>
+    <div className="mx-auto max-w-xl pb-6">
+      <SettingsTitle>Security</SettingsTitle>
 
-        <Row icon={KeyRound} title="Keep your code private">
-          Academy staff will never ask you for your code — not in person, on the phone, or over WhatsApp. Anyone asking
-          for it is trying to access your account. A code is valid for five minutes and can only be used once.
-        </Row>
+      <SettingsGroup heading="Signing in">
+        <SettingsRow
+          icon={Smartphone}
+          title="How you sign in"
+          subtitle={<>A six-digit code is sent by SMS to <span className="font-semibold text-slate-800">{maskMobile(mobile)}</span> each time. There is no password to remember.</>}
+        />
+        <SettingsRow
+          icon={KeyRound}
+          title="Keep your code private"
+          subtitle="Academy staff will never ask for your code, in person, on the phone or on WhatsApp. A code works once and only for five minutes."
+        />
+        <SettingsRow
+          icon={ShieldCheck}
+          title="Change your mobile number"
+          subtitle="Visit the academy reception with photo identification and staff will update it for you."
+        />
+      </SettingsGroup>
 
-        <Row icon={ShieldCheck} title="Changing your registered mobile number">
-          Your mobile number is how we identify you, so it cannot be changed from here. Please visit the
-          academy reception with photo identification and staff will update it for you.
-        </Row>
-      </section>
+      <SettingsGroup heading="This device">
+        <SettingsRow
+          icon={MonitorSmartphone}
+          title="Staying signed in"
+          subtitle="On the website you stay signed in until you close the browser. In the installed app, tick Keep me logged in to stay signed in for up to 30 days."
+        />
+      </SettingsGroup>
 
-      <section className="rounded-2xl border border-ink-100 bg-white p-5 shadow-card sm:p-6">
-        <h2 className="text-[15px] font-semibold text-ink-950">This device</h2>
-        <p className="mt-1.5 text-sm leading-6 text-ink-600">
-          You stay signed in on this device for up to two hours, after which a new code is required. Sign out if you are
-          using a shared or public computer.
-        </p>
-        {onLogout && (
-          <button
-            type="button"
-            onClick={onLogout}
-            className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-ink-200 px-4 text-sm font-semibold text-ink-900 outline-none transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-700 focus-visible:ring-2 focus-visible:ring-aqua-400 focus-visible:ring-offset-2"
-          >
-            <LogOut className="h-4 w-4" />
-            Sign out
-          </button>
-        )}
-      </section>
+      {onLogout && (
+        <SettingsGroup>
+          <SettingsRow icon={LogOut} title="Log out" danger onClick={onLogout} />
+        </SettingsGroup>
+      )}
     </div>
   );
 }
