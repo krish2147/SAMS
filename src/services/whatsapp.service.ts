@@ -200,6 +200,31 @@ export async function sendPaymentInvoiceWhatsApp(params: {
 }
 
 /**
+ * Sends the "renewal_reminder" WhatsApp template a week before, and on the last day of, a
+ * membership. The template is in docs/msg91/renewal_reminder.json (import it in MSG91 under
+ * WhatsApp -> Templates -> Import). Body variables:
+ * {{1}} name, {{2}} membership number, {{3}} "in 7 days" / "tomorrow" / "today",
+ * {{4}} end date, {{5}} batch.
+ */
+export async function sendRenewalReminderWhatsApp(params: {
+  phoneNumber: string;
+  memberName: string;
+  membershipNo: string;
+  endsText: string;
+  endDate: string;
+  batch: string;
+}): Promise<Msg91WhatsAppResponse> {
+  const templateName = process.env.MSG91_RENEWAL_TEMPLATE || "renewal_reminder";
+  const values = [params.memberName, params.membershipNo, params.endsText, params.endDate, params.batch].map((v) => String(v || "").trim() || "-");
+  if (isMetaWhatsAppEnabled()) {
+    return sendMetaTemplate(normalizePhoneNumber(params.phoneNumber), templateName, values);
+  }
+  return sendMsg91Template(params.phoneNumber, templateName, Object.fromEntries(
+    values.map((value, i) => [`body_${i + 1}`, { type: "text", value }])
+  ));
+}
+
+/**
  * Sends an automated WhatsApp Payment Reminder message via MSG91 WhatsApp Outbound API
  *
  * The approved "payment_link" template has 4 body variables, confirmed against the

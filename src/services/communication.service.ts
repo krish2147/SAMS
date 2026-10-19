@@ -494,7 +494,8 @@ export async function sendEventNotification(
   eventKey: string,
   recipient: { id?: number; memberName: string; mobileNo?: string; email?: string },
   customVariables: Record<string, any> = {},
-  sentBy: string = "System Trigger"
+  sentBy: string = "System Trigger",
+  options: { channels?: string[] } = {}
 ): Promise<CommunicationLog> {
   const pool = await getDbPool();
   
@@ -533,7 +534,9 @@ export async function sendEventNotification(
   let emailResp = "";
 
   // Dispatch channels based on template config
-  const enabledChannels = template.channels ? template.channels.split(",") : ["whatsapp", "email", "sms"];
+  const templateChannels = template.channels ? template.channels.split(",") : ["whatsapp", "email", "sms"];
+  // A caller that sends one channel itself (e.g. WhatsApp through an approved template) narrows the rest.
+  const enabledChannels = options.channels ? templateChannels.filter((c) => options.channels!.includes(c)) : templateChannels;
 
   if (recipient.mobileNo && enabledChannels.includes("whatsapp")) {
     const waRes = await sendWhatsAppMessage(recipient.mobileNo, whatsappTxt, template.whatsapp_template_name);
