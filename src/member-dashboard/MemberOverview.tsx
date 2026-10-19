@@ -5,7 +5,7 @@ import { DashboardSkeleton } from "./DashboardSkeleton";
 import { MembershipOverviewCard } from "./MembershipOverviewCard";
 import { OverviewSummaryCards } from "./OverviewSummaryCards";
 import { RecentPayments } from "./RecentPayments";
-import { firstName, greetingForHour, receiptHref, type MemberDashboardData, type MemberPayment } from "./member-overview-data";
+import { firstName, greetingForHour, invoiceHref, type MemberDashboardData, type MemberPayment } from "./member-overview-data";
 
 interface MemberOverviewProps {
   sessionName: string;
@@ -14,7 +14,7 @@ interface MemberOverviewProps {
 
 const actions = [
   { id: "membership", label: "Membership", supporting: "Plan and validity", icon: ShieldCheck },
-  { id: "payments", label: "Payments", supporting: "Receipts and history", icon: CreditCard },
+  { id: "payments", label: "Payments", supporting: "Invoices and history", icon: CreditCard },
   { id: "batch", label: "My batch", supporting: "Timing and details", icon: CalendarClock },
   { id: "profile", label: "Edit profile", supporting: "Personal information", icon: UserRound },
   { id: "support", label: "Help & support", supporting: "Get assistance", icon: CircleHelp },
@@ -57,12 +57,12 @@ export function MemberOverview({ sessionName, onNavigate }: MemberOverviewProps)
   if (dashboardLoading) return <DashboardSkeleton />;
   if (dashboardError || !dashboard) return <section role="alert" className="rounded-2xl border border-slate-200 bg-white px-6 py-12 text-center shadow-[0_1px_2px_rgba(15,23,42,0.04)]"><span className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-500"><ShieldCheck className="h-5 w-5" /></span><h2 className="mt-4 text-lg font-semibold text-slate-900">We couldn't load your membership information.</h2><p className="mt-1 text-sm text-slate-500">Please try again in a moment.</p><button type="button" onClick={() => void loadDashboard()} className="mt-5 min-h-11 rounded-xl bg-slate-950 px-5 text-sm font-semibold text-white hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2">Try again</button></section>;
 
-  const receiptUrl = receiptHref(latestSuccessfulPayment);
+  const invoiceUrl = invoiceHref(latestSuccessfulPayment);
 
   return <div className="space-y-6 lg:space-y-7">
     <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div><h1 className="font-display text-[22px] font-bold leading-[1.15] tracking-[-0.02em] text-ink-950 sm:text-[30px]">{greetingForHour(new Date().getHours())}, {greetingName}</h1><p className="mt-1.5 text-sm leading-6 text-ink-600 sm:text-[15px]">Manage your membership, batch and payments from one place.</p></div>
-      <div className="flex flex-wrap gap-2"><button type="button" onClick={() => onNavigate("membership")} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50">View membership</button>{receiptUrl && <a href={receiptUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800"><ReceiptText className="h-4 w-4" />View receipt</a>}</div>
+      <div className="flex flex-wrap gap-2"><button type="button" onClick={() => onNavigate("membership")} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50">View membership</button>{invoiceUrl && <a href={invoiceUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800"><ReceiptText className="h-4 w-4" />View invoice</a>}</div>
     </header>
 
     <MembershipOverviewCard data={dashboard} onNavigate={onNavigate} />

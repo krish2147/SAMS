@@ -1,6 +1,6 @@
 import React from "react";
 import { ArrowUpRight, CalendarRange, Clock3, CreditCard, Waves } from "lucide-react";
-import { formatBatchTime, formatMemberDate, receiptHref, type MemberDashboardData, type MemberPayment } from "./member-overview-data";
+import { formatBatchTime, formatMemberDate, invoiceHref, type MemberDashboardData, type MemberPayment } from "./member-overview-data";
 
 interface OverviewSummaryCardsProps {
   dashboard: MemberDashboardData;
@@ -63,7 +63,7 @@ export function OverviewSummaryCards({ dashboard, latestPayment, paymentsLoading
   const batchStart = formatBatchTime(dashboard.batch?.startTime);
   const batchEnd = formatBatchTime(dashboard.batch?.endTime);
   const paymentDate = formatMemberDate(latestPayment?.paymentDate);
-  const invoiceUrl = receiptHref(latestPayment);
+  const invoiceUrl = invoiceHref(latestPayment);
   const daysRemaining = Math.max(0, dashboard.membership.daysRemaining ?? 0);
 
   return (
@@ -108,10 +108,10 @@ export function OverviewSummaryCards({ dashboard, latestPayment, paymentsLoading
                 {paymentDate && <span>{paymentDate}</span>}
               </p>
             ) : (
-              <p className="mt-2.5 text-sm leading-6 text-ink-600">Completed payments and receipts will appear here.</p>
+              <p className="mt-2.5 text-sm leading-6 text-ink-600">Completed payments and invoices will appear here.</p>
             )}
             <div className="mt-auto flex flex-wrap items-center gap-x-5 pt-4">
-              {invoiceUrl && <CardLink href={invoiceUrl}>View receipt</CardLink>}
+              {invoiceUrl && <CardLink href={invoiceUrl}>View invoice</CardLink>}
               <button
                 type="button"
                 onClick={() => onNavigate("payments")}
