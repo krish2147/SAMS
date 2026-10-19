@@ -359,6 +359,10 @@ export class MemberService {
     return updated;
   }
 
+  async syncBatchStrength(batchId: number | string): Promise<void> {
+    await this.batchRepository.updateStrengthAndStatus(batchId);
+  }
+
   async approveMember(membershipNo: string): Promise<any> {
     // Idempotent approval: if already approved, return existing record flagged as alreadyApproved
     const existing = await this.memberRepository.getByMembershipNo(membershipNo);

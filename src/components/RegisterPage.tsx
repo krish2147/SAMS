@@ -9,6 +9,7 @@ import { AcademyId, UserSession } from "../types";
 import swimmerImage from "../assets/registration-swimmer.jpg";
 import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-logo";
 import { PhotoPicker } from "./PhotoPicker";
+import { sessionStore } from "../utils/sessionStore";
 
 interface RegisterPageProps {
   academyId: AcademyId;
@@ -16,6 +17,8 @@ interface RegisterPageProps {
   onCancel: () => void;
   /** Rendered inside the staff console rather than as its own full page. */
   embedded?: boolean;
+  /** Staff registering a walk-in who pays cash at the counter: approved and activated straight away. */
+  walkIn?: boolean;
 }
 
 type Category = "Learners" | "General" | "Family_4" | "Family_3";
@@ -280,7 +283,7 @@ function Chip({ selected, onClick, children, disabled, name }: { selected: boole
 // Same cricket photo the academy selector uses for the Elite Cricket Academy card.
 const CRICKET_IMAGE = "https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&q=80&w=1200";
 
-export function RegisterPage({ academyId, onCancel, embedded = false }: RegisterPageProps) {
+export function RegisterPage({ academyId, onCancel, embedded = false, walkIn = false }: RegisterPageProps) {
   const reduceMotion = useReducedMotion();
   const academyName = academyId === "swim" ? "Baroda Swim Front" : "Elite Cricket Academy";
   const academyImage = academyId === "swim" ? swimmerImage : CRICKET_IMAGE;
@@ -302,7 +305,14 @@ export function RegisterPage({ academyId, onCancel, embedded = false }: Register
   const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
   const [isDragging, setIsDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState<null | { applicationNumber: string; fullName: string; whatsapp: string; planLabel: string; batchLabel: string; total: number }>(null);
+  const [submitted, setSubmitted] = useState<null | {
+    applicationNumber: string; fullName: string; whatsapp: string; planLabel: string; batchLabel: string; total: number;
+    membershipNo?: string;
+    cash?: { receiptNo: string; amount: number; endDate: string } | { error: string };
+  }>(null);
+  const [cashReceived, setCashReceived] = useState(false);
+  const [payMode, setPayMode] = useState<"cash" | "link">("cash");
+  const takingCash = walkIn && payMode === "cash";
   const [generalError, setGeneralError] = useState<string | null>(null);
 
   const [batches, setBatches] = useState<BatchOption[] | null>(null);
@@ -453,6 +463,10 @@ export function RegisterPage({ academyId, onCancel, embedded = false }: Register
       focusField(first);
       return;
     }
+    if (takingCash && !cashReceived) {
+      setGeneralError("Tick the box to confirm you have received the cash.");
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -511,7 +525,30 @@ export function RegisterPage({ academyId, onCancel, embedded = false }: Register
         return;
       }
 
+      // Walk-in: the cash is already in hand, so approve and activate now instead of sending a link.
+      let cash: { receiptNo: string; amount: number; endDate: string } | { error: string } | undefined;
+      if (takingCash) {
+        try {
+          let token = "";
+          try { token = JSON.parse(sessionStore.get() || "{}")?.token || ""; } catch { /* no saved session */ }
+          const cashResponse = await fetch("/api/members/cash-payment", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json", ...(token ? { "x-session-token": token } : {}) },
+            body: JSON.stringify({ membershipNo: result.data?.id })
+          });
+          const cashResult = await cashResponse.json().catch(() => ({}));
+          cash = cashResponse.ok
+            ? { receiptNo: cashResult.receiptNo, amount: Number(cashResult.amount), endDate: cashResult.membershipEndDate }
+            : { error: cashResult.error || "The cash payment could not be recorded." };
+        } catch {
+          cash = { error: "The cash payment could not be recorded because the connection dropped." };
+        }
+      }
+
       setSubmitted({
+        membershipNo: result.data?.id,
+        cash,
         applicationNumber: result.data?.application_number || "",
         fullName: form.fullName.trim(),
         whatsapp,
@@ -533,6 +570,7 @@ export function RegisterPage({ academyId, onCancel, embedded = false }: Register
 
   const startAnother = () => {
     setSubmitted(null);
+    setCashReceived(false);
     setStep(0);
     setMaxStepReached(0);
     scrollToTop();
@@ -545,6 +583,49 @@ export function RegisterPage({ academyId, onCancel, embedded = false }: Register
   // -------------------------------------------------------------------------------------------
   // Success
   // -------------------------------------------------------------------------------------------
+  if (submitted && submitted.cash) {
+    const cashOk = submitted.cash && "receiptNo" in submitted.cash ? submitted.cash : null;
+    const cashError = submitted.cash && "error" in submitted.cash ? submitted.cash.error : null;
+    const endLabel = cashOk?.endDate ? new Date(cashOk.endDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "";
+    return (
+      <div ref={topRef} className="bg-canvas px-4 py-10 sm:py-16">
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mx-auto max-w-xl overflow-hidden rounded-[28px] bg-white shadow-panel">
+          <div className={`px-7 pb-8 pt-9 sm:px-10 ${cashOk ? "bg-ink-950 text-white" : "bg-amber-50 text-ink-950"}`}>
+            <span className={`inline-flex h-12 w-12 items-center justify-center rounded-2xl ${cashOk ? "bg-aqua-500/20 text-aqua-300" : "bg-amber-100 text-amber-700"}`}>
+              {cashOk ? <Check className="h-7 w-7" strokeWidth={3} /> : <ShieldCheck className="h-7 w-7" />}
+            </span>
+            <h1 className="mt-5 font-display text-[28px] font-bold leading-tight tracking-[-0.02em]">
+              {cashOk ? `${submitted.fullName.split(/\s+/)[0]} is a member now.` : "Registered, but the cash isn't recorded yet."}
+            </h1>
+            <p className={`mt-2 text-[15px] ${cashOk ? "text-ink-200" : "text-ink-700"}`}>
+              {cashOk
+                ? "Cash received and the membership is active. The receipt and invoice are sent on WhatsApp."
+                : `${cashError} Open Member Approvals to approve ${submitted.fullName} and record the payment there.`}
+            </p>
+          </div>
+          <div className="px-7 py-8 sm:px-10">
+            <div className="rounded-2xl bg-ink-50 p-4 text-sm space-y-2">
+              {submitted.membershipNo && <div className="flex justify-between gap-4"><span className="text-ink-600">Membership no.</span><span className="font-mono font-semibold text-ink-950">{submitted.membershipNo}</span></div>}
+              <div className="flex justify-between gap-4"><span className="text-ink-600">Plan</span><span className="text-right font-semibold text-ink-950">{submitted.planLabel}</span></div>
+              <div className="flex justify-between gap-4"><span className="text-ink-600">Pool time</span><span className="text-right font-semibold text-ink-950">{submitted.batchLabel}</span></div>
+              {cashOk && <div className="flex justify-between gap-4"><span className="text-ink-600">Cash received</span><span className="font-semibold tabular-nums text-ink-950">{rupees(cashOk.amount)}</span></div>}
+              {cashOk && <div className="flex justify-between gap-4"><span className="text-ink-600">Receipt no.</span><span className="font-mono font-semibold text-ink-950">{cashOk.receiptNo}</span></div>}
+              {endLabel && <div className="flex justify-between gap-4"><span className="text-ink-600">Active until</span><span className="font-semibold text-ink-950">{endLabel}</span></div>}
+            </div>
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+              <button type="button" onClick={onCancel} className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-ink-200 px-5 text-sm font-semibold text-ink-800 hover:bg-ink-50">
+                <ArrowLeft className="h-4 w-4" /> Back to members
+              </button>
+              <button type="button" onClick={startAnother} className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-ink-950 px-5 text-sm font-semibold text-white hover:bg-ink-800">
+                <Sparkles className="h-4 w-4" /> Register another walk-in
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
   if (submitted) {
     const nextSteps = [
       { icon: CheckCircle2, title: "Application received", body: "The academy now has your details.", done: true },
@@ -951,6 +1032,29 @@ export function RegisterPage({ academyId, onCancel, embedded = false }: Register
               </dl>
             </div>
 
+            {walkIn && (
+              <div className="space-y-3 rounded-2xl border border-ink-100 bg-white p-5">
+                <p className="text-sm font-semibold text-ink-950">How is the member paying?</p>
+                <div role="radiogroup" aria-label="How is the member paying?" className="grid grid-cols-2 gap-2">
+                  {([["cash", "Cash now"], ["link", "Online link later"]] as const).map(([id, label]) => (
+                    <button key={id} type="button" role="radio" aria-checked={payMode === id} onClick={() => { setPayMode(id); setGeneralError(null); }}
+                      className={`min-h-11 rounded-xl border-2 px-3 text-sm font-semibold ${payMode === id ? "border-ink-950 bg-ink-950 text-white" : "border-ink-200 text-ink-700 hover:border-ink-400"}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {takingCash && (
+                  <label htmlFor="walkin-cash" className={`flex cursor-pointer gap-3 rounded-xl border-2 p-3.5 text-[14px] leading-5 ${cashReceived ? "border-emerald-500 bg-emerald-50" : "border-amber-300 bg-amber-50"}`}>
+                    <input id="walkin-cash" type="checkbox" checked={cashReceived} onChange={(e) => { setCashReceived(e.target.checked); setGeneralError(null); }} className="mt-0.5 h-5 w-5 shrink-0 accent-emerald-600" />
+                    <span>
+                      <strong className="font-semibold text-ink-950">I have received {total === null ? "the full amount" : rupees(total)} in cash.</strong>
+                      <span className="block text-ink-600">The member is approved and active straight away. No payment link is sent.</span>
+                    </span>
+                  </label>
+                )}
+              </div>
+            )}
+
             <div className="rounded-2xl border border-ink-100 bg-ink-50/60 p-5">
               <p className="text-sm font-semibold text-ink-950">Pool safety rules</p>
               <ul className="mt-3 space-y-2 text-[13px] leading-5 text-ink-600">
@@ -968,7 +1072,7 @@ export function RegisterPage({ academyId, onCancel, embedded = false }: Register
     }
   })();
 
-  const continueLabel = isLast ? (isSubmitting ? "Submitting…" : "Submit application") : `Continue to ${STEPS[step + 1].short.toLowerCase()}`;
+  const continueLabel = isLast ? (isSubmitting ? "Submitting…" : takingCash ? "Register & record cash" : "Submit application") : `Continue to ${STEPS[step + 1].short.toLowerCase()}`;
 
   const summary = (
     <div className="overflow-hidden rounded-[24px] bg-white shadow-panel">
@@ -997,10 +1101,17 @@ export function RegisterPage({ academyId, onCancel, embedded = false }: Register
             <span className="font-display text-2xl font-bold tabular-nums text-ink-950">{total === null ? "—" : rupees(total)}</span>
           </div>
         </div>
-        <div className="flex gap-3 rounded-xl bg-aqua-500/[0.07] p-3.5 text-[13px] leading-5 text-ink-700">
-          <Lock className="mt-0.5 h-4 w-4 shrink-0 text-aqua-600" />
-          <span><strong className="font-semibold text-ink-950">Nothing to pay now.</strong> After the academy approves your application, you'll get a secure Razorpay link on WhatsApp.</span>
-        </div>
+        {walkIn ? (
+          <div className="flex gap-3 rounded-xl bg-aqua-500/[0.07] p-3.5 text-[13px] leading-5 text-ink-700">
+            <Lock className="mt-0.5 h-4 w-4 shrink-0 text-aqua-600" />
+            <span>{takingCash ? <><strong className="font-semibold text-ink-950">Paid in cash at the counter.</strong> Approved and active as soon as you register.</> : <><strong className="font-semibold text-ink-950">Online payment.</strong> Approve in Member Approvals to send the Razorpay link on WhatsApp.</>}</span>
+          </div>
+        ) : (
+          <div className="flex gap-3 rounded-xl bg-aqua-500/[0.07] p-3.5 text-[13px] leading-5 text-ink-700">
+            <Lock className="mt-0.5 h-4 w-4 shrink-0 text-aqua-600" />
+            <span><strong className="font-semibold text-ink-950">Nothing to pay now.</strong> After the academy approves your application, you'll get a secure Razorpay link on WhatsApp.</span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1092,13 +1203,13 @@ export function RegisterPage({ academyId, onCancel, embedded = false }: Register
             </button>
           )}
           <div className="min-w-0 flex-1">
-            <p className="text-[12px] text-ink-600">{total === null ? "Total" : "Total, due after approval"}</p>
+            <p className="text-[12px] text-ink-600">{total === null ? "Total" : takingCash ? "Total, cash now" : "Total, due after approval"}</p>
             <p className="font-display text-lg font-bold tabular-nums text-ink-950">{total === null ? "Choose a plan" : rupees(total)}</p>
           </div>
           <button type="button" onClick={isLast ? handleSubmit : handleContinue} disabled={isSubmitting}
             className="inline-flex h-12 shrink-0 items-center gap-2 rounded-xl bg-ink-950 px-5 text-[15px] font-semibold text-white disabled:opacity-60">
             {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            {isLast ? (isSubmitting ? "Submitting" : "Submit") : "Continue"}
+            {isLast ? (isSubmitting ? "Submitting" : takingCash ? "Register" : "Submit") : "Continue"}
             {!isSubmitting && <ArrowRight className="h-4 w-4" />}
           </button>
         </div>

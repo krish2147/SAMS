@@ -940,6 +940,111 @@ export class PaymentService {
   }
 
   /**
+   * Cash taken at the counter for a walk-in registration. Does what a verified Razorpay payment
+   * does (approve, activate, set the membership dates, numbered receipt and invoice, WhatsApp
+   * invoice) but records the payment method as Cash and never sends a payment link. Any payment
+   * link still open for the member is cancelled so they cannot pay twice.
+   */
+  async recordCashPayment(payload: { membershipNo: string; receivedBy: string }) {
+    const pool = await getDbPool();
+    const [memberRows]: any = await pool.query("SELECT * FROM members WHERE membershipNo = ?", [payload.membershipNo]);
+    const member = memberRows?.[0];
+    if (!member) {
+      const err: any = new Error("Member not found.");
+      err.status = 404;
+      throw err;
+    }
+    if (standardizeStatus(member.payment_status) === "Paid" && member.membership_status === "Active") {
+      const err: any = new Error("This member has already paid and is active.");
+      err.status = 409;
+      throw err;
+    }
+
+    const pricing = await this.calculatePayableAmount(member.membership_plan_id, "Registration");
+    const receiptNo = await this.generateSequentialNumber("REC");
+    const invoiceNo = await this.generateSequentialNumber("INV");
+    const { startDateStr, expiryDateStr } = this.calculateExpiryDates(member.membership_end_date, pricing.durationMonths);
+
+    const conn = await pool.getConnection();
+    let paymentId: number;
+    try {
+      await conn.beginTransaction();
+
+      await conn.query(
+        "UPDATE payments SET payment_status = 'Cancelled' WHERE member_id = ? AND payment_status = 'Pending'",
+        [member.id]
+      );
+
+      const [insertResult]: any = await conn.query(
+        `INSERT INTO payments
+          (member_id, membership_plan_id, payment_type, amount, registration_fee, renewal_fee, payment_status, payment_method, approved_by, receipt_no, invoice_no, payment_date)
+         VALUES (?, ?, 'Registration', ?, ?, ?, 'Paid', 'Cash', ?, ?, ?, CURRENT_TIMESTAMP)`,
+        [member.id, member.membership_plan_id || 1, pricing.totalAmount, pricing.registrationFee, pricing.renewalFee, payload.receivedBy, receiptNo, invoiceNo]
+      );
+      paymentId = insertResult?.insertId;
+
+      await conn.query(
+        `UPDATE members SET
+          payment_status = 'Paid',
+          registration_status = 'Approved',
+          membership_status = 'Active',
+          login_enabled = 1,
+          amountPaid = ?,
+          paymentMethod = 'Cash',
+          paymentDate = CURRENT_TIMESTAMP,
+          txnId = ?,
+          membership_start_date = ?,
+          membership_end_date = ?,
+          next_renewal_date = ?,
+          last_payment_id = ?
+        WHERE id = ?`,
+        [pricing.totalAmount, receiptNo, startDateStr, expiryDateStr, expiryDateStr, paymentId, member.id]
+      );
+
+      await conn.query(
+        "INSERT INTO activities (userName, action, status, performedBy) VALUES (?, ?, 'Payment Successful', ?)",
+        [member.fullName, `Cash payment of ₹${pricing.totalAmount} received at the counter - Membership Activated until ${expiryDateStr}`, payload.receivedBy]
+      );
+      await conn.query(
+        "INSERT INTO notifications (member_id, title, message, type) VALUES (?, ?, ?, 'Payment Success')",
+        [member.id, "Payment Confirmed", `Your cash payment of ₹${pricing.totalAmount} (Receipt #${receiptNo}) was received. Membership active until ${expiryDateStr}.`]
+      );
+
+      await conn.commit();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+
+    // Invoice PDF and the WhatsApp receipt/invoice go through the same retrying pipeline as online payments.
+    void this.processPostPaymentPipeline(paymentId).catch(() => {});
+    sendEventNotification("membership_activated", {
+      id: member.id,
+      memberName: member.fullName,
+      mobileNo: member.mobileNo,
+      email: member.email
+    }, {
+      membershipNo: member.membershipNo,
+      batch: member.batchTiming || "",
+      expiryDate: expiryDateStr
+    }).catch(err => console.error("Cash activation notification error:", err));
+
+    return {
+      success: true,
+      paymentId,
+      amount: pricing.totalAmount,
+      receiptNo,
+      invoiceNo,
+      membershipStartDate: startDateStr,
+      membershipEndDate: expiryDateStr,
+      memberId: member.id,
+      selectedBatchId: member.selected_batch_id
+    };
+  }
+
+  /**
    * Process Razorpay Webhooks safely and idempotently
    */
   async handleWebhook(rawBody: string, signature: string | undefined) {

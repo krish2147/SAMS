@@ -169,14 +169,6 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
   const [registrationSearchQuery, setRegistrationSearchQuery] = useState("");
   const [registrationStatusFilter, setRegistrationStatusFilter] = useState<"Pending" | "Approved" | "Rejected" | "All">("Pending");
   
-  // Registration Form in modal
-  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
-  const [newMemName, setNewMemName] = useState("");
-  const [newMemPhone, setNewMemPhone] = useState("");
-  const [newMemGender, setNewMemGender] = useState("Male");
-  const [newMemPlan, setNewMemPlan] = useState("Monthly");
-  const [newMemTiming, setNewMemTiming] = useState("07:00 AM - 08:00 AM");
-  const [newMemCoach, setNewMemCoach] = useState("No");
 
   // Daily Attendance Marker
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split("T")[0]);
@@ -641,62 +633,6 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
   };
 
   // Add Member Manual Entry
-  const handleAddMemberManual = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMemName.trim() || !newMemPhone.trim()) return;
-
-    const code = isSwim ? "BSF" : "TCA";
-    const randCode = Math.floor(1000 + Math.random() * 9000);
-    const mNo = `${code}-2026-${randCode}`;
-
-    let finalPhone = newMemPhone.trim();
-    const digitsOnly = finalPhone.replace(/\D/g, "");
-    if (digitsOnly.length === 10) {
-      finalPhone = `+91 ${digitsOnly.slice(0, 5)} ${digitsOnly.slice(5)}`;
-    } else if (digitsOnly.length === 12 && digitsOnly.startsWith("91")) {
-      finalPhone = `+91 ${digitsOnly.slice(2, 7)} ${digitsOnly.slice(7)}`;
-    }
-
-    // Only what the walk-in form actually collected. Everything else is left blank for staff
-    // to complete from the member's own details. This object previously invented a date of
-    // birth, age, blood group, height, weight, address, email and - most seriously - an
-    // emergency contact of "SAMS Office / +91 99999 88888", which would have been the number
-    // called during an incident at the poolside instead of the member's family.
-    const newM = {
-      membershipNo: mNo,
-      typeOfMembership: newMemPlan,
-      batchTiming: newMemTiming,
-      startDate: new Date().toISOString().split("T")[0],
-      coachRequired: newMemCoach,
-      fullName: newMemName.trim(),
-      gender: newMemGender,
-      mobileNo: finalPhone,
-      academyId,
-      status: "Approved",
-      paymentStatus: "Unpaid",
-      registrationDate: new Date().toLocaleDateString()
-    };
-
-    fetch("/api/members/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "same-origin",
-      body: JSON.stringify(newM)
-    })
-    .then(res => res.ok ? res.json().catch(() => newM) : newM)
-    .then(data => {
-      setMembers([data, ...members]);
-    })
-    .catch(err => {
-      console.error("Failed manual register via API", err);
-      setMembers([newM, ...members]);
-    });
-
-    // Reset Form
-    setNewMemName("");
-    setNewMemPhone("");
-    setShowAddMemberModal(false);
-  };
 
   // Delete Member Handler
   const handleDeleteMember = (membershipNo: string) => {
@@ -1174,7 +1110,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                   userRole={accessRole(activeUser.role)}
                   userName={activeUser.name}
                   onNavigate={setActiveTab}
-                  onOpenAddMember={() => setShowAddMemberModal(true)}
+                  onOpenAddMember={() => { setActiveTab("register"); setSelectedMember(null); }}
                 />
               )}
 
@@ -1249,7 +1185,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
               {/* Add member button */}
               <button
                 id="btn-admin-add-member-modal"
-                onClick={() => setShowAddMemberModal(true)}
+                onClick={() => { setActiveTab("register"); setSelectedMember(null); }}
                 className={`py-3 px-4.5 rounded-xl text-xs uppercase tracking-wider font-extrabold flex items-center justify-center gap-2 cursor-pointer shadow-sm transition-all whitespace-nowrap shrink-0 ${buttonPrimary}`}
               >
                 <UserPlus className="h-4 w-4" />
@@ -2108,6 +2044,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
           <div className="p-2 md:p-4 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800">
             <RegisterPage
               embedded
+              walkIn
               academyId={academyId}
               onRegisterSuccess={() => {
                 fetch("/api/members")
@@ -2117,7 +2054,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                   });
                 setActiveTab("members");
               }}
-              onCancel={() => setActiveTab("home")}
+              onCancel={() => setActiveTab("members")}
             />
           </div>
         )}
@@ -2335,147 +2272,6 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
         )}
       </AnimatePresence>
 
-      {/* POPUP MODAL: MANUAL ENROLLMENT OVERLAY */}
-      <AnimatePresence>
-        {showAddMemberModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div 
-              className="absolute inset-0 bg-slate-950/85 backdrop-blur-xs transition-opacity"
-              onClick={() => setShowAddMemberModal(false)}
-            />
-            
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className={`relative w-full max-w-xl p-8 rounded-3xl shadow-2xl border z-20 text-left ${
-                isSwim ? "bg-white text-slate-800 border-slate-200" : "bg-emerald-950 border-emerald-900 text-emerald-100"
-              }`}
-            >
-              <button
-                onClick={() => setShowAddMemberModal(false)}
-                className="absolute top-6 right-6 p-1.5 rounded-xl text-slate-400 hover:text-slate-600 cursor-pointer"
-              >
-                <X className="h-5 w-5" />
-              </button>
-
-              <h3 className="text-xl font-bold mb-2">Register a Walk-in Member</h3>
-              <p className="text-xs opacity-60 leading-relaxed mb-6">Fill in the walk-in member's details here to create their membership card straight away.</p>
-
-              <form onSubmit={handleAddMemberManual} className="space-y-4 text-xs">
-                
-                <div className="flex flex-col gap-1.5">
-                  <label className="font-mono uppercase opacity-60 text-[9px]">Member Full Name *</label>
-                  <input
-                    type="text"
-                    value={newMemName}
-                    onChange={(e) => setNewMemName(e.target.value)}
-                    placeholder="Enter member's full name"
-                    className={inputStyle}
-                    required
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="font-mono uppercase opacity-60 text-[9px]">Mobile Phone Number *</label>
-                  <div className="relative">
-                    <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500">+91</span>
-                    <input
-                      type="tel"
-                      inputMode="numeric"
-                      autoComplete="off"
-                      value={newMemPhone}
-                      onChange={(e) => setNewMemPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                      placeholder="98765 43210"
-                      pattern="[6-9][0-9]{9}"
-                      title="Enter the 10-digit mobile number, starting with 6, 7, 8 or 9."
-                      className={`${inputStyle} !pl-14 tabular-nums`}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="font-mono uppercase opacity-60 text-[9px]">Gender Allocation *</label>
-                    <select
-                      value={newMemGender}
-                      onChange={(e) => setNewMemGender(e.target.value)}
-                      className={inputStyle}
-                    >
-                      <option value="Male">Male</option>
-                      <option value="Female">Female</option>
-                      <option value="Other">Other</option>
-                    </select>
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <label className="font-mono uppercase opacity-60 text-[9px]">Membership Term *</label>
-                    <select
-                      value={newMemPlan}
-                      onChange={(e) => setNewMemPlan(e.target.value)}
-                      className={inputStyle}
-                    >
-                      <option value="Monthly">MonthlyBasic Subscription</option>
-                      <option value="Quarterly">QuarterlyPro Subscription</option>
-                      <option value="Yearly">YearlyElite Subscription</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="font-mono uppercase opacity-60 text-[9px]">Allotted Session Timing *</label>
-                    <select
-                      value={newMemTiming}
-                      onChange={(e) => setNewMemTiming(e.target.value)}
-                      className={inputStyle}
-                    >
-                      <option value="06:00 AM - 07:00 AM">06:00 AM - 07:00 AM (All Age Group)</option>
-                      <option value="07:00 AM - 08:00 AM">07:00 AM - 08:00 AM (All Age Group)</option>
-                      <option value="08:00 AM - 09:00 AM">08:00 AM - 09:00 AM (All Age Group)</option>
-                      <option value="04:00 PM - 05:00 PM">04:00 PM - 05:00 PM (All Age Group)</option>
-                      <option value="05:00 PM - 06:00 PM">05:00 PM - 06:00 PM (All Age Group)</option>
-                      <option value="06:00 PM - 07:00 PM">06:00 PM - 07:00 PM (All Age Group)</option>
-                      <option value="07:00 PM - 08:00 PM">07:00 PM - 08:00 PM (All Age Group)</option>
-                      <option value="08:00 PM - 09:00 PM">08:00 PM - 09:00 PM (Family Batch)</option>
-                    </select>
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <label className="font-mono uppercase opacity-60 text-[9px]">Assign Elite Trainer *</label>
-                    <select
-                      value={newMemCoach}
-                      onChange={(e) => setNewMemCoach(e.target.value)}
-                      className={inputStyle}
-                    >
-                      <option value="No">Self-Paced Practice</option>
-                      <option value="Yes">Assign Elite Coach</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="flex gap-3 justify-end pt-4 border-t border-slate-100 dark:border-emerald-900/20">
-                  <button
-                    type="button"
-                    onClick={() => setShowAddMemberModal(false)}
-                    className="px-5 py-3 rounded-xl uppercase tracking-wider font-extrabold cursor-pointer hover:bg-slate-100 text-slate-500"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className={`px-5 py-3 rounded-xl uppercase tracking-wider font-extrabold cursor-pointer shadow-md ${buttonPrimary}`}
-                  >
-                    Create Membership Card
-                  </button>
-                </div>
-
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* PHONE MENU */}
       <SideMenuDrawer
