@@ -264,12 +264,12 @@ export class PaymentController {
         return res.json({ success: true, receipt: data });
       }
 
-      const { pdfResult, invoiceNo } = await paymentService.ensureAndGetInvoicePDF(Number(id));
+      const { pdfResult, receiptNo } = await paymentService.ensureAndGetInvoicePDF(Number(id), undefined, "receipt");
 
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader(
         "Content-Disposition",
-        `${download ? "attachment" : "inline"}; filename="${invoiceNo}.pdf"`
+        `${download ? "attachment" : "inline"}; filename="${receiptNo}.pdf"`
       );
       res.setHeader("Content-Length", pdfResult.pdfBuffer.length);
       return res.send(pdfResult.pdfBuffer);
