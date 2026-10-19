@@ -34,6 +34,15 @@ export function dueReminderStage(expiryDate: string, today: string) {
   return stage ? { stage: stage.key, daysLeft } : null;
 }
 
+/** The batch with its timing, e.g. "Morning Batch 1 (06:00 AM - 07:00 AM)". Names that already
+ * carry the timing are kept as they are; others get it added from the batch's start and end. */
+export function batchWithTiming(name?: string | null, start?: string | null, end?: string | null) {
+  const batch = String(name || "").trim();
+  if (!batch) return "your batch";
+  if (/\d{1,2}:\d{2}/.test(batch) || !start || !end) return batch;
+  return `${batch} (${String(start).trim()} - ${String(end).trim()})`;
+}
+
 /** "in 7 days" / "tomorrow" / "today", for "your membership ends …". */
 export function daysLeftText(daysLeft: number) {
   if (daysLeft <= 0) return "today";
@@ -65,7 +74,7 @@ export async function sendDueRenewalReminders(now = new Date()): Promise<number>
   await ensureTable(pool);
   const today = indiaToday(now);
   const [rows]: any = await pool.query(
-    `SELECT m.id, m.fullName, m.membershipNo, m.mobileNo, m.email, m.membership_end_date, b.batch_name
+    `SELECT m.id, m.fullName, m.membershipNo, m.mobileNo, m.email, m.membership_end_date, b.batch_name, b.start_time, b.end_time
      FROM members m
      LEFT JOIN batches b ON m.selected_batch_id = b.id
      WHERE m.membership_status = 'Active'
@@ -104,7 +113,7 @@ export async function sendDueRenewalReminders(now = new Date()): Promise<number>
           membershipNo: member.membershipNo,
           endsText: when,
           endDate: ends,
-          batch: member.batch_name || "your batch"
+          batch: batchWithTiming(member.batch_name, member.start_time, member.end_time)
         }).catch((err) => console.error(`[RenewalReminder] WhatsApp to member ${member.id} failed:`, err?.message || err));
       }
       await sendEventNotification(
@@ -113,7 +122,7 @@ export async function sendDueRenewalReminders(now = new Date()): Promise<number>
         {
           membershipNo: member.membershipNo,
           expiryDate: ends,
-          batch: member.batch_name || "your batch",
+          batch: batchWithTiming(member.batch_name, member.start_time, member.end_time),
           daysLeft: due.daysLeft,
           daysLeftText: when,
           paymentLink: appUrl || undefined

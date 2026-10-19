@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { daysLeftText, dueReminderStage, indiaToday } from "./renewal-reminder.service";
+import { batchWithTiming, daysLeftText, dueReminderStage, indiaToday } from "./renewal-reminder.service";
 import { replaceTemplateVariables, DEFAULT_TEMPLATES } from "./communication.service";
 
 test("a reminder is due a week before and on the last day, once per stage", () => {
@@ -29,4 +29,10 @@ test("the renewal message uses the real number of days", () => {
   });
   assert.match(text, /ends in 7 days, on 26\/10\/2026/);
   assert.doesNotMatch(text, /3 days/);
+});
+
+test("the batch is shown with its timing", () => {
+  assert.equal(batchWithTiming("Morning Batch 1 (06:00 AM - 07:00 AM)", "06:00 AM", "07:00 AM"), "Morning Batch 1 (06:00 AM - 07:00 AM)");
+  assert.equal(batchWithTiming("Ladies", "07:00 AM", "08:00 AM"), "Ladies (07:00 AM - 08:00 AM)");
+  assert.equal(batchWithTiming(null, null, null), "your batch");
 });
