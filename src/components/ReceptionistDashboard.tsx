@@ -268,7 +268,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
     const newInquiry = {
       id: "inq_" + Date.now(),
       fullName: walkInForm.fullName,
-      mobileNo: walkInForm.mobileNo,
+      mobileNo: `+91 ${walkInForm.mobileNo.slice(0, 5)} ${walkInForm.mobileNo.slice(5)}`,
       email: walkInForm.email || "N/A",
       preferredBatch: walkInForm.preferredBatch,
       notes: walkInForm.notes || "No special comments.",
@@ -1155,14 +1155,20 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
 
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase font-mono">Mobile Number *</label>
-                  <input
-                    type="tel"
-                    required
-                    value={walkInForm.mobileNo}
-                    onChange={(e) => setWalkInForm(prev => ({ ...prev, mobileNo: e.target.value }))}
-                    placeholder="Enter contact mobile number..."
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:bg-white focus:ring-2 focus:ring-sky-500/10 focus:border-sky-500 transition-all"
-                  />
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-500">+91</span>
+                    <input
+                      type="tel"
+                      inputMode="numeric"
+                      required
+                      value={walkInForm.mobileNo}
+                      onChange={(e) => setWalkInForm(prev => ({ ...prev, mobileNo: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
+                      placeholder="98765 43210"
+                      pattern="[6-9][0-9]{9}"
+                      title="Enter the 10-digit mobile number, starting with 6, 7, 8 or 9."
+                      className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold tabular-nums focus:outline-hidden focus:bg-white focus:ring-2 focus:ring-sky-500/10 focus:border-sky-500 transition-all"
+                    />
+                  </div>
                 </div>
 
                 <div className="flex flex-col gap-1.5">

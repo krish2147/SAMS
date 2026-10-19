@@ -199,6 +199,10 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
         setAuthError("Please provide an emergency contact name and phone number.");
         return;
       }
+      if (!/^[6-9]\d{9}$/.test(emergencyPhone)) {
+        setAuthError("Enter the emergency contact's 10-digit mobile number.");
+        return;
+      }
       if (!declarationAccepted) {
         setAuthError("Please declare that you are physically fit and accept safety terms.");
         return;
@@ -222,7 +226,7 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
         age: registerAge,
         mobileNo: "+91 " + phoneNumber.replace(/\D/g, ""),
         emergencyName: emergencyName.trim(),
-        emergencyMobile: emergencyPhone.trim(),
+        emergencyMobile: "+91 " + emergencyPhone,
         // Address, email, blood group, height, weight and the medical declaration are left
         // blank rather than guessed. This form does not ask for them, and the previous
         // defaults asserted things on the member's behalf - including "no medical condition"
@@ -899,18 +903,22 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
 
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-mono uppercase tracking-wider opacity-60">Contact Phone *</label>
+                      <div className="relative">
+                      <span className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold ${isSwim ? "text-slate-900" : "text-emerald-100"}`}>+91</span>
                       <input
                         type="tel"
+                        inputMode="numeric"
                         value={emergencyPhone}
-                        onChange={(e) => setEmergencyPhone(e.target.value)}
-                        placeholder="Contact Phone Number"
-                        className={`w-full py-3.5 px-4 rounded-full border text-sm font-medium focus:outline-none transition-all ${
+                        onChange={(e) => setEmergencyPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                        placeholder="98765 43210"
+                        className={`w-full py-3.5 pl-14 pr-4 rounded-full border text-sm font-medium focus:outline-none transition-all ${
                           isSwim
                           ? "bg-white/75 backdrop-blur-md border-white/80 text-slate-900 placeholder-slate-600 focus:bg-white/90 focus:border-sky-400"
                           : "bg-emerald-950/30 backdrop-blur-md border-emerald-400/20 text-emerald-50 placeholder-emerald-300/50 focus:bg-emerald-950/40 focus:border-amber-400"
                         }`}
                         required
                       />
+                      </div>
                     </div>
                   </div>
 

@@ -2378,14 +2378,21 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
 
                 <div className="flex flex-col gap-1.5">
                   <label className="font-mono uppercase opacity-60 text-[9px]">Mobile Phone Number *</label>
-                  <input
-                    type="tel"
-                    value={newMemPhone}
-                    onChange={(e) => setNewMemPhone(e.target.value)}
-                    placeholder="e.g. +91 99887 76655"
-                    className={inputStyle}
-                    required
-                  />
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500">+91</span>
+                    <input
+                      type="tel"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      value={newMemPhone}
+                      onChange={(e) => setNewMemPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                      placeholder="98765 43210"
+                      pattern="[6-9][0-9]{9}"
+                      title="Enter the 10-digit mobile number, starting with 6, 7, 8 or 9."
+                      className={`${inputStyle} !pl-14 tabular-nums`}
+                      required
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
