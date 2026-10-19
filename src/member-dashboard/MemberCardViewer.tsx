@@ -118,7 +118,7 @@ export function MemberCardViewer({ data, open, onClose, onDownload, downloading 
           exit={{ opacity: 0 }}
           onPointerMove={onPointerMove}
           onPointerLeave={onPointerLeave}
-          style={{ background: "radial-gradient(120% 80% at 50% 0%, #15414a 0%, #08191d 45%, #020607 100%)" }}
+          style={{ background: "radial-gradient(120% 80% at 50% 0%, #0f5c9e 0%, #062a52 45%, #010c1c 100%)" }}
         >
           {/* Light moving like sun through pool water. */}
           {!reduceMotion && (
@@ -130,7 +130,7 @@ export function MemberCardViewer({ data, open, onClose, onDownload, downloading 
                   style={{
                     width: `${55 + i * 15}vmax`, height: `${55 + i * 15}vmax`,
                     left: `${[-15, 45, 10][i]}%`, top: `${[-20, 30, 60][i]}%`,
-                    background: ["#2dd4bf22", "#d9bd7c14", "#38bdf81c"][i]
+                    background: ["#38bdf826", "#d9bd7c12", "#0ea5e922"][i]
                   }}
                   animate={{ x: [0, 40, -30, 0], y: [0, -30, 20, 0] }}
                   transition={{ duration: 14 + i * 4, repeat: Infinity, ease: "easeInOut" }}
