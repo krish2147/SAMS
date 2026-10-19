@@ -4,7 +4,7 @@ import type { MemberSection } from "./member-navigation";
 
 const actions = [
   { id: "membership", label: "View membership", icon: ShieldCheck },
-  { id: "payments", label: "Payments & receipts", icon: CreditCard },
+  { id: "payments", label: "Payments & invoices", icon: CreditCard },
   { id: "support", label: "Help & support", icon: CircleHelp }
 ] satisfies Array<{ id: MemberSection; label: string; icon: React.ComponentType<{ className?: string }> }>;
 
