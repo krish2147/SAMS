@@ -7,7 +7,7 @@ export interface MemberNotification {
 }
 
 export interface MemberDashboardData {
-  member: { fullName: string; membershipNo?: string | null };
+  member: { fullName: string; membershipNo?: string | null; photoUrl?: string | null };
   membership: {
     status?: string | null;
     planName?: string | null;

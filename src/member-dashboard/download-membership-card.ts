@@ -1,29 +1,12 @@
-import { formatMemberDate, getMembershipDisplayStatus, type MemberDashboardData } from "./member-overview-data";
+import { formatBatchTime, formatMemberDate, getMembershipDisplayStatus, type MemberDashboardData } from "./member-overview-data";
 import QRCode from "qrcode";
+import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-logo";
+// Underwater pool lanes, Unsplash photo 1669185694564 (Unsplash licence), cropped to card shape.
+// Served from public/ so it is a plain URL (the unit tests run in Node, which cannot import images).
+const poolPhotoUrl = "/images/card-pool.jpg";
 
-function roundedRect(context: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
-  context.beginPath();
-  context.moveTo(x + radius, y);
-  context.lineTo(x + width - radius, y);
-  context.quadraticCurveTo(x + width, y, x + width, y + radius);
-  context.lineTo(x + width, y + height - radius);
-  context.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-  context.lineTo(x + radius, y + height);
-  context.quadraticCurveTo(x, y + height, x, y + height - radius);
-  context.lineTo(x, y + radius);
-  context.quadraticCurveTo(x, y, x + radius, y);
-  context.closePath();
-}
-
-function fitText(context: CanvasRenderingContext2D, value: string, maxWidth: number, initialSize: number, minimumSize: number, weight = 700) {
-  let size = initialSize;
-  while (size > minimumSize) {
-    context.font = `${weight} ${size}px Inter, Arial, sans-serif`;
-    if (context.measureText(value).width <= maxWidth) break;
-    size -= 2;
-  }
-  return size;
-}
+// The member card is drawn once, as an SVG, and that same drawing is shown on screen and turned
+// into the downloadable PNG, so the two can never drift apart.
 
 export function membershipCardFilename(membershipNo?: string | null) {
   const reference = membershipNo?.replace(/[^a-z0-9_-]+/gi, "-").replace(/^-+|-+$/g, "");
@@ -34,119 +17,289 @@ export function memberQrPayload(membershipNo: string) {
   return JSON.stringify({ type: "BSF_MEMBER_PASS", membershipNo, v: 1 });
 }
 
-function loadImage(source: string) {
-  return new Promise<HTMLImageElement>((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error("Member QR image could not be loaded"));
-    image.src = source;
-  });
+export const cardInitials = (name: string) =>
+  name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "M";
+
+const statusColor = (status: string) =>
+  status === "Expiring Soon" ? "#fbbf24" : status === "Expired" ? "#94a3b8" : status === "Pending" ? "#7dd3fc" : "#4ade80";
+
+const escapeXml = (value: string) =>
+  value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+/** Font size that keeps `text` within `maxWidth` (approximate average glyph width). */
+const fitSize = (text: string, maxWidth: number, max: number, min: number, glyph = 0.58) =>
+  Math.max(min, Math.min(max, Math.floor(maxWidth / Math.max(1, text.length * glyph))));
+
+export const CARD_WIDTH = 1586;
+export const CARD_HEIGHT = 1000;
+
+export interface CardImages {
+  qr: string | null;
+  photo: string | null;
+  /** The pool photo behind the card, as a data URL so it also appears in the PNG. */
+  pool?: string | null;
 }
 
-export async function downloadMembershipCardPng(data: MemberDashboardData) {
-  const canvas = document.createElement("canvas");
-  canvas.width = 1200;
-  canvas.height = 680;
-  const context = canvas.getContext("2d");
-  if (!context) throw new Error("Canvas is unavailable");
-
-  const gradient = context.createLinearGradient(0, 0, canvas.width, canvas.height);
-  gradient.addColorStop(0, "#020617");
-  gradient.addColorStop(0.58, "#0f172a");
-  gradient.addColorStop(1, "#164e63");
-  roundedRect(context, 8, 8, 1184, 664, 38);
-  context.fillStyle = gradient;
-  context.fill();
-  context.strokeStyle = "rgba(103, 232, 249, 0.32)";
-  context.lineWidth = 2;
-  context.stroke();
-
-  context.fillStyle = "#22d3ee";
-  context.fillRect(8, 650, 1184, 22);
-  context.fillStyle = "#67e8f9";
-  context.font = "700 25px Inter, Arial, sans-serif";
-  context.fillText("BARODA SWIM FRONT", 72, 92);
-  context.fillStyle = "#94a3b8";
-  context.font = "600 19px Inter, Arial, sans-serif";
-  context.fillText("DIGITAL MEMBERSHIP", 72, 126);
-
-  const status = getMembershipDisplayStatus(data.membership.status, data.membership.expiryDate, data.membership.daysRemaining);
-  const statusWidth = Math.max(126, context.measureText(status).width + 52);
-  roundedRect(context, 1055 - statusWidth, 60, statusWidth, 54, 27);
-  context.fillStyle = status === "Expiring Soon" ? "#fef3c7" : status === "Expired" ? "#e2e8f0" : status === "Pending" ? "#e0f2fe" : "#d1fae5";
-  context.fill();
-  context.fillStyle = status === "Expiring Soon" ? "#92400e" : status === "Expired" ? "#334155" : status === "Pending" ? "#075985" : "#047857";
-  context.font = "700 20px Inter, Arial, sans-serif";
-  context.textAlign = "center";
-  context.fillText(status, 1055 - statusWidth / 2, 94);
-  context.textAlign = "left";
-
-  context.fillStyle = "#94a3b8";
-  context.font = "500 22px Inter, Arial, sans-serif";
-  context.fillText("MEMBER", 72, 232);
-  const nameSize = fitText(context, data.member.fullName, 800, 52, 34);
-  context.fillStyle = "#ffffff";
-  context.font = `700 ${nameSize}px Inter, Arial, sans-serif`;
-  context.fillText(data.member.fullName, 72, 292);
-
-  if (data.membership.planName) {
-    const planSize = fitText(context, data.membership.planName, 800, 30, 22, 600);
-    context.fillStyle = "#a5f3fc";
-    context.font = `600 ${planSize}px Inter, Arial, sans-serif`;
-    context.fillText(data.membership.planName, 72, 350);
-  }
-  if (data.member.membershipNo) {
-    context.fillStyle = "#94a3b8";
-    context.font = "500 21px Inter, Arial, sans-serif";
-    context.fillText("MEMBERSHIP NO.", 72, 405);
-    context.fillStyle = "#e2e8f0";
-    context.font = "700 24px Inter, Arial, sans-serif";
-    context.fillText(data.member.membershipNo, 282, 405);
-
-    const qrDataUrl = await QRCode.toDataURL(memberQrPayload(data.member.membershipNo), {
-      width: 360,
-      margin: 1,
-      color: { dark: "#0f172a", light: "#ffffff" },
-      errorCorrectionLevel: "H"
+async function toDataUrl(src: string): Promise<string | null> {
+  try {
+    const blob = await (await fetch(src, { credentials: "same-origin" })).blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
     });
-    const qrImage = await loadImage(qrDataUrl);
-    context.fillStyle = "#94a3b8";
-    context.font = "600 17px Inter, Arial, sans-serif";
-    context.textAlign = "center";
-    context.fillText("SCAN MEMBER ID", 1030, 228);
-    roundedRect(context, 924, 246, 212, 212, 20);
-    context.fillStyle = "#ffffff";
-    context.fill();
-    context.drawImage(qrImage, 940, 262, 180, 180);
-    context.textAlign = "left";
+  } catch {
+    return null;
   }
+}
 
-  context.strokeStyle = "rgba(148, 163, 184, 0.25)";
-  context.beginPath();
-  context.moveTo(72, 466);
-  context.lineTo(1128, 466);
-  context.stroke();
-  const startDate = formatMemberDate(data.membership.startDate);
-  const expiryDate = formatMemberDate(data.membership.expiryDate);
-  if (startDate) {
-    context.fillStyle = "#94a3b8";
-    context.font = "500 19px Inter, Arial, sans-serif";
-    context.fillText("START DATE", 72, 522);
-    context.fillStyle = "#f8fafc";
-    context.font = "700 27px Inter, Arial, sans-serif";
-    context.fillText(startDate, 72, 564);
-  }
-  if (expiryDate) {
-    context.textAlign = "right";
-    context.fillStyle = "#94a3b8";
-    context.font = "500 19px Inter, Arial, sans-serif";
-    context.fillText("EXPIRY DATE", 1128, 522);
-    context.fillStyle = "#f8fafc";
-    context.font = "700 27px Inter, Arial, sans-serif";
-    context.fillText(expiryDate, 1128, 564);
-    context.textAlign = "left";
-  }
+let poolDataUrl: Promise<string | null> | null = null;
+const loadPoolPhoto = () => (poolDataUrl ??= toDataUrl(poolPhotoUrl));
 
+/** Everything the card needs that has to be fetched or generated first, as data URLs. */
+export async function prepareCardImages(data: MemberDashboardData): Promise<CardImages> {
+  const qr = data.member.membershipNo
+    ? await QRCode.toDataURL(memberQrPayload(data.member.membershipNo), {
+        width: 480, margin: 0, color: { dark: "#141619", light: "#ffffff" }, errorCorrectionLevel: "H"
+      }).catch(() => null)
+    : null;
+  let photo: string | null = null;
+  const src = data.member.photoUrl;
+  if (src) {
+    if (src.startsWith("data:")) photo = src;
+    else {
+      // Inlined so the photo also appears when the drawing is turned into a PNG.
+      try {
+        const blob = await (await fetch(src, { credentials: "same-origin" })).blob();
+        photo = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result));
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      } catch { photo = null; }
+    }
+  }
+  return { qr, photo, pool: await loadPoolPhoto() };
+}
+
+// ---------------------------------------------------------------------------------------------
+// A real pool photo (underwater lanes) under premium card details: a single-tone champagne foil
+// crest, a gold chip and engraved lettering. The front stays minimal like a premium bank card;
+// the back carries the photo, details and QR over a darker veil of the same pool.
+// ---------------------------------------------------------------------------------------------
+
+const FONT = "Inter, 'Segoe UI', Helvetica, Arial, sans-serif";
+const MONO = "'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace";
+
+/** "BSF-2026-8339" -> "BSF  2026  8339", spaced like the digits on a bank card. */
+const cardNumber = (membershipNo: string) => membershipNo.split(/[-\s]+/).filter(Boolean).join("  ");
+
+/** "2027-01-18" -> "01/27". */
+const validThru = (value?: string | null) => {
+  const m = String(value || "").match(/^(\d{4})-(\d{2})/);
+  return m ? `${m[2]}/${m[1].slice(2)}` : "--/--";
+};
+
+/** Shared defs: pool-blue fallback, readability shades, champagne foil, engraving and foil-tint filters. */
+function sharedDefs(prefix: string) {
+  return `
+    <clipPath id="${prefix}Clip"><rect width="${CARD_WIDTH}" height="${CARD_HEIGHT}" rx="58"/></clipPath>
+    <clipPath id="${prefix}Crest"><rect x="104" y="96" width="92" height="92" rx="22"/></clipPath>
+    <clipPath id="${prefix}CrestSmall"><rect x="1418" y="852" width="64" height="64" rx="16"/></clipPath>
+    <linearGradient id="graphite" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1468a8"/>
+      <stop offset="0.5" stop-color="#0a4a86"/>
+      <stop offset="1" stop-color="#052a55"/>
+    </linearGradient>
+    <radialGradient id="falloff" cx="0.18" cy="0.12" r="0.9">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.10"/>
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0.02"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.35"/>
+    </radialGradient>
+    <linearGradient id="champagne" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f6e7bf"/>
+      <stop offset="0.3" stop-color="#d9bd7c"/>
+      <stop offset="0.55" stop-color="#a8843f"/>
+      <stop offset="0.8" stop-color="#e8d29a"/>
+      <stop offset="1" stop-color="#b8954d"/>
+    </linearGradient>
+    <linearGradient id="edgeLight" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.35"/>
+      <stop offset="0.4" stop-color="#ffffff" stop-opacity="0.05"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.18"/>
+    </linearGradient>
+    <linearGradient id="shadeLeft" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#021a3a" stop-opacity="0.5"/>
+      <stop offset="0.5" stop-color="#021a3a" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#021a3a" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="shadeBottom" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0.6" stop-color="#010e22" stop-opacity="0"/>
+      <stop offset="1" stop-color="#010e22" stop-opacity="0.55"/>
+    </linearGradient>
+    <linearGradient id="shadeTop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#010e22" stop-opacity="0.3"/>
+      <stop offset="0.3" stop-color="#010e22" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="engrave" x="-5%" y="-30%" width="110%" height="160%">
+      <feDropShadow dx="0" dy="-1.5" stdDeviation="0.4" flood-color="#ffffff" flood-opacity="0.35"/>
+      <feDropShadow dx="0" dy="2.5" stdDeviation="1.2" flood-color="#000000" flood-opacity="0.85"/>
+    </filter>
+    <filter id="foil" color-interpolation-filters="sRGB">
+      <feColorMatrix type="matrix" values="0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0 0 0 1 0" result="g"/>
+      <feComponentTransfer in="g"><feFuncR type="linear" slope="1.05" intercept="0.12"/><feFuncG type="linear" slope="0.9" intercept="0.08"/><feFuncB type="linear" slope="0.6" intercept="0.02"/></feComponentTransfer>
+    </filter>`;
+}
+
+function cardBody(prefix: string, pool: string | null | undefined, extra = "", veil = 0) {
+  return `
+  <g clip-path="url(#${prefix}Clip)">
+    <rect width="${CARD_WIDTH}" height="${CARD_HEIGHT}" fill="url(#graphite)"/>
+    ${pool ? `<image href="${escapeXml(pool)}" width="${CARD_WIDTH}" height="${CARD_HEIGHT}" preserveAspectRatio="xMidYMid slice"/>` : ""}
+    <rect width="${CARD_WIDTH}" height="${CARD_HEIGHT}" fill="url(#shadeTop)"/>
+    <rect width="${CARD_WIDTH}" height="${CARD_HEIGHT}" fill="url(#shadeLeft)"/>
+    <rect width="${CARD_WIDTH}" height="${CARD_HEIGHT}" fill="url(#shadeBottom)"/>
+    ${veil ? `<rect width="${CARD_WIDTH}" height="${CARD_HEIGHT}" fill="#021531" fill-opacity="${veil}"/>` : ""}
+    ${extra}
+    <rect width="${CARD_WIDTH}" height="${CARD_HEIGHT}" fill="url(#falloff)" opacity="0.35"/>
+  </g>
+  <rect x="1.5" y="1.5" width="${CARD_WIDTH - 3}" height="${CARD_HEIGHT - 3}" rx="57" fill="none" stroke="url(#edgeLight)" stroke-width="3"/>`;
+}
+
+export function buildMembershipCardSvg(data: MemberDashboardData, images?: CardImages): string {
+  const name = (data.member.fullName || "Member").toUpperCase();
+  const number = data.member.membershipNo ? cardNumber(data.member.membershipNo) : "PENDING";
+  const status = getMembershipDisplayStatus(data.membership.status, data.membership.expiryDate, data.membership.daysRemaining);
+  const plan = (data.membership.planName || "").replace(/\s*-\s*/g, " · ").toUpperCase();
+  const nameSize = fitSize(name, 1000, 44, 30, 0.72);
+  const numberSize = fitSize(number, 1100, 66, 44, 0.66);
+
+  const chip = `
+    <g transform="translate(118 392)">
+      <rect width="150" height="114" rx="20" fill="url(#champagne)"/>
+      <rect x="1.5" y="1.5" width="147" height="111" rx="19" fill="none" stroke="#000" stroke-opacity="0.25" stroke-width="2"/>
+      <g fill="none" stroke="#5c461c" stroke-opacity="0.55" stroke-width="2.2">
+        <path d="M0 38 H46 M0 76 H46 M104 38 H150 M104 76 H150"/>
+        <rect x="46" y="20" width="58" height="74" rx="12"/>
+        <path d="M75 0 V20 M75 94 V114"/>
+      </g>
+    </g>`;
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${CARD_WIDTH} ${CARD_HEIGHT}" width="${CARD_WIDTH}" height="${CARD_HEIGHT}" role="img" aria-label="Baroda Swim Front membership card for ${escapeXml(data.member.fullName || "member")}">
+  <defs>${sharedDefs("front")}</defs>
+  ${cardBody("front", images?.pool)}
+
+  <image href="${BARODA_SWIM_FRONT_LOGO_DATA_URI}" x="104" y="96" width="92" height="92" filter="url(#foil)" opacity="0.9" clip-path="url(#frontCrest)"/>
+  <rect x="104" y="96" width="92" height="92" rx="22" fill="none" stroke="url(#champagne)" stroke-width="2"/>
+  <text x="224" y="134" font-family="${FONT}" font-size="27" font-weight="600" letter-spacing="9" fill="url(#champagne)">BARODA SWIM FRONT</text>
+  <text x="224" y="172" font-family="${FONT}" font-size="18" font-weight="500" letter-spacing="7" fill="#b9cbe0">SWIM FOR LIFE · VADODARA</text>
+
+  <text x="1482" y="134" text-anchor="end" font-family="${FONT}" font-size="22" font-weight="600" letter-spacing="10" fill="url(#champagne)">MEMBER</text>
+  <circle cx="${1482 - status.length * 16.6 - 16}" cy="166" r="6" fill="${statusColor(status)}"/>
+  <text x="1482" y="173" text-anchor="end" font-family="${FONT}" font-size="18" font-weight="500" letter-spacing="5" fill="#b9cbe0">${escapeXml(status.toUpperCase())}</text>
+
+  ${chip}
+
+  <text x="118" y="672" font-family="${MONO}" font-size="${numberSize}" font-weight="500" letter-spacing="7" fill="#ece6d8" filter="url(#engrave)">${escapeXml(number)}</text>
+
+  ${plan ? `<text x="118" y="760" font-family="${FONT}" font-size="20" font-weight="500" letter-spacing="6" fill="#b9cbe0">${escapeXml(plan)}</text>` : ""}
+  <text x="118" y="866" font-family="${FONT}" font-size="${nameSize}" font-weight="600" letter-spacing="6" fill="#ece6d8" filter="url(#engrave)">${escapeXml(name)}</text>
+
+  <text x="1482" y="866" text-anchor="end" font-family="${MONO}" font-size="40" font-weight="500" letter-spacing="3" fill="#ece6d8" filter="url(#engrave)">${validThru(data.membership.expiryDate)}</text>
+  <text x="1318" y="842" text-anchor="end" font-family="${FONT}" font-size="14" font-weight="600" letter-spacing="3" fill="#b9cbe0">VALID</text>
+  <text x="1318" y="862" text-anchor="end" font-family="${FONT}" font-size="14" font-weight="600" letter-spacing="3" fill="#b9cbe0">THRU</text>
+</svg>`;
+}
+
+/** Back of the card: photo, details and the QR for the counter. */
+export function buildMembershipCardBackSvg(data: MemberDashboardData, images: CardImages): string {
+  const name = data.member.fullName || "Member";
+  const memberNo = data.member.membershipNo || "Pending";
+  const batch = data.batch
+    ? [formatBatchTime(data.batch.startTime), formatBatchTime(data.batch.endTime)].filter(Boolean).join(" – ") || data.batch.name
+    : data.membership.batchName || "Not assigned yet";
+  const from = formatMemberDate(data.membership.startDate) || "Pending";
+  const thru = formatMemberDate(data.membership.expiryDate) || "Pending";
+  const plan = data.membership.planName || "Plan not assigned";
+  const label = (x: number, y: number, text: string) =>
+    `<text x="${x}" y="${y}" font-family="${FONT}" font-size="17" font-weight="600" letter-spacing="5" fill="#b9cbe0">${text}</text>`;
+  const value = (x: number, y: number, text: string, size = 30) =>
+    `<text x="${x}" y="${y}" font-family="${FONT}" font-size="${fitSize(text, 470, size, 22, 0.55)}" font-weight="500" fill="#ece6d8">${escapeXml(text)}</text>`;
+
+  const photo = images.photo
+    ? `<clipPath id="backPhoto"><rect x="104" y="318" width="248" height="300" rx="22"/></clipPath>
+       <image href="${escapeXml(images.photo)}" x="104" y="318" width="248" height="300" preserveAspectRatio="xMidYMid slice" clip-path="url(#backPhoto)"/>`
+    : `<rect x="104" y="318" width="248" height="300" rx="22" fill="#1b1e23"/>
+       <text x="228" y="496" text-anchor="middle" font-family="${FONT}" font-size="84" font-weight="600" fill="url(#champagne)">${escapeXml(cardInitials(name))}</text>`;
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${CARD_WIDTH} ${CARD_HEIGHT}" width="${CARD_WIDTH}" height="${CARD_HEIGHT}" role="img" aria-label="Back of the membership card">
+  <defs>${sharedDefs("back")}</defs>
+  ${cardBody("back", images.pool, "", 0.55)}
+
+  ${photo}
+  <rect x="98" y="312" width="260" height="312" rx="27" fill="none" stroke="url(#champagne)" stroke-width="2.5"/>
+
+  <text x="420" y="350" font-family="${FONT}" font-size="${fitSize(name, 640, 40, 28, 0.56)}" font-weight="600" fill="#ece6d8">${escapeXml(name)}</text>
+  <text x="420" y="394" font-family="${FONT}" font-size="24" font-weight="500" fill="url(#champagne)">${escapeXml(plan)}</text>
+  ${label(420, 470, "MEMBER NO")}${value(420, 510, memberNo)}
+  ${label(420, 572, "POOL TIME")}${value(420, 612, batch)}
+  ${label(420, 674, "VALID")}${value(420, 714, `${from} – ${thru}`, 28)}
+
+  ${images.qr ? `<rect x="1170" y="300" width="316" height="316" rx="26" fill="#f7f3ea"/>
+  <rect x="1170" y="300" width="316" height="316" rx="26" fill="none" stroke="url(#champagne)" stroke-width="2.5"/>
+  <image href="${escapeXml(images.qr)}" x="1196" y="326" width="264" height="264"/>
+  <text x="1328" y="662" text-anchor="middle" font-family="${FONT}" font-size="17" font-weight="600" letter-spacing="5" fill="#b9cbe0">SCAN AT RECEPTION</text>` : ""}
+
+  <line x1="104" y1="830" x2="1482" y2="830" stroke="url(#champagne)" stroke-opacity="0.35" stroke-width="1.5"/>
+  <text x="104" y="884" font-family="${FONT}" font-size="19" fill="#a9bdd4">This card is personal and non-transferable. If found, please return it to Baroda Swim Front, Vadodara.</text>
+  <image href="${BARODA_SWIM_FRONT_LOGO_DATA_URI}" x="1418" y="852" width="64" height="64" filter="url(#foil)" opacity="0.85" clip-path="url(#backCrestSmall)"/>
+  <rect x="1418" y="852" width="64" height="64" rx="16" fill="none" stroke="url(#champagne)" stroke-width="1.5"/>
+</svg>`;
+}
+
+async function svgToImage(svg: string) {
+  const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+  try {
+    return await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("Card image could not be drawn"));
+      img.src = url;
+    });
+  } finally {
+    // Revoked after decode; the decoded image stays usable for drawing.
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+}
+
+/** Saves both sides, front above back, on a soft studio background. */
+export async function downloadMembershipCardPng(data: MemberDashboardData) {
+  const images = await prepareCardImages(data);
+  const [front, back] = await Promise.all([
+    svgToImage(buildMembershipCardSvg(data, images)),
+    svgToImage(buildMembershipCardBackSvg(data, images))
+  ]);
+  const M = 80, GAP = 70;
+  const canvas = document.createElement("canvas");
+  canvas.width = CARD_WIDTH + M * 2;
+  canvas.height = CARD_HEIGHT * 2 + GAP + M * 2;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas is unavailable");
+  const bg = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  bg.addColorStop(0, "#f4f1ea");
+  bg.addColorStop(1, "#e6e1d6");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  for (const [img, y] of [[front, M], [back, M + CARD_HEIGHT + GAP]] as const) {
+    ctx.save();
+    ctx.shadowColor = "rgba(0,0,0,0.35)";
+    ctx.shadowBlur = 50;
+    ctx.shadowOffsetY = 24;
+    ctx.drawImage(img, M, y, CARD_WIDTH, CARD_HEIGHT);
+    ctx.restore();
+  }
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
   if (!blob) throw new Error("Membership card export failed");
   const url = URL.createObjectURL(blob);
