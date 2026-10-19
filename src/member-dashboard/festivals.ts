@@ -52,3 +52,20 @@ export const FESTIVALS: Festival[] = [
   { name: "Guru Nanak Jayanti", date: "2027-11-14" },
   { name: "Christmas", date: "2027-12-25" },
 ];
+
+/** The academy's own milestones, shown as academy events on every member's calendar. */
+export interface AcademyDate {
+  name: string;
+  date: string;     // YYYY-MM-DD
+  note?: string;
+  url?: string;
+}
+
+export const ACADEMY_DATES: AcademyDate[] = [
+  {
+    name: "3rd Inter-School Swimming Competition",
+    date: "2026-10-04",
+    note: "Results and best swimmers",
+    url: "https://bsf-3rd-interschool.onrender.com"
+  },
+];
