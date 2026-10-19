@@ -9,3 +9,12 @@ export function normalizeIndianMobile(value: unknown): NormalizedIndianMobile {
   }
   return { national: digits, international: `91${digits}`, masked: `+91 ******${digits.slice(-4)}` };
 }
+
+// For phone boxes while typing or pasting: "08401829027", "+91 84018 29027" and "918401829027"
+// all become "8401829027". The boxes used to keep the first ten digits, so a leading 0 pushed the
+// last digit off and saved a wrong number.
+export function mobileDigits(value: string): string {
+  let d = String(value || "").replace(/\D/g, "").replace(/^0+/, "");
+  if (d.length > 10 && d.startsWith("91")) d = d.slice(2).replace(/^0+/, "");
+  return d.slice(0, 10);
+}

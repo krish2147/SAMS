@@ -5,6 +5,7 @@ import { getDbPool } from "../config/db";
 import { ActivityService } from "./activity.service";
 import { sendEventNotification } from "./communication.service";
 import { resolveRegistrationPlan } from "../utils/membership-plan-catalog";
+import { normalizeIndianMobile } from "../utils/phone";
 
 
 /** "Yes" / "No" only when the member actually answered; otherwise null (not recorded). */
@@ -118,15 +119,16 @@ export class MemberService {
       validationErrors.push({ field: "gender", message: "Gender must be one of: Male, Female, Other" });
     }
 
-    const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+    // Indian mobiles only: 10 digits starting 6-9, with an optional +91 in front.
+    const isMobile = (value: string) => { try { normalizeIndianMobile(value); return true; } catch { return false; } };
     if (!mobile_number) {
       validationErrors.push({ field: "mobile_number", message: "Mobile number is required" });
-    } else if (!phoneRegex.test(mobile_number.replace(/\s+/g, ""))) {
-      validationErrors.push({ field: "mobile_number", message: "Must be a valid mobile number (up to 15 digits)" });
+    } else if (!isMobile(mobile_number)) {
+      validationErrors.push({ field: "mobile_number", message: "Enter a 10-digit mobile number starting with 6, 7, 8 or 9" });
     }
 
-    if (whatsapp_number && !phoneRegex.test(whatsapp_number.replace(/\s+/g, ""))) {
-      validationErrors.push({ field: "whatsapp_number", message: "WhatsApp number must be a valid phone number" });
+    if (whatsapp_number && !isMobile(whatsapp_number)) {
+      validationErrors.push({ field: "whatsapp_number", message: "Enter a 10-digit WhatsApp number starting with 6, 7, 8 or 9" });
     }
 
     if (email) {
@@ -161,8 +163,8 @@ export class MemberService {
 
     if (!emergency_contact_number) {
       validationErrors.push({ field: "emergency_contact_number", message: "Emergency phone number is required" });
-    } else if (!phoneRegex.test(emergency_contact_number.replace(/\s+/g, ""))) {
-      validationErrors.push({ field: "emergency_contact_number", message: "Must be a valid contact number" });
+    } else if (!isMobile(emergency_contact_number)) {
+      validationErrors.push({ field: "emergency_contact_number", message: "Enter their 10-digit mobile number, starting with 6, 7, 8 or 9" });
     }
 
     if (!member_type || (typeof member_type === "string" && !member_type.trim())) {

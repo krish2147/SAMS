@@ -20,6 +20,8 @@ interface MemberDashboardShellProps {
 export function MemberDashboardShell({ userName, avatar, onLogout }: MemberDashboardShellProps) {
   const [activeSection, setActiveSection] = useRememberedState<MemberSection>("member.section", "overview");
   const [membershipStatus, setMembershipStatus] = useState<string>();
+  // The member's own registration photo, so the top bar shows them rather than a cartoon avatar.
+  const [photoUrl, setPhotoUrl] = useState<string>();
   const currentSection = useMemo(() => findMemberNavigationItem(activeSection), [activeSection]);
   const CurrentIcon = currentSection.icon;
 
@@ -28,6 +30,7 @@ export function MemberDashboardShell({ userName, avatar, onLogout }: MemberDashb
     fetch("/api/member/dashboard", { credentials: "same-origin", signal: controller.signal })
       .then((response) => response.ok ? response.json() : null)
       .then((data) => {
+        if (typeof data?.member?.photoUrl === "string" && data.member.photoUrl) setPhotoUrl(data.member.photoUrl);
         const status = data?.membership?.status;
         if (typeof status === "string" && status.trim()) setMembershipStatus(status.trim());
       })
@@ -38,7 +41,7 @@ export function MemberDashboardShell({ userName, avatar, onLogout }: MemberDashb
   }, []);
 
   return (
-    <MemberLayout activeSection={activeSection} userName={userName} avatar={avatar} membershipStatus={membershipStatus} onSelect={setActiveSection} onLogout={onLogout} showSectionIntro={!(["overview", "membership", "payments", "batch", "calendar", "profile", "security"] as MemberSection[]).includes(activeSection)}>
+    <MemberLayout activeSection={activeSection} userName={userName} avatar={photoUrl || avatar} membershipStatus={membershipStatus} onSelect={setActiveSection} onLogout={onLogout} showSectionIntro={!(["overview", "membership", "payments", "batch", "calendar", "profile", "security"] as MemberSection[]).includes(activeSection)}>
       {activeSection === "overview" ? <MemberOverview sessionName={userName} onNavigate={setActiveSection} /> : activeSection === "membership" ? <MyMembershipPage onNavigate={setActiveSection} /> : activeSection === "payments" ? <PaymentsPage /> : activeSection === "batch" ? <MyBatchPage onNavigate={setActiveSection} /> : activeSection === "calendar" ? <MemberCalendarPage /> : activeSection === "attendance" ? <MemberAttendancePage /> : activeSection === "profile" ? <MemberProfilePage /> : activeSection === "security" ? <MemberSecurityPage onLogout={onLogout} /> : <section aria-labelledby="member-content-title" className="max-w-2xl rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
         <h2 id="member-content-title" className="sr-only">{currentSection.label}</h2>
         <div className="flex min-h-[200px] items-center justify-center px-6 py-8">

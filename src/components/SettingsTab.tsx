@@ -12,6 +12,7 @@ import { CameraCapture } from "./PhotoPicker";
 import { SettingsGroup as Group, SettingsRow as Row } from "./SettingsList";
 import { ACCENTS, getAccent, saveAccent, type AccentId } from "../utils/accent";
 import { roleLabel } from "../utils/roles";
+import { mobileDigits } from "../utils/phone";
 
 // Settings laid out like a phone settings app: one list of rows, each opening its own page.
 
@@ -286,7 +287,7 @@ export function SettingsTab({ activeUser, onProfileUpdated, onLogout }: Settings
                   inputMode="numeric"
                   autoComplete="tel-national"
                   value={profilePhone}
-                  onChange={(e) => setProfilePhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                  onChange={(e) => setProfilePhone(mobileDigits(e.target.value))}
                   placeholder="98765 43210"
                   className="h-full min-w-0 flex-1 bg-transparent px-4 focus:outline-none"
                 />

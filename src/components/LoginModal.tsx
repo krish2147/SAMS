@@ -8,6 +8,7 @@ import { AcademyId, UserRole, UserSession } from "../types";
 import { MIN_PASSWORD_LENGTH } from "../utils/password";
 import { CHARACTER_AVATARS } from "../utils/avatars";
 import { isInstalledApp } from "../utils/installedApp";
+import { mobileDigits } from "../utils/phone";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -533,9 +534,7 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
         role: selectedRole,
         academyId,
         phoneNumber,
-        avatar: selectedRole === "parent" 
-          ? CHARACTER_AVATARS[0] 
-          : CHARACTER_AVATARS[0],
+        avatar: data.member?.photoUrl || CHARACTER_AVATARS[0],
         token: data.token || "",
         rememberMe
       });
@@ -777,7 +776,7 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
                         type="tel"
                         value={phoneNumber}
                         onChange={(e) => {
-                          const clean = e.target.value.replace(/\D/g, "").slice(0, 10);
+                          const clean = mobileDigits(e.target.value);
                           setPhoneNumber(clean);
                         }}
                         placeholder="XXXXX XXXXX"
@@ -909,7 +908,7 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
                         type="tel"
                         inputMode="numeric"
                         value={emergencyPhone}
-                        onChange={(e) => setEmergencyPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                        onChange={(e) => setEmergencyPhone(mobileDigits(e.target.value))}
                         placeholder="98765 43210"
                         className={`w-full py-3.5 pl-14 pr-4 rounded-full border text-sm font-medium focus:outline-none transition-all ${
                           isSwim
@@ -984,7 +983,7 @@ export function LoginModal({ isOpen, onClose, academyId, onLoginSuccess, onOpenR
                     inputMode="numeric"
                     autoComplete="tel-national"
                     value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                    onChange={(e) => setPhoneNumber(mobileDigits(e.target.value))}
                     placeholder="98765 43210"
                     className={`flex-1 min-w-0 h-12 px-3 bg-transparent border-0 text-[15px] font-medium focus:outline-none ${ui.input}`}
                     required
