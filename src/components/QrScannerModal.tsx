@@ -12,9 +12,24 @@ interface QrScannerModalProps {
   onClose: () => void;
   onCheckInSuccess?: (data: any) => void;
   userName?: string;
+  /** Look-up mode: the scanned membership number is handed back and nothing is recorded. */
+  onMemberScanned?: (membershipNo: string) => void;
 }
 
-export function QrScannerModal({ isOpen, onClose, onCheckInSuccess, userName }: QrScannerModalProps) {
+/** The membership number inside a member pass QR (JSON pass, prefixed text, or the plain number). */
+export function membershipNoFromQr(qrText: string) {
+  let value = String(qrText || "").trim();
+  try {
+    if (value.startsWith("{") && value.endsWith("}")) {
+      const parsed = JSON.parse(value);
+      value = String(parsed.membershipNo || parsed.membership_no || parsed.memberId || parsed.id || value);
+    }
+  } catch { /* keep the raw text */ }
+  return value.replace(/^BSF-MEMBER-/, "").replace(/^BSF-QR-/, "").replace(/^MEMBER_/, "").replace(/^SWIM_/, "").trim();
+}
+
+export function QrScannerModal({ isOpen, onClose, onCheckInSuccess, userName, onMemberScanned }: QrScannerModalProps) {
+  const lookupOnly = Boolean(onMemberScanned);
   const [activeTab, setActiveTab] = useState<"camera" | "manual">("camera");
   const [cameras, setCameras] = useState<Array<{ id: string; label: string }>>([]);
   const [selectedCameraId, setSelectedCameraId] = useState<string>("");
@@ -80,6 +95,15 @@ export function QrScannerModal({ isOpen, onClose, onCheckInSuccess, userName }: 
   // Handle QR scan result payload
   const handleDecodedQr = async (qrText: string) => {
     if (isSubmitting) return;
+    if (onMemberScanned) {
+      if (scannerRef.current && scannerRef.current.isScanning) {
+        try { await scannerRef.current.pause(true); } catch (e) {}
+      }
+      playScanBeep("success");
+      onMemberScanned(membershipNoFromQr(qrText));
+      onClose();
+      return;
+    }
     setIsSubmitting(true);
     setScanError(null);
 
@@ -260,7 +284,7 @@ export function QrScannerModal({ isOpen, onClose, onCheckInSuccess, userName }: 
                   Baroda Swim Front - QR Scanner
                 </h3>
                 <p className="text-xs text-slate-400">
-                  Lobby Attendance Check-in Station
+                  {lookupOnly ? "Scan a membership card to see the member" : "Lobby Attendance Check-in Station"}
                 </p>
               </div>
             </div>
@@ -496,7 +520,7 @@ export function QrScannerModal({ isOpen, onClose, onCheckInSuccess, userName }: 
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       ) : (
                         <>
-                          <CheckCircle2 className="w-4 h-4" /> Validate & Check-In Swimmer
+                          <CheckCircle2 className="w-4 h-4" /> {lookupOnly ? "Find member" : "Validate & Check-In Swimmer"}
                         </>
                       )}
                     </button>

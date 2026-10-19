@@ -9,7 +9,6 @@ import {
 import { AcademyId } from "../types";
 import { QrScannerModal } from "./QrScannerModal";
 import { DigitalMembershipCard } from "./DigitalMembershipCard";
-import { ReceptionKioskModal } from "./ReceptionKioskModal";
 import { EmergencyMemberModal } from "./EmergencyMemberModal";
 import { MemberTimelineModal } from "./MemberTimelineModal";
 import { DailyClosingReportModal } from "./DailyClosingReportModal";
@@ -24,12 +23,13 @@ import { RegisterPage } from "./RegisterPage";
 import { useRememberedState } from "../utils/useRememberedState";
 import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-logo";
 
+// Attendance is not tracked: reception looks members up (search or QR) to see their status.
 // Reception has the same layout as the coach and admin dashboards: a sidebar on computers, and on
 // phones a bottom bar plus the side menu. Each page is one front-desk job.
-type ReceptionSection = "home" | "checkin" | "register" | "approvals" | "payments" | "settings";
+type ReceptionSection = "home" | "find" | "register" | "approvals" | "payments" | "settings";
 const RECEPTION_PAGES: Array<{ id: ReceptionSection; label: string; icon: React.ComponentType<{ className?: string }> }> = [
   { id: "home", label: "Dashboard", icon: LayoutDashboard },
-  { id: "checkin", label: "Check-in", icon: CheckCircle2 },
+  { id: "find", label: "Find a member", icon: Search },
   { id: "register", label: "Register a member", icon: UserPlus },
   { id: "approvals", label: "Approvals", icon: Clock },
   { id: "payments", label: "Pending payments", icon: CreditCard },
@@ -73,7 +73,6 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
 
   // State Management
   const [allMembers, setAllMembers] = useState<any[]>([]);
-  const [attendanceLogs, setAttendanceLogs] = useState<any[]>([]);
   const [renewalsList, setRenewalsList] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMember, setSelectedMember] = useState<any>(null);
@@ -92,7 +91,6 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
   const [isDigitalCardModalOpen, setIsDigitalCardModalOpen] = useState(false);
   
   // Sprint 3 Modals
-  const [isKioskOpen, setIsKioskOpen] = useState(false);
   const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState(false);
   const [isTimelineModalOpen, setIsTimelineModalOpen] = useState(false);
   const [isClosingReportModalOpen, setIsClosingReportModalOpen] = useState(false);
@@ -143,12 +141,6 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
         setAllMembers(academyMembers);
       }
 
-      // 2. Fetch Attendance logs
-      const resAttendance = await fetch("/api/attendance", { headers });
-      if (resAttendance.ok) {
-        const attendanceData = await resAttendance.json().catch(() => []);
-        setAttendanceLogs(attendanceData);
-      }
 
       // 3. Fetch Renewals List
       const resRenewals = await fetch("/api/admin/renewals", { headers });
@@ -207,9 +199,6 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
   // 1. Compute Card Values strictly using real MySQL records
   const totalApprovedMembers = allMembers.filter(m => m.registration_status === "Approved").length;
   
-  const todayDateStr = new Date().toISOString().split("T")[0];
-  const todayCheckIns = attendanceLogs.filter(log => log.date === todayDateStr);
-  const todayCheckInsCount = todayCheckIns.length;
   
   const pendingApprovals = allMembers.filter(m => m.registration_status === "Pending");
   const pendingApprovalsCount = pendingApprovals.length;
@@ -247,48 +236,10 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
 
   // Picking a member (from search, a QR scan or Pending payments) brings their card into view.
   useEffect(() => {
-    if (section !== "checkin" || !selectedMember) return;
+    if (section !== "find" || !selectedMember) return;
     const id = window.setTimeout(() => document.getElementById("member-profile-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
     return () => window.clearTimeout(id);
   }, [section, selectedMember?.id]);
-
-  // Check if selected member is checked in today
-  const isAlreadyCheckedIn = selectedMember && todayCheckIns.some(
-    log => Number(log.member_id) === Number(selectedMember.id)
-  );
-
-  const checkedInLogForSelected = selectedMember && todayCheckIns.find(
-    log => Number(log.member_id) === Number(selectedMember.id)
-  );
-
-  // Handle Check In request
-  const handleCheckIn = async (member: any) => {
-    if (!member) return;
-    try {
-      const token = getSessionToken();
-      const res = await fetch("/api/attendance/checkin", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { "x-session-token": token } : {})
-        },
-        body: JSON.stringify({ memberId: member.id })
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) {
-        showToast(`${member.fullName} has been checked in successfully!`, "success");
-        // Re-fetch records to update cards and logs instantly
-        await fetchDashboardData();
-        // Update selected state to reflect ARRIVED
-        setSelectedMember(prev => prev && prev.id === member.id ? { ...prev } : prev);
-      } else {
-        showToast(data.error || "Failed to submit check-in.", "error");
-      }
-    } catch (err: any) {
-      showToast("Network error: " + err.message, "error");
-    }
-  };
 
   // Submit walk-in inquiry to persistent localStorage
   const handleWalkInInquirySubmit = (e: React.FormEvent) => {
@@ -434,9 +385,6 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
             );
           })}
           <div className="pt-4 mt-3 border-t border-slate-800 space-y-1">
-            <button onClick={() => setIsKioskOpen(true)} id="btn-launch-kiosk" className="w-full px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-3 text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer">
-              <Maximize2 className="h-4 w-4 shrink-0" /><span>Kiosk mode</span>
-            </button>
             <button onClick={() => setIsClosingReportModalOpen(true)} id="btn-closing-report" className="w-full px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-3 text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer">
               <FileText className="h-4 w-4 shrink-0" /><span>Daily closing report</span>
             </button>
@@ -499,7 +447,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
         {section === "home" && (
           <>
         {/* Real-time Statistics Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5 md:gap-5" id="stats-cards-grid">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 md:gap-5" id="stats-cards-grid">
           
           {/* Card 1: Total Approved Members */}
           <div className="bg-white p-3.5 md:p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between transition-transform hover:-translate-y-0.5 duration-200">
@@ -516,24 +464,6 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
                 <h3 className="text-2xl font-black text-slate-900 leading-none">{totalApprovedMembers}</h3>
               )}
               <span className="text-[10px] text-emerald-500 font-bold block mt-1">Swimmers Registered</span>
-            </div>
-          </div>
-
-          {/* Card 2: Checked In Today */}
-          <div className="bg-white p-3.5 md:p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between transition-transform hover:-translate-y-0.5 duration-200">
-            <div className="flex justify-between items-start">
-              <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Checked In Today</span>
-              <div className="p-2 bg-emerald-50 text-emerald-500 rounded-xl">
-                <CheckCircle2 className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="mt-2 md:mt-4">
-              {isDataLoading ? (
-                <div className="h-7 w-12 bg-slate-100 rounded-lg animate-pulse"></div>
-              ) : (
-                <h3 className="text-2xl font-black text-slate-900 leading-none">{todayCheckInsCount}</h3>
-              )}
-              <span className="text-[10px] text-slate-400 font-bold block mt-1">Swimmers Checked In</span>
             </div>
           </div>
 
@@ -574,7 +504,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
           </div>
 
           {/* Card 5: Renewals Due (Next 3 Days) */}
-          <div className="bg-white p-3.5 md:p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between transition-transform hover:-translate-y-0.5 duration-200 col-span-2 lg:col-span-1">
+          <div className="bg-white p-3.5 md:p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between transition-transform hover:-translate-y-0.5 duration-200">
             <div className="flex justify-between items-start">
               <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Renewals Due (3d)</span>
               <div className="p-2 bg-purple-50 text-purple-500 rounded-xl">
@@ -593,18 +523,16 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
 
         </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 items-start">
-              <div className="lg:col-span-5 space-y-6">
+            <div className="space-y-6">
             {/* Quick actions: the front desk's everyday jobs */}
             <div className="bg-white p-5 md:p-6 rounded-3xl border border-slate-100 shadow-sm" id="quick-actions-panel">
               <h2 className="text-base font-extrabold text-slate-900 mb-4">Quick actions</h2>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 {[
                   { id: "qa-scan", label: "Scan member QR", icon: QrCode, tone: "bg-sky-50 text-sky-600", onClick: () => setIsQrScannerOpen(true) },
-                  { id: "qa-checkin", label: "Find & check in", icon: Search, tone: "bg-emerald-50 text-emerald-600", onClick: () => { setSection("checkin"); setTimeout(() => searchInputRef.current?.focus(), 50); } },
+                  { id: "qa-find", label: "Find a member", icon: Search, tone: "bg-emerald-50 text-emerald-600", onClick: () => { setSection("find"); setTimeout(() => searchInputRef.current?.focus(), 50); } },
                   { id: "qa-register", label: "Register a member", icon: UserPlus, tone: "bg-violet-50 text-violet-600", onClick: () => setSection("register") },
                   { id: "action-walk-in", label: "Note an enquiry", icon: Plus, tone: "bg-amber-50 text-amber-600", onClick: () => setIsWalkInModalOpen(true) },
-                  { id: "qa-kiosk", label: "Kiosk mode", icon: Maximize2, tone: "bg-indigo-50 text-indigo-600", onClick: () => setIsKioskOpen(true) },
                   { id: "qa-closing", label: "Closing report", icon: FileText, tone: "bg-slate-100 text-slate-700", onClick: () => setIsClosingReportModalOpen(true) }
                 ].map(({ id, label, icon: Icon, tone, onClick }) => (
                   <button key={id} id={id} onClick={onClick} className="flex min-h-[84px] flex-col items-start justify-between gap-2 rounded-2xl border border-slate-200/70 bg-white p-3.5 text-left text-[13px] font-bold text-slate-800 transition-colors hover:border-sky-200 hover:bg-sky-50/40 cursor-pointer">
@@ -614,66 +542,13 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
                 ))}
               </div>
             </div>
-
-              </div>
-              <div className="lg:col-span-7 space-y-6">
-            {/* Today's Check-Ins Live List */}
-            <div className="bg-white p-5 md:p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4" id="today-checkins-panel">
-              <div className="flex justify-between items-center pb-2">
-                <div>
-                  <span className="text-[9px] font-mono tracking-widest text-slate-400 uppercase">Today's check-ins</span>
-                  <h3 className="text-base font-extrabold text-slate-900 mt-0.5">Today's Check-Ins</h3>
-                </div>
-                <span className="text-[10px] font-extrabold bg-sky-50 text-sky-600 border border-sky-100 px-3 py-1 rounded-full font-mono">
-                  {todayCheckInsCount} ARRIVALS
-                </span>
-              </div>
-
-              {isDataLoading ? (
-                <div className="py-12 flex flex-col items-center justify-center gap-2 opacity-55">
-                  <RefreshCw className="h-5 w-5 animate-spin" />
-                  <span className="text-xs font-medium">Loading today's attendance...</span>
-                </div>
-              ) : todayCheckIns.length > 0 ? (
-                <div className="overflow-x-auto border border-slate-100 rounded-2xl">
-                  <table className="w-full text-left border-collapse text-xs">
-                    <thead>
-                      <tr className="bg-slate-50/80 text-[10px] font-extrabold tracking-wider text-slate-400 uppercase border-b border-slate-100">
-                        <th className="p-3">Time</th>
-                        <th className="p-3">Swimmer Name</th>
-                        <th className="p-3 hidden sm:table-cell">Membership Number</th>
-                        <th className="p-3">Allotted Slot</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {todayCheckIns.map((log) => (
-                        <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="p-3 font-mono font-black text-sky-600">{log.time}</td>
-                          <td className="p-3 font-extrabold text-slate-800">{log.fullName}<span className="block font-mono text-[10px] font-semibold text-slate-400 sm:hidden">{log.membershipNo}</span></td>
-                          <td className="p-3 font-mono text-slate-500 hidden sm:table-cell">{log.membershipNo}</td>
-                          <td className="p-3 font-semibold text-slate-600">{log.allottedTiming || "-"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="text-center py-12 bg-slate-50/40 rounded-2xl border border-dashed border-slate-200">
-                  <AlertCircle className="h-8 w-8 mx-auto text-slate-400 opacity-40 mb-3" />
-                  <p className="text-xs font-extrabold text-slate-500">Live check-in queue is empty</p>
-                  <p className="text-[10px] text-slate-400 mt-1">No swimmers have marked lobby arrival yet today.</p>
-                </div>
-              )}
-            </div>
-
-              </div>
             </div>
           </>
         )}
 
-        {section === "checkin" && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 items-start">
-            <div className="lg:col-span-7 space-y-6 md:space-y-8" id="left-workspace">
+        {section === "find" && (
+          <div className="max-w-3xl">
+            <div className="space-y-6 md:space-y-8" id="left-workspace">
             {/* Quick Member Lookup Panel */}
             <div className="bg-white p-5 md:p-6 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden">
               
@@ -681,8 +556,8 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
               
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-5">
                 <div>
-                  <span className="text-[9px] font-mono tracking-widest text-slate-400 uppercase">Member check-in</span>
-                  <h2 className="text-base font-extrabold text-slate-900 mt-0.5">Quick Member Search</h2>
+                  <span className="text-[9px] font-mono tracking-widest text-slate-400 uppercase">Member lookup</span>
+                  <h2 className="text-base font-extrabold text-slate-900 mt-0.5">Find a member</h2>
                 </div>
                 <button
                   onClick={() => setIsQrScannerOpen(true)}
@@ -690,7 +565,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
                   id="btn-launch-qr-hub"
                 >
                   <QrCode className="h-3.5 w-3.5 text-cyan-400" />
-                  <span>Launch QR Scanner</span>
+                  <span>Scan card</span>
                 </button>
               </div>
 
@@ -752,7 +627,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
               )}
 
               <p className="text-[11px] font-semibold text-slate-400 mt-3 leading-relaxed">
-                Scan a member's card or search above. Their details, health notes and check-in button will appear here.
+                Scan a member's card or search by name, phone or membership number to see their status, plan and expiry.
               </p>
             </div>
 
@@ -824,10 +699,8 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
                     </div>
 
                     <div className="p-3 bg-slate-50 rounded-2xl">
-                      <span className="text-[9px] font-bold text-slate-400 block uppercase">Today's Attendance</span>
-                      <span className={`text-xs font-extrabold block mt-0.5 ${isAlreadyCheckedIn ? "text-emerald-500" : "text-amber-500"}`}>
-                        {isAlreadyCheckedIn ? `Checked In (${checkedInLogForSelected?.time || "Arrived"})` : "Not Checked In Today"}
-                      </span>
+                      <span className="text-[9px] font-bold text-slate-400 block uppercase">Mobile</span>
+                      <span className="text-xs font-extrabold text-slate-800 block mt-0.5">{selectedMember.mobileNo || "-"}</span>
                     </div>
 
                   </div>
@@ -841,19 +714,6 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
 
                   {/* Operational Buttons */}
                   <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                    <button
-                      onClick={() => handleCheckIn(selectedMember)}
-                      disabled={isAlreadyCheckedIn}
-                      className={`flex-1 py-3.5 px-4 rounded-xl text-xs uppercase tracking-wider font-extrabold flex items-center justify-center gap-2 cursor-pointer transition-all ${
-                        isAlreadyCheckedIn 
-                          ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 cursor-not-allowed" 
-                          : "bg-sky-500 hover:bg-sky-600 text-white shadow-md shadow-sky-100 active:scale-98"
-                      }`}
-                      id="btn-profile-checkin"
-                    >
-                      {isAlreadyCheckedIn ? <Check className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
-                      <span>{isAlreadyCheckedIn ? "Already Checked In Today" : "Check In Swimmer"}</span>
-                    </button>
 
                     <button
                       onClick={() => setIsDigitalCardModalOpen(true)}
@@ -879,59 +739,8 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
                   <User className="h-10 w-10 mx-auto opacity-35 mb-3.5 text-slate-400" />
                   <p className="text-xs font-bold">No Swimmer Selected</p>
                   <p className="text-[11px] font-medium opacity-70 max-w-sm mx-auto mt-1 leading-relaxed">
-                    Search for a member above by name, phone or member ID to check them in.
+                    Search above or scan a membership card.
                   </p>
-                </div>
-              )}
-            </div>
-
-            </div>
-            <div className="lg:col-span-5 space-y-6">
-            {/* Today's Check-Ins Live List */}
-            <div className="bg-white p-5 md:p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4" id="today-checkins-panel">
-              <div className="flex justify-between items-center pb-2">
-                <div>
-                  <span className="text-[9px] font-mono tracking-widest text-slate-400 uppercase">Today's check-ins</span>
-                  <h3 className="text-base font-extrabold text-slate-900 mt-0.5">Today's Check-Ins</h3>
-                </div>
-                <span className="text-[10px] font-extrabold bg-sky-50 text-sky-600 border border-sky-100 px-3 py-1 rounded-full font-mono">
-                  {todayCheckInsCount} ARRIVALS
-                </span>
-              </div>
-
-              {isDataLoading ? (
-                <div className="py-12 flex flex-col items-center justify-center gap-2 opacity-55">
-                  <RefreshCw className="h-5 w-5 animate-spin" />
-                  <span className="text-xs font-medium">Loading today's attendance...</span>
-                </div>
-              ) : todayCheckIns.length > 0 ? (
-                <div className="overflow-x-auto border border-slate-100 rounded-2xl">
-                  <table className="w-full text-left border-collapse text-xs">
-                    <thead>
-                      <tr className="bg-slate-50/80 text-[10px] font-extrabold tracking-wider text-slate-400 uppercase border-b border-slate-100">
-                        <th className="p-3">Time</th>
-                        <th className="p-3">Swimmer Name</th>
-                        <th className="p-3 hidden sm:table-cell">Membership Number</th>
-                        <th className="p-3">Allotted Slot</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {todayCheckIns.map((log) => (
-                        <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="p-3 font-mono font-black text-sky-600">{log.time}</td>
-                          <td className="p-3 font-extrabold text-slate-800">{log.fullName}<span className="block font-mono text-[10px] font-semibold text-slate-400 sm:hidden">{log.membershipNo}</span></td>
-                          <td className="p-3 font-mono text-slate-500 hidden sm:table-cell">{log.membershipNo}</td>
-                          <td className="p-3 font-semibold text-slate-600">{log.allottedTiming || "-"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="text-center py-12 bg-slate-50/40 rounded-2xl border border-dashed border-slate-200">
-                  <AlertCircle className="h-8 w-8 mx-auto text-slate-400 opacity-40 mb-3" />
-                  <p className="text-xs font-extrabold text-slate-500">Live check-in queue is empty</p>
-                  <p className="text-[10px] text-slate-400 mt-1">No swimmers have marked lobby arrival yet today.</p>
                 </div>
               )}
             </div>
@@ -1045,7 +854,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
                         <button
                           onClick={() => {
                             setSelectedMember(m);
-                            setSection("checkin");
+                            setSection("find");
                           }}
                           className="flex-1 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-[11px] font-extrabold uppercase transition-colors cursor-pointer text-center"
                         >
@@ -1105,7 +914,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 grid h-16 grid-cols-5 border-t border-slate-200/80 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md shadow-[0_-4px_16px_rgba(0,0,0,0.06)]" aria-label="Reception pages">
         {([
           { id: "home", label: "Home", icon: LayoutDashboard },
-          { id: "checkin", label: "Check-in", icon: CheckCircle2 },
+          { id: "find", label: "Find", icon: Search },
           { id: "register", label: "Register", icon: UserPlus },
           { id: "approvals", label: "Approvals", icon: Clock, badge: pendingApprovalsCount }
         ] as const).map((item) => {
@@ -1133,7 +942,6 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
         sections={[
           { items: RECEPTION_PAGES.filter((p) => p.id !== "settings").map((p) => ({ ...p, badge: p.id === "approvals" ? pendingApprovalsCount : p.id === "payments" ? pendingPaymentsCount : undefined })) },
           { heading: "Tools", items: [
-            { id: "tool-kiosk", label: "Kiosk mode", icon: Maximize2 },
             { id: "tool-closing", label: "Daily closing report", icon: FileText },
             { id: "tool-notifications", label: "Notifications", icon: Bell, badge: staffFeed.unreadCount }
           ] },
@@ -1141,8 +949,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
         ]}
         activeId={section}
         onSelect={(id) => {
-          if (id === "tool-kiosk") setIsKioskOpen(true);
-          else if (id === "tool-closing") setIsClosingReportModalOpen(true);
+          if (id === "tool-closing") setIsClosingReportModalOpen(true);
           else if (id === "tool-notifications") setNotificationsOpen(true);
           else setSection(id as ReceptionSection);
         }}
@@ -1525,9 +1332,17 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
         isOpen={isQrScannerOpen}
         onClose={() => setIsQrScannerOpen(false)}
         userName={userName}
-        onCheckInSuccess={(data) => {
-          showToast(`Access Granted! ${data.fullName || "Swimmer"} checked in successfully.`, "success");
-          fetchDashboardData();
+        onMemberScanned={(membershipNo) => {
+          const wanted = membershipNo.trim().toLowerCase();
+          const found = allMembers.find((m) =>
+            String(m.membershipNo || "").toLowerCase() === wanted || String(m.mobileNo || "") === membershipNo.trim() || String(m.id) === membershipNo.trim()
+          );
+          if (found) {
+            setSelectedMember(found);
+            setSection("find");
+          } else {
+            showToast(`No member found for ${membershipNo || "this card"}.`, "error");
+          }
         }}
       />
 
@@ -1568,40 +1383,6 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
         )}
       </AnimatePresence>
 
-      {/* Reception Kiosk Mode Modal */}
-      <ReceptionKioskModal
-        isOpen={isKioskOpen}
-        onClose={() => setIsKioskOpen(false)}
-        members={allMembers}
-        attendanceLogs={attendanceLogs}
-        onCheckInMember={async (member) => {
-          try {
-            const token = getSessionToken();
-            const headers: Record<string, string> = { "Content-Type": "application/json" };
-            if (token) headers["x-session-token"] = token;
-
-            const res = await fetch("/api/attendance", {
-              method: "POST",
-              headers,
-              body: JSON.stringify({
-                membershipNo: member.membershipNo,
-                staffId: sessionUser.id || "STAFF-01"
-              })
-            });
-
-            const data = await res.json().catch(() => ({}));
-            if (res.ok) {
-              fetchDashboardData();
-              return { success: true, message: "Attendance recorded", checkInTime: data.time || new Date().toLocaleTimeString() };
-            } else {
-              return { success: false, message: data.error || "Failed to record attendance" };
-            }
-          } catch (err: any) {
-            return { success: false, message: err.message || "Network error" };
-          }
-        }}
-      />
-
       {/* Emergency Member Profile Modal */}
       <EmergencyMemberModal
         isOpen={isEmergencyModalOpen}
@@ -1621,7 +1402,6 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
         isOpen={isClosingReportModalOpen}
         onClose={() => setIsClosingReportModalOpen(false)}
         members={allMembers}
-        attendanceLogs={attendanceLogs}
         renewalsList={renewalsList}
       />
 
