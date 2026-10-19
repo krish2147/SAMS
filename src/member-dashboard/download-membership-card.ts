@@ -1,4 +1,4 @@
-import { formatMemberDate, getMembershipDisplayStatus, type MemberDashboardData } from "./member-overview-data";
+import { formatBatchTime, formatMemberDate, getMembershipDisplayStatus, type MemberDashboardData } from "./member-overview-data";
 import QRCode from "qrcode";
 import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-logo";
 
@@ -170,6 +170,51 @@ export function buildMembershipCardSvg(data: MemberDashboardData, images: CardIm
     <text x="700" y="908" font-size="42" font-weight="700" fill="#ffffff">${escapeXml(from)}</text>
     <text x="1490" y="852" text-anchor="end" font-size="24" font-weight="600" letter-spacing="6" fill="#a5f3fc" fill-opacity="0.8">VALID THRU</text>
     <text x="1490" y="908" text-anchor="end" font-size="42" font-weight="700" fill="#ffffff">${escapeXml(thru)}</text>
+  </g>
+</svg>`;
+}
+
+/** Back of the card for the 3D viewer: big QR for the counter, batch and validity. */
+export function buildMembershipCardBackSvg(data: MemberDashboardData, images: CardImages): string {
+  const W = CARD_WIDTH, H = CARD_HEIGHT;
+  const font = "Sora, Inter, 'Segoe UI', Arial, sans-serif";
+  const memberNo = data.member.membershipNo || "Pending";
+  const batch = data.batch
+    ? [formatBatchTime(data.batch.startTime), formatBatchTime(data.batch.endTime)].filter(Boolean).join(" – ") || data.batch.name
+    : data.membership.batchName || "Not assigned yet";
+  const thru = formatMemberDate(data.membership.expiryDate) || "Pending";
+  const plan = data.membership.planName || "Plan not assigned";
+  const row = (y: number, label: string, value: string) =>
+    `<text x="800" y="${y}" font-size="24" font-weight="600" letter-spacing="6" fill="#a5f3fc" fill-opacity="0.8">${label}</text>
+     <text x="800" y="${y + 52}" font-size="${fitSize(value, 690, 42, 28)}" font-weight="700" fill="#ffffff">${escapeXml(value)}</text>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Back of the membership card">
+  <defs>
+    <clipPath id="backClip"><rect width="${W}" height="${H}" rx="64"/></clipPath>
+    <linearGradient id="backOcean" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#030f24"/><stop offset="0.5" stop-color="#072a52"/><stop offset="1" stop-color="#0a5f8c"/>
+    </linearGradient>
+    <linearGradient id="backGold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fbeec1"/><stop offset="0.35" stop-color="#e2c27a"/><stop offset="0.6" stop-color="#b38b3e"/><stop offset="1" stop-color="#f6e2a4"/>
+    </linearGradient>
+    <linearGradient id="stripe" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#020617"/><stop offset="0.5" stop-color="#111827"/><stop offset="1" stop-color="#020617"/>
+    </linearGradient>
+  </defs>
+  <g clip-path="url(#backClip)">
+    <rect width="${W}" height="${H}" fill="url(#backOcean)"/>
+    <image href="${BARODA_SWIM_FRONT_LOGO_DATA_URI}" x="-140" y="380" width="760" height="760" opacity="0.06"/>
+    <rect x="0" y="92" width="${W}" height="128" fill="url(#stripe)"/>
+    <path d="M0 900 C 300 860, 520 940, 820 900 S 1300 860, 1586 905 L1586 1000 L0 1000 Z" fill="#0ea5e9" fill-opacity="0.35"/>
+  </g>
+  <rect x="22" y="22" width="${W - 44}" height="${H - 44}" rx="46" fill="none" stroke="url(#backGold)" stroke-opacity="0.55" stroke-width="2.5"/>
+  <g font-family="${font}">
+    ${images.qr ? `<rect x="96" y="290" width="580" height="580" rx="44" fill="#ffffff"/><image href="${escapeXml(images.qr)}" x="136" y="330" width="500" height="500"/>` : ""}
+    <text x="800" y="320" font-size="40" font-weight="700" fill="url(#backGold)">Show this at the counter</text>
+    ${row(410, "MEMBER NO", memberNo)}
+    ${row(540, "POOL TIME", batch)}
+    ${row(670, "PLAN", plan)}
+    ${row(800, "VALID THRU", thru)}
+    <text x="${W / 2}" y="958" text-anchor="middle" font-size="22" fill="#ffffff" fill-opacity="0.6">If found, please return to Baroda Swim Front, Vadodara · Swim for life</text>
   </g>
 </svg>`;
 }

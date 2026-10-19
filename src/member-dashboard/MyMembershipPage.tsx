@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Download, ShieldCheck } from "lucide-react";
+import { Download, Maximize2, ShieldCheck } from "lucide-react";
 import type { MemberSection } from "./member-navigation";
 import type { MemberDashboardData, MemberPayment } from "./member-overview-data";
 import { MemberDigitalCard } from "./MemberDigitalCard";
+import { MemberCardViewer } from "./MemberCardViewer";
 import { MemberBatchSummary } from "./MemberBatchSummary";
 import { MembershipDetails } from "./MembershipDetails";
 import { MembershipDocuments } from "./MembershipDocuments";
@@ -20,6 +21,7 @@ export function MyMembershipPage({ onNavigate }: { onNavigate: (section: MemberS
   const [paymentsError, setPaymentsError] = useState(false);
   const [downloadingCard, setDownloadingCard] = useState(false);
   const [downloadError, setDownloadError] = useState(false);
+  const [cardOpen, setCardOpen] = useState(false);
 
   const loadMembership = useCallback(async () => {
     setMembershipLoading(true); setMembershipError(false);
@@ -64,10 +66,10 @@ export function MyMembershipPage({ onNavigate }: { onNavigate: (section: MemberS
   if (membershipError || !data) return <section role="alert" className="rounded-2xl border border-slate-200 bg-white px-6 py-12 text-center shadow-[0_1px_2px_rgba(15,23,42,0.04)]"><span className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-500"><ShieldCheck className="h-5 w-5" /></span><h1 className="mt-4 text-lg font-semibold text-slate-900">We couldn't load your membership details.</h1><p className="mt-1 text-sm text-slate-500">Please try again in a moment.</p><button type="button" onClick={() => void loadMembership()} className="mt-5 min-h-11 rounded-xl bg-slate-950 px-5 text-sm font-semibold text-white hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2">Try again</button></section>;
 
   return <div className="space-y-6 lg:space-y-7">
-    <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><h1 className="text-2xl font-bold tracking-[-0.025em] text-slate-950 sm:text-[30px]">My Membership</h1><p className="mt-1.5 text-sm leading-6 text-slate-500 sm:text-[15px]">View your current plan, validity, batch and membership documents.</p></div><button type="button" onClick={() => void downloadMembershipCard()} disabled={downloadingCard} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 disabled:cursor-wait disabled:opacity-70"><Download className="h-4 w-4" />{downloadingCard ? "Preparing card…" : "Download membership card"}</button></header>
+    <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><h1 className="text-2xl font-bold tracking-[-0.025em] text-slate-950 sm:text-[30px]">My Membership</h1><p className="mt-1.5 text-sm leading-6 text-slate-500 sm:text-[15px]">View your current plan, validity, batch and membership documents.</p></div><div className="flex flex-wrap gap-2"><button type="button" id="btn-open-card" onClick={() => setCardOpen(true)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2"><Maximize2 className="h-4 w-4" />Open card</button><button type="button" onClick={() => void downloadMembershipCard()} disabled={downloadingCard} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 disabled:cursor-wait disabled:opacity-70"><Download className="h-4 w-4" />{downloadingCard ? "Preparing card…" : "Download membership card"}</button></div></header>
     {downloadError && <p role="alert" className="-mt-3 text-sm text-rose-700">We couldn't download your membership card. Please try again.</p>}
     <div className="grid items-stretch gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(300px,0.85fr)]">
-      <MemberDigitalCard data={data} />
+      <MemberDigitalCard data={data} onOpen={() => setCardOpen(true)} />
       <MembershipValidity data={data} />
     </div>
     <div className="grid items-stretch gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(300px,0.85fr)]">
@@ -76,5 +78,6 @@ export function MyMembershipPage({ onNavigate }: { onNavigate: (section: MemberS
     </div>
     <MembershipDocuments payment={latestSuccessfulPayment} loading={paymentsLoading} error={paymentsError} onRetry={() => void loadPayments()} />
     <RenewalPanel data={data} />
+    <MemberCardViewer data={data} open={cardOpen} onClose={() => setCardOpen(false)} onDownload={() => void downloadMembershipCard()} downloading={downloadingCard} />
   </div>;
 }
