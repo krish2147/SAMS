@@ -1,0 +1,25 @@
+[
+  {
+    "name": "payment_success",
+    "language": "en",
+    "category": "UTILITY",
+    "components": [
+      {
+        "type": "HEADER",
+        "format": "TEXT",
+        "text": "Payment received"
+      },
+      {
+        "type": "BODY",
+        "text": "Hello {{1}}, we have received your payment of Rs {{2}} for Baroda Swim Front membership {{3}}.\n\nReceipt no.: {{4}}\nValid from {{5}} to {{6}}.\n\nYour membership is now active. See you at the pool!",
+        "example": {
+          "body_text": [["Priya Shah", "9800", "BSF-2026-0142", "BSF-REC-2026-000001", "19/10/2026", "18/01/2027"]]
+        }
+      },
+      {
+        "type": "FOOTER",
+        "text": "Baroda Swim Front, Vadodara"
+      }
+    ]
+  }
+]
