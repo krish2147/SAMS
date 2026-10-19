@@ -2041,7 +2041,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
 
         {/* TAB: REGISTER NEW MEMBER */}
         {activeTab === "register" && (
-          <div className="p-2 md:p-4 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800">
+          <div>
             <RegisterPage
               embedded
               walkIn
@@ -2311,10 +2311,13 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
       />
 
       {/* Quick Actions Floating Action Button */}
-      <QuickActionsFab
-        onAction={handleQuickAction}
-        onOpenCommandPalette={() => setCommandPaletteOpen(true)}
-      />
+      {/* Hidden on the registration form, where it covered the Continue button. */}
+      {activeTab !== "register" && (
+        <QuickActionsFab
+          onAction={handleQuickAction}
+          onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+        />
+      )}
 
       {/* Daily Closing Report Modal */}
       <DailyClosingReportModal
