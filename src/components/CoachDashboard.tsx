@@ -55,7 +55,10 @@ export function CoachDashboard({ academyId, userName, onLogout, onSessionExpired
   }`;
 
   // Navigation state
-  const [activeTab, setActiveTab] = useRememberedState<"home" | "batches" | "members" | "attendance" | "schedule" | "notifications" | "profile">("coach.tab", "home");
+  type CoachTab = "home" | "batches" | "members" | "schedule" | "notifications" | "profile";
+  const [rememberedTab, setActiveTab] = useRememberedState<CoachTab>("coach.tab", "home");
+  // Attendance is not tracked; a tab remembered from before (e.g. "attendance") falls back to Home.
+  const activeTab: CoachTab = (["home", "batches", "members", "schedule", "notifications", "profile"] as string[]).includes(rememberedTab) ? rememberedTab : "home";
   const [mobileMenuDrawerOpen, setMobileMenuDrawerOpen] = useState(false);
   const [notificationsDrawerOpen, setNotificationsDrawerOpen] = useState(false);
 
@@ -86,7 +89,6 @@ export function CoachDashboard({ academyId, userName, onLogout, onSessionExpired
   // DB Data States
   const [batches, setBatches] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
-  const [attendanceLogs, setAttendanceLogs] = useState<any[]>([]);
   const [events, setEvents] = useState<any[]>([]);
   const [holidays, setHolidays] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -152,7 +154,6 @@ export function CoachDashboard({ academyId, userName, onLogout, onSessionExpired
       if (data.success) {
         setBatches(data.batches || []);
         setMembers(data.members || []);
-        setAttendanceLogs(data.attendanceLogs || []);
         setEvents(data.events || []);
         setHolidays(data.holidays || []);
         setNotifications(data.notifications || []);
@@ -300,7 +301,6 @@ export function CoachDashboard({ academyId, userName, onLogout, onSessionExpired
             { id: "home", label: "Dashboard", icon: LayoutDashboard },
             { id: "batches", label: "Batches", icon: Clock },
             { id: "members", label: "Members", icon: Users },
-            { id: "attendance", label: "Attendance Logs", icon: CheckCircle },
             { id: "schedule", label: "Timeline Schedule", icon: Calendar },
             { id: "notifications", label: "Notifications", icon: Bell },
             { id: "profile", label: "Settings", icon: Sliders }
@@ -394,7 +394,6 @@ export function CoachDashboard({ academyId, userName, onLogout, onSessionExpired
                   { id: "home", label: "Dashboard" },
                   { id: "batches", label: "Batches" },
                   { id: "members", label: "Members" },
-                  { id: "attendance", label: "Attendance Logs" },
                   { id: "schedule", label: "Timeline Schedule" },
                   { id: "notifications", label: "Notifications" },
                   { id: "profile", label: "Settings" }
@@ -451,7 +450,7 @@ export function CoachDashboard({ academyId, userName, onLogout, onSessionExpired
                   </h3>
                   <p className="text-sm text-slate-500">
                     {apiError === "SESSION_EXPIRED" 
-                      ? "You've been logged out. Please log in again to see your swimmers and attendance." 
+                      ? "You've been logged out. Please log in again to see your batches and swimmers." 
                       : apiError}
                   </p>
                 </div>
@@ -501,8 +500,8 @@ export function CoachDashboard({ academyId, userName, onLogout, onSessionExpired
                         <UserCheck className="h-6 w-6" />
                       </div>
                       <div>
-                        <span className="text-[10px] font-extrabold tracking-widest opacity-60 uppercase block">Members Present Today</span>
-                        <span className={`text-2xl font-black mt-0.5 block ${isSwim ? "text-slate-900" : "text-white"}`}>{stats.membersPresentToday}</span>
+                        <span className="text-[10px] font-extrabold tracking-widest opacity-60 uppercase block">My Batches</span>
+                        <span className={`text-2xl font-black mt-0.5 block ${isSwim ? "text-slate-900" : "text-white"}`}>{batches.length}</span>
                       </div>
                     </motion.div>
 
@@ -511,8 +510,8 @@ export function CoachDashboard({ academyId, userName, onLogout, onSessionExpired
                         <Clock className="h-6 w-6" />
                       </div>
                       <div>
-                        <span className="text-[10px] font-extrabold tracking-widest opacity-60 uppercase block">Members Absent Today</span>
-                        <span className={`text-2xl font-black mt-0.5 block ${isSwim ? "text-slate-900" : "text-white"}`}>{stats.membersAbsentToday}</span>
+                        <span className="text-[10px] font-extrabold tracking-widest opacity-60 uppercase block">Seats Free</span>
+                        <span className={`text-2xl font-black mt-0.5 block ${isSwim ? "text-slate-900" : "text-white"}`}>{batches.reduce((sum, b) => sum + Math.max(0, Number(b.capacity || 0) - Number(b.current_strength || 0)), 0)}</span>
                       </div>
                     </motion.div>
                   </div>
@@ -525,7 +524,7 @@ export function CoachDashboard({ academyId, userName, onLogout, onSessionExpired
                       <div className="flex justify-between items-center">
                         <div>
                           <h3 className={`text-lg font-black tracking-tight ${textTitle}`}>Today's Batches List</h3>
-                          <p className="text-xs text-slate-500">How full each batch is and who's present today.</p>
+                          <p className="text-xs text-slate-500">How full each batch is.</p>
                         </div>
                       </div>
 
@@ -552,14 +551,10 @@ export function CoachDashboard({ academyId, userName, onLogout, onSessionExpired
                                     </span>
                                   </div>
                                   
-                                  <div className="grid grid-cols-3 gap-4 pt-1 text-xs">
+                                  <div className="grid grid-cols-2 gap-4 pt-1 text-xs">
                                     <div>
                                       <span className="text-[10px] block uppercase font-bold opacity-60">Members</span>
                                       <span className="font-extrabold">{batch.current_strength} Assigned</span>
-                                    </div>
-                                    <div>
-                                      <span className="text-[10px] block uppercase font-bold opacity-60">Present / Absent</span>
-                                      <span className="font-extrabold text-emerald-500">{batch.presentCount} present • <span className="opacity-80">{batch.absentCount} absent</span></span>
                                     </div>
                                     <div>
                                       <span className="text-[10px] block uppercase font-bold opacity-60">Filling Status</span>
@@ -680,10 +675,6 @@ export function CoachDashboard({ academyId, userName, onLogout, onSessionExpired
                             <div className="flex justify-between text-xs">
                               <span className="opacity-65 font-medium">Available Capacity:</span>
                               <span className="font-extrabold">{batch.available_seats} seats</span>
-                            </div>
-                            <div className="flex justify-between text-xs">
-                              <span className="opacity-65 font-medium">Lobby Attendance Ratio:</span>
-                              <span className="font-extrabold text-emerald-500">{batch.presentCount} present today</span>
                             </div>
                           </div>
 
@@ -941,46 +932,6 @@ export function CoachDashboard({ academyId, userName, onLogout, onSessionExpired
                 </div>
               )}
 
-              {/* TAB 4: ATTENDANCE (VIEW-ONLY TIMELINE LOG) */}
-              {activeTab === "attendance" && (
-                <div className="space-y-6">
-                  <div>
-                    <h3 className={`text-lg font-black tracking-tight ${textTitle}`}>Attendance Logs Register</h3>
-                    <p className="text-xs text-slate-500">Recent check-ins at the front desk (view only). These update automatically when reception scans a member's card.</p>
-                  </div>
-
-                  <div className={`rounded-3xl p-6 border ${bgCard} space-y-6`}>
-                    <div className="flex justify-between items-center pb-4 border-b border-current/10">
-                      <span className="text-xs font-black uppercase tracking-wider">Historical Check-in Feed</span>
-                    </div>
-
-                    <div className="space-y-3">
-                      {attendanceLogs.length === 0 ? (
-                        <p className="text-xs opacity-60 text-center py-8">No attendance recorded yet.</p>
-                      ) : (
-                        attendanceLogs.slice(0, 20).map((log) => (
-                          <div key={log.id} className={`p-4 rounded-2xl flex justify-between items-center text-xs border border-current/5 ${bgSubCard}`}>
-                            <div className="flex items-center gap-3">
-                              <div className="h-8 w-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold">
-                                ✓
-                              </div>
-                              <div>
-                                <span className="font-extrabold block">{log.fullName}</span>
-                                <span className="text-[10px] opacity-60 font-mono">Member ID: {log.membershipNo}</span>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <span className="font-bold block">{formatDateStr(log.date)}</span>
-                              <span className="text-[10px] opacity-60 font-mono uppercase">{log.time || "Lobby CheckIn"}</span>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* TAB 5: TIMELINE SCHEDULE */}
               {activeTab === "schedule" && (
                 <div className="space-y-6">
@@ -1189,7 +1140,6 @@ export function CoachDashboard({ academyId, userName, onLogout, onSessionExpired
             { id: "schedule", label: "Timeline Schedule", icon: Calendar }
           ] },
           { heading: "More", items: [
-            { id: "attendance", label: "Attendance Logs", icon: CheckCircle },
             { id: "notifications", label: "Notifications", icon: Bell, badge: staffFeed.unreadCount }
           ] },
           { heading: "Account", items: [{ id: "profile", label: "Settings", icon: Sliders }] }

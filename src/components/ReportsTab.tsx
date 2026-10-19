@@ -18,12 +18,11 @@ interface ReportsTabProps {
 
 export function ReportsTab({ isSwim, members, coaches, userRole = "admin" }: ReportsTabProps) {
   // States
-  const [reportType, setReportType] = useState<"membership" | "revenue" | "attendance" | "renewal" | "payment">("membership");
+  const [reportType, setReportType] = useState<"membership" | "revenue" | "renewal" | "payment">("membership");
   const [filterType, setFilterType] = useState<"today" | "week" | "month" | "custom">("month");
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
   
-  const [attendanceLogs, setAttendanceLogs] = useState<any[]>([]);
   const [paymentsData, setPaymentsData] = useState<any>({ summary: {}, transactions: [] });
   const [renewalsList, setRenewalsList] = useState<any[]>([]);
   const [isApiLoading, setIsApiLoading] = useState(false);
@@ -48,12 +47,6 @@ export function ReportsTab({ isSwim, members, coaches, userRole = "admin" }: Rep
       const token = getSessionToken();
       const headers = token ? { "x-session-token": token } : {};
 
-      // 1. Fetch today's/all attendance
-      const resAttendance = await fetch("/api/attendance", { headers });
-      if (resAttendance.ok) {
-        const att = await resAttendance.json().catch(() => []);
-        setAttendanceLogs(att || []);
-      }
 
       // 2. Fetch payments dashboard
       const resPayments = await fetch("/api/admin/payments", { headers });
@@ -140,9 +133,6 @@ export function ReportsTab({ isSwim, members, coaches, userRole = "admin" }: Rep
   const dayKey = (value: any) => String(value || "").slice(0, 10);
   const filteredRevenueReport = successfulTxns.filter((t: any) => isDateInFilter(txnDate(t)));
 
-  // 3. Attendance Report Data
-  const filteredAttendanceReport = attendanceLogs.filter(log => isDateInFilter(log.date));
-
   // 4. Renewal Report Data
   const filteredRenewalReport = renewalsList.filter(r => isDateInFilter(r.due_date));
 
@@ -154,20 +144,10 @@ export function ReportsTab({ isSwim, members, coaches, userRole = "admin" }: Rep
   // -------------------------------------------------------------
   const statsTotalMembers = approvedMembers.length;
   
-  // Active Members = Checked In Today
-  const todayDateStr = new Date().toISOString().split("T")[0];
-  const statsActiveMembers = attendanceLogs.filter(log => dayKey(log.date) === todayDateStr).length;
+  // Active Members = membership currently active (attendance is not tracked)
+  const statsActiveMembers = members.filter((m: any) => (m.membership_status || m.membershipStatus) === "Active").length;
 
   // Chart series built from the loaded records. Both charts were previously fixed sample numbers.
-  const last7Days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (6 - i));
-    const key = d.toISOString().split("T")[0];
-    return {
-      day: d.toLocaleDateString("en-IN", { weekday: "short" }),
-      count: attendanceLogs.filter(log => dayKey(log.date) === key).length
-    };
-  });
   const last6Months = Array.from({ length: 6 }, (_, i) => {
     const d = new Date();
     d.setDate(1);
@@ -222,15 +202,6 @@ export function ReportsTab({ isSwim, members, coaches, userRole = "admin" }: Rep
         t.amount,
         t.paymentMethod,
         txnDate(t)
-      ]);
-    } else if (reportType === "attendance") {
-      headers = ["Member ID", "Name", "Timing Slot", "Checked In At", "Checked In By"];
-      rows = filteredAttendanceReport.map(log => [
-        log.membershipNo,
-        log.fullName,
-        log.allottedTiming || "N/A",
-        log.time,
-        log.checked_in_by || "Receptionist"
       ]);
     } else if (reportType === "renewal") {
       headers = ["Member ID", "Name", "Plan", "Renewal Amount", "Status", "Due Date"];
@@ -323,7 +294,7 @@ export function ReportsTab({ isSwim, members, coaches, userRole = "admin" }: Rep
     const statsHeaders = ["STATISTIC NAME", "CURRENT TALLY"];
     const statsRows = [
       ["Total Active Members", String(statsTotalMembers)],
-      ["Athletes Checked In Today", String(statsActiveMembers)],
+      ["Active Members", String(statsActiveMembers)],
       ["New Filtered Registrations", String(statsNewRegistrations)],
       ["Processed Renewals", String(statsRenewals)],
       ["Aggregated Revenue", `Rs. ${statsRevenue.toLocaleString("en-IN")}`],
@@ -362,15 +333,6 @@ export function ReportsTab({ isSwim, members, coaches, userRole = "admin" }: Rep
         `Rs. ${t.amount}`,
         t.paymentMethod,
         dayKey(txnDate(t))
-      ]);
-    } else if (reportType === "attendance") {
-      tableHeaders = ["Member ID", "Name", "Timing Slot", "Checked In", "Verified By"];
-      tableRows = filteredAttendanceReport.map(log => [
-        log.membershipNo,
-        log.fullName,
-        log.allottedTiming || "N/A",
-        log.time,
-        log.checked_in_by || "Receptionist"
       ]);
     } else if (reportType === "renewal") {
       tableHeaders = ["Member ID", "Name", "Plan", "Renewal Amt", "Status", "Due Date"];
@@ -443,7 +405,7 @@ export function ReportsTab({ isSwim, members, coaches, userRole = "admin" }: Rep
             Reports
           </h3>
           <p className="text-xs opacity-65 mt-0.5 max-w-2xl">
-            See members, attendance, renewals and fees collected, and download them as PDF or CSV. Figures are always up to date.
+            See members, renewals and fees collected, and download them as PDF or CSV. Figures are always up to date.
           </p>
         </div>
 
@@ -518,7 +480,7 @@ export function ReportsTab({ isSwim, members, coaches, userRole = "admin" }: Rep
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
         {[
           { label: "Total Members", value: statsTotalMembers, desc: "Approved base", color: "text-slate-900 dark:text-slate-100" },
-          { label: "Active Members", value: statsActiveMembers, desc: "Checked in today", color: "text-emerald-600 dark:text-emerald-400" },
+          { label: "Active Members", value: statsActiveMembers, desc: "Membership active", color: "text-emerald-600 dark:text-emerald-400" },
           { label: "New Registrations", value: statsNewRegistrations, desc: "Within filter", color: "text-sky-600 dark:text-sky-400" },
           { label: "Renewals", value: statsRenewals, desc: "Within filter", color: "text-indigo-600 dark:text-indigo-400" },
           { label: "Revenue", value: formatCurrency(statsRevenue), desc: "Successful paid", color: "text-amber-600 dark:text-amber-400" },
@@ -535,7 +497,7 @@ export function ReportsTab({ isSwim, members, coaches, userRole = "admin" }: Rep
       </div>
 
       {/* VISUAL ANALYTICS & CHARTS SECTION */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Gender Distribution Pie Chart */}
         <div className={`p-6 rounded-3xl border ${bgCard} space-y-3`}>
           <div className="flex items-center gap-2">
@@ -573,24 +535,6 @@ export function ReportsTab({ isSwim, members, coaches, userRole = "admin" }: Rep
           </div>
         </div>
 
-        {/* Attendance Trend Bar Chart */}
-        <div className={`p-6 rounded-3xl border ${bgCard} space-y-3`}>
-          <div className="flex items-center gap-2">
-            <BarChart2 className="w-4 h-4 text-emerald-500" />
-            <h4 className="text-sm font-bold">Daily Check-ins Trend</h4>
-          </div>
-          <div className="h-44 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={last7Days}>
-                <XAxis dataKey="day" stroke="#94a3b8" fontSize={10} />
-                <YAxis stroke="#94a3b8" fontSize={10} />
-                <Tooltip />
-                <Bar dataKey="count" fill="#10b981" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
         {/* Revenue Growth Line Chart */}
         <div className={`p-6 rounded-3xl border ${bgCard} space-y-3`}>
           <div className="flex items-center gap-2">
@@ -619,7 +563,6 @@ export function ReportsTab({ isSwim, members, coaches, userRole = "admin" }: Rep
           {[
             { id: "membership", title: "Membership Report", desc: "Approved swimmers list, membership types & contact tags.", icon: FileText },
             { id: "revenue", title: "Revenue Report", desc: "Breakdown of total fees collected & active plan distributions.", icon: Database },
-            { id: "attendance", title: "Attendance Report", desc: "Athlete check-in logs, arrival timestamps, and receptionist tags.", icon: Calendar },
             { id: "renewal", title: "Renewal Report", desc: "Subscription renewal logs, due dates, and pending renew tallies.", icon: Layers },
             { id: "payment", title: "Payment Report", desc: "Every UPI and card payment, including failed ones.", icon: FileSpreadsheet }
           ].map((r) => {
@@ -744,38 +687,6 @@ export function ReportsTab({ isSwim, members, coaches, userRole = "admin" }: Rep
                   ) : (
                     <tr>
                       <td colSpan={6} className="text-center py-10 opacity-55">No revenue records found in this date range.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            )}
-
-            {/* Render attendance list */}
-            {reportType === "attendance" && (
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="border-b border-current/10 opacity-60 uppercase font-mono tracking-wider text-[10px]">
-                    <th className="py-2.5 pr-2">Member ID</th>
-                    <th className="py-2.5 pr-2">Swimmer Name</th>
-                    <th className="py-2.5 pr-2">Timing Slot</th>
-                    <th className="py-2.5 pr-2">Checked In At</th>
-                    <th className="py-2.5">Checked In By</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-current/5 font-mono text-[11px]">
-                  {filteredAttendanceReport.length > 0 ? (
-                    filteredAttendanceReport.map((log) => (
-                      <tr key={log.id} className="hover:bg-current/5 transition-colors">
-                        <td className="py-3 text-sky-500 font-bold">{log.membershipNo}</td>
-                        <td className="py-3 pr-2 font-bold uppercase font-sans text-slate-800 dark:text-slate-100">{log.fullName}</td>
-                        <td className="py-3 pr-2 font-sans">{log.allottedTiming || log.typeOfMembership || "N/A"}</td>
-                        <td className="py-3 pr-2 text-indigo-500">{log.time}</td>
-                        <td className="py-3">{log.checked_in_by || "Staff"}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={5} className="text-center py-10 opacity-55">No attendance logs found in this date range.</td>
                     </tr>
                   )}
                 </tbody>
