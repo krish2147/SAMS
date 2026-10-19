@@ -52,8 +52,8 @@ export function openStatus(now = new Date()): { open: boolean; text: string } {
 const FAQS: Array<{ q: string; a: string; go?: { label: string; section: MemberSection } }> = [
   {
     q: "How do I renew my membership?",
-    a: "Visit the reception or call the academy before your expiry date. You can pay in cash at the desk or ask for an online payment link. Your new dates appear on My Membership as soon as the payment is recorded.",
-    go: { label: "See my expiry date", section: "membership" }
+    a: "From 30 days before your membership ends, tap Renew now on My Membership to pay online. You can also pay in cash at the reception. You get a reminder a week before and on the last day, and your new dates appear on My Membership as soon as the payment is recorded.",
+    go: { label: "Open My Membership", section: "membership" }
   },
   {
     q: "Where is my invoice?",

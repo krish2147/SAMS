@@ -390,12 +390,13 @@ export class PaymentService {
 
     const paymentType = payload.paymentType || "Registration";
 
-    // 2. Check duplicate protection: Reuse existing pending order if available
+    // 2. Check duplicate protection: Reuse an existing pending order of the same type if available
+    // (an old unpaid registration order must not be reused for a renewal, or the amount is wrong).
     const [existingPending]: any = await pool.query(
       `SELECT * FROM payments 
-       WHERE member_id = ? AND payment_status = 'Pending' AND razorpay_order_id IS NOT NULL 
+       WHERE member_id = ? AND payment_status = 'Pending' AND razorpay_order_id IS NOT NULL AND payment_type = ?
        ORDER BY id DESC LIMIT 1`,
-      [member.id]
+      [member.id, paymentType]
     );
 
     if (existingPending[0]) {

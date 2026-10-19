@@ -99,10 +99,10 @@ export const DEFAULT_TEMPLATES: CommunicationTemplate[] = [
   },
   {
     event_key: "renewal_reminder",
-    title: "Membership Renewal Reminder (3 Days Before Expiry)",
+    title: "Membership Renewal Reminder (7 days and 1 day before expiry)",
     whatsapp_template_name: "bsf_renewal_reminder",
-    whatsapp_content: "Upcoming Renewal Notice ⚠️\nDear {{MemberName}}, your BSF membership {{MembershipNo}} expires in 3 days on {{ExpiryDate}}.\n\nRenew now to keep your preferred batch slot {{Batch}}: {{PaymentLink}}",
-    sms_content: "BSFAMS: Urgent: BSF membership {{MembershipNo}} for {{MemberName}} expires on {{ExpiryDate}}. Renew at {{PaymentLink}} to hold batch {{Batch}}.",
+    whatsapp_content: "Membership renewal reminder\nDear {{MemberName}}, your Baroda Swim Front membership {{MembershipNo}} ends {{DaysLeftText}}, on {{ExpiryDate}}.\n\nRenew online from your member app ({{PaymentLink}}) or at the reception to keep your place in {{Batch}}.",
+    sms_content: "BSFAMS: BSF membership {{MembershipNo}} for {{MemberName}} ends {{DaysLeftText}} ({{ExpiryDate}}). Renew in the member app {{PaymentLink}} or at the reception.",
     email_subject: "Action Required: BSF Membership Expiring Soon",
     email_body_html: "<p>Dear <strong>{{MemberName}}</strong>,</p><p>This is a reminder that your membership <strong>{{MembershipNo}}</strong> is set to expire on <strong>{{ExpiryDate}}</strong>.</p><p>Please renew your membership promptly to prevent loss of batch slot reservation in <strong>{{Batch}}</strong>.</p>",
     channels: "whatsapp,email,sms"
@@ -242,6 +242,8 @@ export function replaceTemplateVariables(templateStr: string, vars: Record<strin
     "{{ReceiptLink}}": vars.receiptLink || `${process.env.APP_URL || "https://barodaswimfront.in"}/receipt`,
     "{{InvoiceUrl}}": vars.invoiceUrl || vars.InvoiceUrl || vars.receiptLink || `${process.env.APP_URL || "https://barodaswimfront.in"}/invoice`,
     "{{ExpiryDate}}": vars.expiryDate || vars.ExpiryDate || "31-Dec-2026",
+    "{{DaysLeft}}": vars.daysLeft !== undefined ? String(vars.daysLeft) : "",
+    "{{DaysLeftText}}": vars.daysLeftText || "soon",
     "{{Batch}}": vars.batch || vars.Batch || "Standard Morning Batch",
     "{{OTP}}": vars.otp || vars.OTP || "123456",
     "{{EventTitle}}": vars.eventTitle || vars.EventTitle || "Baroda Swim Championship 2026",
@@ -508,6 +510,7 @@ export async function sendEventNotification(
   if (!template) {
     template = DEFAULT_TEMPLATES.find(t => t.event_key === eventKey) || DEFAULT_TEMPLATES[0];
   }
+  template = upgradeLegacyTemplate(template);
 
   const vars = {
     memberName: recipient.memberName,
@@ -598,6 +601,22 @@ export async function sendEventNotification(
   }
 
   return logRecord;
+}
+
+// The first renewal reminder text said "expires in 3 days" whatever the real number was. Saved
+// copies of it that nobody has edited are swapped for the current wording when sent; a template
+// the academy changed itself is sent as written.
+const LEGACY_RENEWAL_WHATSAPP = "Upcoming Renewal Notice ⚠️\nDear {{MemberName}}, your BSF membership {{MembershipNo}} expires in 3 days on {{ExpiryDate}}.\n\nRenew now to keep your preferred batch slot {{Batch}}: {{PaymentLink}}";
+const LEGACY_RENEWAL_SMS = "BSFAMS: Urgent: BSF membership {{MembershipNo}} for {{MemberName}} expires on {{ExpiryDate}}. Renew at {{PaymentLink}} to hold batch {{Batch}}.";
+
+function upgradeLegacyTemplate(template: CommunicationTemplate): CommunicationTemplate {
+  if (template.event_key !== "renewal_reminder") return template;
+  const current = DEFAULT_TEMPLATES.find((t) => t.event_key === "renewal_reminder")!;
+  return {
+    ...template,
+    whatsapp_content: template.whatsapp_content === LEGACY_RENEWAL_WHATSAPP ? current.whatsapp_content : template.whatsapp_content,
+    sms_content: template.sms_content === LEGACY_RENEWAL_SMS ? current.sms_content : template.sms_content
+  };
 }
 
 // 6. BULK ANNOUNCEMENT SERVICE

@@ -120,8 +120,8 @@ export function MemberProfilePage() {
           <p className="font-display text-2xl font-bold tracking-tight text-slate-900">{profile.fullName || "Member"}</p>
           <p className="mt-1 text-sm text-slate-500">
             {profile.membershipNo ? `Membership no. ${profile.membershipNo}` : "Membership number pending"}
-            {profile.registrationDate ? ` · Member since ${formatDate(profile.registrationDate)}` : ""}
           </p>
+          {profile.registrationDate && <p className="mt-0.5 whitespace-nowrap text-sm text-slate-500">Member since {formatDate(profile.registrationDate)}</p>}
         </div>
       </div>
 

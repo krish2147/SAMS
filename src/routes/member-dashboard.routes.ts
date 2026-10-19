@@ -278,6 +278,40 @@ router.get("/member/holidays", requireAuth(["member", "parent"]), async (req: an
 });
 
 // 5. GET /api/member/payments
+// Online renewal. Opens 30 days before the membership ends (and stays open after it has ended),
+// so a member can't pay for a new period months early by mistake. Creates (or reuses) a Razorpay
+// renewal order at the plan's renewal fee and returns the checkout page; paying there extends the
+// membership from its current end date, the same as a renewal at the counter.
+export const RENEWAL_OPENS_DAYS_BEFORE = 30;
+
+router.post("/member/renew", requireAuth(["member", "parent"]), async (req: any, res: Response, next) => {
+  try {
+    const member = await getAuthenticatedMember(req);
+    if (!member) return res.status(404).json({ error: "Authenticated member record not found" });
+    const expiryDate = toDateOnlyString(member.membership_end_date);
+    if (!expiryDate || !member.membership_plan_id) {
+      return res.status(409).json({ error: "Your membership can't be renewed online yet. Please renew at the reception." });
+    }
+    const daysLeft = calendarDaysBetween(calendarToday(), expiryDate);
+    if (daysLeft > RENEWAL_OPENS_DAYS_BEFORE) {
+      return res.status(409).json({ error: `Online renewal opens ${RENEWAL_OPENS_DAYS_BEFORE} days before your membership ends.` });
+    }
+    const order = await new PaymentService().createRazorpayOrder({
+      memberId: member.id,
+      paymentType: "Renewal",
+      approvedBy: "Member (online renewal)"
+    });
+    res.json({
+      success: true,
+      amount: order.amount,
+      checkoutPath: `/pay?order_id=${encodeURIComponent(order.orderId)}&member=${encodeURIComponent(member.membershipNo || String(member.id))}`
+    });
+  } catch (err: any) {
+    if (err?.status === 502 || err?.status === 503) return res.status(503).json({ error: "Online payment isn't available right now. Please try again later or renew at the reception." });
+    next(err);
+  }
+});
+
 router.get("/member/payments", requireAuth(["member", "parent"]), async (req: any, res: Response, next) => {
   try {
     const member = await getAuthenticatedMember(req);

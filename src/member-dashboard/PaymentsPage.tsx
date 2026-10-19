@@ -37,7 +37,7 @@ export function PaymentsPage() {
 
   return <div className="space-y-6 lg:space-y-7">
     <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><h1 className="text-2xl font-bold tracking-[-0.025em] text-slate-950 sm:text-[30px]">Payments &amp; Invoices</h1><p className="mt-1.5 text-sm leading-6 text-slate-500 sm:text-[15px]">View your membership payments and invoices.</p></div>{latestInvoiceDownload && <a href={latestInvoiceDownload} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800"><Download className="h-4 w-4" />Download latest invoice</a>}</header>
-    <PaymentSummary latest={latest} latestPaid={latestPaid} />
+    <PaymentSummary latest={latest} />
     {pending && <section aria-label="Pending payment" className="flex flex-col gap-4 rounded-2xl border border-amber-200 bg-amber-50/70 p-5 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-3"><AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" /><div><h2 className="text-sm font-semibold text-amber-950">Payment pending</h2><p className="mt-1 text-sm text-amber-800">{pending.planName || "Membership"} · {currency.format(pending.amount)}</p></div></div><PaymentStatusBadge payment={pending} /></section>}
     <PaymentHistory payments={payments} filter={filter} onFilterChange={setFilter} />
   </div>;
