@@ -2,7 +2,6 @@ import { Router, Response } from "express";
 import { requireAuth } from "../middleware/authMiddleware";
 import { getDbPool } from "../config/db";
 import { PaymentService } from "../services/payment.service";
-import type { PaymentDocumentKind } from "../services/pdf-invoice.service";
 import { normalizeIndianMobile } from "../utils/phone";
 import { calendarDaysBetween, calendarToday, toDateOnlyString } from "../utils/membership-date";
 
@@ -420,7 +419,7 @@ router.get("/member/membership", requireAuth(["member", "parent"]), async (req: 
 // 7a. GET /api/member/payments/receipt/:receiptNo and /invoice/:invoiceNo
 // Invoice references are bound to the authenticated member: a number belonging to anyone
 // else, or to an unpaid payment, is reported as not found.
-async function sendOwnPaymentDocument(req: any, res: Response, next: any, kind: PaymentDocumentKind, paymentRow: (memberId: number) => Promise<any>) {
+async function sendOwnPaymentDocument(req: any, res: Response, next: any, paymentRow: (memberId: number) => Promise<any>) {
   try {
     const member = await getAuthenticatedMember(req);
     if (!member) {
@@ -430,10 +429,9 @@ async function sendOwnPaymentDocument(req: any, res: Response, next: any, kind: 
     if (!payment || !PAID_STATUSES.includes(String(payment.payment_status || "").toLowerCase())) {
       return res.status(404).json({ error: "Document not found" });
     }
-    const { pdfResult, invoiceNo, receiptNo } = await new PaymentService().ensureAndGetInvoicePDF(Number(payment.id), undefined, kind);
-    const fileName = kind === "receipt" ? receiptNo : invoiceNo;
+    const { pdfResult, invoiceNo } = await new PaymentService().ensureAndGetInvoicePDF(Number(payment.id));
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `${req.query.download === "true" ? "attachment" : "inline"}; filename="${fileName}.pdf"`);
+    res.setHeader("Content-Disposition", `${req.query.download === "true" ? "attachment" : "inline"}; filename="${invoiceNo}.pdf"`);
     res.setHeader("Content-Length", pdfResult.pdfBuffer.length);
     res.setHeader("Cache-Control", "private, no-store");
     return res.send(pdfResult.pdfBuffer);
@@ -443,7 +441,7 @@ async function sendOwnPaymentDocument(req: any, res: Response, next: any, kind: 
 }
 
 router.get("/member/payments/receipt/:receiptNo", requireAuth(["member", "parent"]), (req: any, res, next) =>
-  sendOwnPaymentDocument(req, res, next, "receipt", async (memberId) => {
+  sendOwnPaymentDocument(req, res, next, async (memberId) => {
     const pool = await getDbPool();
     const [rows]: any = await pool.query(
       "SELECT id, payment_status FROM payments WHERE member_id = ? AND receipt_no = ? LIMIT 1",
@@ -454,7 +452,7 @@ router.get("/member/payments/receipt/:receiptNo", requireAuth(["member", "parent
 );
 
 router.get("/member/payments/invoice/:invoiceNo", requireAuth(["member", "parent"]), (req: any, res, next) =>
-  sendOwnPaymentDocument(req, res, next, "invoice", async (memberId) => {
+  sendOwnPaymentDocument(req, res, next, async (memberId) => {
     const pool = await getDbPool();
     const [rows]: any = await pool.query(
       "SELECT id, payment_status FROM payments WHERE member_id = ? AND invoice_no = ? LIMIT 1",

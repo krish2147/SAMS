@@ -81,10 +81,10 @@ export const DEFAULT_TEMPLATES: CommunicationTemplate[] = [
     event_key: "payment_successful",
     title: "Payment Successful",
     whatsapp_template_name: "bsf_payment_successful",
-    whatsapp_content: "Payment Confirmed! ✅\nDear {{MemberName}}, we received INR {{Amount}} for membership {{MembershipNo}}. Receipt No: {{ReceiptNo}}.\n\nDownload official receipt PDF: {{ReceiptLink}}\nThank you for choosing Baroda Swim Front!",
-    sms_content: "BSFAMS: Received INR {{Amount}} for {{MembershipNo}}. Receipt No: {{ReceiptNo}}. Membership is now ACTIVE. - Baroda Swim Front",
-    email_subject: "Payment Receipt & Confirmation - Baroda Swim Front",
-    email_body_html: "<p>Dear <strong>{{MemberName}}</strong>,</p><p>We have successfully received your payment of <strong>INR {{Amount}}</strong> for membership <strong>{{MembershipNo}}</strong>.</p><p>Your official receipt number is <strong>{{ReceiptNo}}</strong>. Your membership status is now <strong>ACTIVE</strong>.</p>",
+    whatsapp_content: "Payment Confirmed! ✅\nDear {{MemberName}}, we received INR {{Amount}} for membership {{MembershipNo}}. Invoice No: {{InvoiceNo}}.\n\nDownload your invoice: {{InvoiceUrl}}\nThank you for choosing Baroda Swim Front!",
+    sms_content: "BSFAMS: Received INR {{Amount}} for {{MembershipNo}}. Invoice No: {{InvoiceNo}}. Membership is now ACTIVE. - Baroda Swim Front",
+    email_subject: "Payment Confirmation - Baroda Swim Front",
+    email_body_html: "<p>Dear <strong>{{MemberName}}</strong>,</p><p>We have successfully received your payment of <strong>INR {{Amount}}</strong> for membership <strong>{{MembershipNo}}</strong>.</p><p>Your invoice number is <strong>{{InvoiceNo}}</strong>. Your membership status is now <strong>ACTIVE</strong>.</p>",
     channels: "whatsapp,email,sms"
   },
   {
@@ -238,7 +238,9 @@ export function replaceTemplateVariables(templateStr: string, vars: Record<strin
     "{{MembershipNo}}": vars.membershipNo || vars.MembershipNo || "BSF-MEM",
     "{{PaymentLink}}": vars.paymentLink || vars.PaymentLink || `${process.env.APP_URL || "https://barodaswimfront.in"}/payments`,
     "{{Amount}}": vars.amount !== undefined ? String(vars.amount) : "0",
-    "{{ReceiptNo}}": vars.receiptNo || "BSF-REC-2026-001",
+    // Receipts and invoices are one document: an old template's {{ReceiptNo}} shows the invoice number.
+    "{{ReceiptNo}}": vars.invoiceNo || vars.receiptNo || "",
+    "{{InvoiceNo}}": vars.invoiceNo || vars.receiptNo || "",
     "{{ReceiptLink}}": vars.receiptLink || `${process.env.APP_URL || "https://barodaswimfront.in"}/receipt`,
     "{{InvoiceUrl}}": vars.invoiceUrl || vars.InvoiceUrl || vars.receiptLink || `${process.env.APP_URL || "https://barodaswimfront.in"}/invoice`,
     "{{ExpiryDate}}": vars.expiryDate || vars.ExpiryDate || "31-Dec-2026",
@@ -612,7 +614,26 @@ export async function sendEventNotification(
 const LEGACY_RENEWAL_WHATSAPP = "Upcoming Renewal Notice ⚠️\nDear {{MemberName}}, your BSF membership {{MembershipNo}} expires in 3 days on {{ExpiryDate}}.\n\nRenew now to keep your preferred batch slot {{Batch}}: {{PaymentLink}}";
 const LEGACY_RENEWAL_SMS = "BSFAMS: Urgent: BSF membership {{MembershipNo}} for {{MemberName}} expires on {{ExpiryDate}}. Renew at {{PaymentLink}} to hold batch {{Batch}}.";
 
-function upgradeLegacyTemplate(template: CommunicationTemplate): CommunicationTemplate {
+// Receipts and invoices are the same document, so saved templates that still say "receipt" are
+// sent with the invoice wording.
+const RECEIPT_WORDING: Array<[string, string]> = [
+  ["Download official receipt PDF: {{ReceiptLink}}", "Download your invoice: {{InvoiceUrl}}"],
+  ["Receipt No: {{ReceiptNo}}", "Invoice No: {{InvoiceNo}}"],
+  ["Your official receipt number is", "Your invoice number is"],
+  ["Payment Receipt & Confirmation", "Payment Confirmation"]
+];
+function invoiceWording(text: string) {
+  return RECEIPT_WORDING.reduce((out, [from, to]) => out.split(from).join(to), text || "");
+}
+
+function upgradeLegacyTemplate(original: CommunicationTemplate): CommunicationTemplate {
+  const template = {
+    ...original,
+    whatsapp_content: invoiceWording(original.whatsapp_content),
+    sms_content: invoiceWording(original.sms_content),
+    email_subject: invoiceWording(original.email_subject),
+    email_body_html: invoiceWording(original.email_body_html)
+  };
   if (template.event_key !== "renewal_reminder") return template;
   const current = DEFAULT_TEMPLATES.find((t) => t.event_key === "renewal_reminder")!;
   return {

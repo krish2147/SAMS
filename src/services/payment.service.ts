@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { getDbPool, isMockDatabase } from "../config/db";
 import { ActivityService } from "./activity.service";
 import { sendEventNotification } from "./communication.service";
-import { PdfInvoiceService, ACADEMY_GSTIN, type PaymentDocumentKind } from "./pdf-invoice.service";
+import { PdfInvoiceService, ACADEMY_GSTIN } from "./pdf-invoice.service";
 import { sendPaymentReminder, sendPaymentSuccessWhatsApp, sendPaymentInvoiceWhatsApp } from "./whatsapp.service";
 import { enqueuePaymentWhatsApp } from "./notification-worker.service";
 import { calculateActivationMembershipPeriod } from "../utils/membership-date";
@@ -900,7 +900,7 @@ export class PaymentService {
         }, {
           membershipNo: member.membershipNo,
           amount: payment.amount,
-          receiptNo: receiptNo,
+          invoiceNo,
           invoiceUrl: generatedInvoiceUrl
         }).catch(err => console.error("Payment verify notification error:", err));
 
@@ -2069,9 +2069,8 @@ export class PaymentService {
   /**
    * Ensures invoice PDF is generated and saved to server disk and database.
    * If PDF already exists, reuses existing file without regenerating.
-   * With kind "receipt" it returns the payment receipt PDF instead (stored separately).
    */
-  async ensureAndGetInvoicePDF(paymentId: number, approvedBy: string = "System Admin", kind: PaymentDocumentKind = "invoice") {
+  async ensureAndGetInvoicePDF(paymentId: number, approvedBy: string = "System Admin") {
     const pool = await getDbPool();
     const [rows]: any = await pool.query(
       `SELECT p.*, m.fullName as member_name, m.membershipNo, m.mobileNo, m.email, m.addressLine1, pl.name as plan_name
@@ -2111,19 +2110,6 @@ export class PaymentService {
       gstin: ACADEMY_GSTIN,
       invoicePath: p.invoice_path
     };
-
-    if (kind === "receipt") {
-      // The receipt is its own document; keep the invoice file fields untouched and only make
-      // sure the numbers printed on it are stored for this payment.
-      if (!p.receipt_no || !p.invoice_no) {
-        await pool.query(
-          "UPDATE payments SET receipt_no = COALESCE(receipt_no, ?), invoice_no = COALESCE(invoice_no, ?) WHERE id = ?",
-          [receiptNo, invoiceNo, p.id]
-        );
-      }
-      const pdfResult = await PdfInvoiceService.generateInvoicePDF(invoiceData, "receipt");
-      return { pdfResult, invoiceNo, receiptNo, payment: p };
-    }
 
     const isFirstTime = !p.invoice_path || !p.generated_at;
 

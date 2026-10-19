@@ -35,27 +35,17 @@ export interface InvoiceData {
   invoicePath?: string;
 }
 
-/** Which document to draw: the tax invoice, or the payment receipt (proof the money was received). */
-export type PaymentDocumentKind = "invoice" | "receipt";
-
 export class PdfInvoiceService {
   /**
-   * Generate clean A4 PDF Invoice or Receipt document. Each is stored under its own number,
-   * so the receipt and the invoice for one payment are two different files.
+   * Generate the clean A4 invoice PDF (the one payment document; there is no separate receipt).
    * If PDF file already exists on server disk, reuses existing file without regenerating.
    */
-  static async generateInvoicePDF(
-    data: InvoiceData,
-    kind: PaymentDocumentKind = "invoice"
-  ): Promise<{ filePath: string; fileUrl: string; pdfBuffer: Buffer }> {
-    const isReceipt = kind === "receipt";
-    const docNo = isReceipt ? data.receiptNo : data.invoiceNo;
-    const folder = isReceipt ? "receipts" : "invoices";
-    const filename = `${docNo.replace(/[^a-zA-Z0-9_-]/g, "_")}.pdf`;
-    const objectKey = `${folder}/${filename}`;
-    const uploadDir = path.join(uploadsDir, folder);
+  static async generateInvoicePDF(data: InvoiceData): Promise<{ filePath: string; fileUrl: string; pdfBuffer: Buffer }> {
+    const filename = `${data.invoiceNo.replace(/[^a-zA-Z0-9_-]/g, "_")}.pdf`;
+    const objectKey = `invoices/${filename}`;
+    const uploadDir = path.join(uploadsDir, "invoices");
     const filePath = path.join(uploadDir, filename);
-    const fileUrl = `/uploads/${folder}/${filename}`;
+    const fileUrl = `/uploads/invoices/${filename}`;
 
     if (objectStorageEnabled()) {
       const existingObject = await getObject(objectKey);
@@ -84,10 +74,8 @@ export class PdfInvoiceService {
     const statusText = (data.status || "PAID").toUpperCase();
 
     // 3. Generate Verification QR Code Data URL
-    const qrContent = `BARODA SWIM FRONT - OFFICIAL ${isReceipt ? "RECEIPT" : "INVOICE"}
-${isReceipt ? `Receipt No: ${data.receiptNo}
-Invoice No: ${data.invoiceNo}` : `Invoice No: ${data.invoiceNo}
-Receipt No: ${data.receiptNo}`}
+    const qrContent = `BARODA SWIM FRONT - OFFICIAL INVOICE
+Invoice No: ${data.invoiceNo}
 Member: ${data.memberName} (${data.membershipNo})
 Amount: INR ${data.totalAmount}
 Status: ${statusText}
@@ -129,7 +117,7 @@ Txn ID: ${data.razorpayPaymentId || "N/A"}`;
       doc.line(from, y, to, y);
     };
 
-    // ---------- Masthead: logo left, INVOICE / RECEIPT right ----------
+    // ---------- Masthead: logo left, INVOICE right ----------
     try {
       doc.addImage(BARODA_SWIM_FRONT_LOGO_DATA_URI, "PNG", M, 18, 20, 20, undefined, "FAST");
     } catch (_) {}
@@ -147,16 +135,16 @@ Txn ID: ${data.razorpayPaymentId || "N/A"}`;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(30);
     doc.setTextColor(...INK);
-    doc.text(isReceipt ? "RECEIPT" : "INVOICE", RIGHT, 30, { align: "right" });
+    doc.text("INVOICE", RIGHT, 30, { align: "right" });
 
     // ---------- Meta row ----------
     let y = 48;
-    label(isReceipt ? "Received from" : "Billed to", M, y);
+    label("Billed to", M, y);
     label("Academy", M + 62, y);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(11);
     doc.setTextColor(...INK);
-    doc.text(`#${docNo}`, RIGHT, y, { align: "right" });
+    doc.text(`#${data.invoiceNo}`, RIGHT, y, { align: "right" });
 
     y += 6;
     value(data.memberName || "-", M, y, true);
@@ -170,13 +158,6 @@ Txn ID: ${data.razorpayPaymentId || "N/A"}`;
     value(data.membershipNo || "-", M, y);
     value("Vadodara, Gujarat", M + 62, y);
     if (gstin) value(`GSTIN: ${gstin}`, M + 62, y + 5);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(...MUTED);
-    doc.text(
-      isReceipt ? `Invoice ${data.invoiceNo || "-"}` : `Receipt ${data.receiptNo || "-"}`,
-      RIGHT, y, { align: "right" }
-    );
 
     y += 5;
     value(data.mobileNo || "-", M, y);
@@ -191,7 +172,7 @@ Txn ID: ${data.razorpayPaymentId || "N/A"}`;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(17);
     doc.setTextColor(...INK);
-    doc.text(isReceipt ? "Payment received for" : "Description", M, y);
+    doc.text("Description", M, y);
 
     y += 7;
     rule(y);
@@ -224,7 +205,7 @@ Txn ID: ${data.razorpayPaymentId || "N/A"}`;
     doc.text(money(subtotal), RIGHT, y, { align: "right" });
 
     y += 7;
-    label(isReceipt ? "Amount received" : "Total", totalsX, y);
+    label("Total", totalsX, y);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
     doc.setTextColor(...INK);
@@ -268,11 +249,9 @@ Txn ID: ${data.razorpayPaymentId || "N/A"}`;
     planLines.slice(0, 2).forEach((line, i) => value(line, M + 26, refY + i * 5));
 
     const terms = doc.splitTextToSize(
-      (isReceipt
-        ? "This receipt confirms payment received against the membership stated above. "
-        : `This invoice is for the membership stated above; payment is acknowledged by receipt ${data.receiptNo || ""}. `) +
-      "Membership is non-transferable. Please retain this document for your records and present your " +
-      "member QR pass at the reception gate.",
+      "This invoice confirms payment received against the membership stated above. Membership is " +
+      "non-transferable. Please retain this document for your records and present your member QR pass " +
+      "at the reception gate.",
       70
     ) as string[];
     doc.setFont("helvetica", "normal");
@@ -312,7 +291,7 @@ Txn ID: ${data.razorpayPaymentId || "N/A"}`;
     doc.setFontSize(7);
     doc.setTextColor(...MUTED);
     doc.text("Baroda Swim Front, Vadodara, Gujarat", M, 287);
-    doc.text(`${isReceipt ? "Receipt" : "Invoice"} ${docNo}`, RIGHT, 287, { align: "right" });
+    doc.text(`Invoice ${data.invoiceNo}`, RIGHT, 287, { align: "right" });
 
 
     // 5. Output Buffer & Save File

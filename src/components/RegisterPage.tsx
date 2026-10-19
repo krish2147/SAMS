@@ -309,7 +309,7 @@ export function RegisterPage({ academyId, onCancel, embedded = false, walkIn = f
   const [submitted, setSubmitted] = useState<null | {
     applicationNumber: string; fullName: string; whatsapp: string; planLabel: string; batchLabel: string; total: number;
     membershipNo?: string;
-    cash?: { receiptNo: string; amount: number; endDate: string } | { error: string };
+    cash?: { invoiceNo: string; amount: number; endDate: string } | { error: string };
   }>(null);
   const [cashReceived, setCashReceived] = useState(false);
   const [payMode, setPayMode] = useState<"cash" | "link">("cash");
@@ -527,7 +527,7 @@ export function RegisterPage({ academyId, onCancel, embedded = false, walkIn = f
       }
 
       // Walk-in: the cash is already in hand, so approve and activate now instead of sending a link.
-      let cash: { receiptNo: string; amount: number; endDate: string } | { error: string } | undefined;
+      let cash: { invoiceNo: string; amount: number; endDate: string } | { error: string } | undefined;
       if (takingCash) {
         try {
           let token = "";
@@ -540,7 +540,7 @@ export function RegisterPage({ academyId, onCancel, embedded = false, walkIn = f
           });
           const cashResult = await cashResponse.json().catch(() => ({}));
           cash = cashResponse.ok
-            ? { receiptNo: cashResult.receiptNo, amount: Number(cashResult.amount), endDate: cashResult.membershipEndDate }
+            ? { invoiceNo: cashResult.invoiceNo, amount: Number(cashResult.amount), endDate: cashResult.membershipEndDate }
             : { error: cashResult.error || "The cash payment could not be recorded." };
         } catch {
           cash = { error: "The cash payment could not be recorded because the connection dropped." };
@@ -585,7 +585,7 @@ export function RegisterPage({ academyId, onCancel, embedded = false, walkIn = f
   // Success
   // -------------------------------------------------------------------------------------------
   if (submitted && submitted.cash) {
-    const cashOk = submitted.cash && "receiptNo" in submitted.cash ? submitted.cash : null;
+    const cashOk = submitted.cash && "invoiceNo" in submitted.cash ? submitted.cash : null;
     const cashError = submitted.cash && "error" in submitted.cash ? submitted.cash.error : null;
     const endLabel = cashOk?.endDate ? new Date(cashOk.endDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "";
     return (
@@ -600,7 +600,7 @@ export function RegisterPage({ academyId, onCancel, embedded = false, walkIn = f
             </h1>
             <p className={`mt-2 text-[15px] ${cashOk ? "text-ink-200" : "text-ink-700"}`}>
               {cashOk
-                ? "Cash received and the membership is active. The receipt and invoice are sent on WhatsApp."
+                ? "Cash received and the membership is active. The invoice is sent on WhatsApp."
                 : `${cashError} Open Member Approvals to approve ${submitted.fullName} and record the payment there.`}
             </p>
           </div>
@@ -610,7 +610,7 @@ export function RegisterPage({ academyId, onCancel, embedded = false, walkIn = f
               <div className="flex justify-between gap-4"><span className="text-ink-600">Plan</span><span className="text-right font-semibold text-ink-950">{submitted.planLabel}</span></div>
               <div className="flex justify-between gap-4"><span className="text-ink-600">Pool time</span><span className="text-right font-semibold text-ink-950">{submitted.batchLabel}</span></div>
               {cashOk && <div className="flex justify-between gap-4"><span className="text-ink-600">Cash received</span><span className="font-semibold tabular-nums text-ink-950">{rupees(cashOk.amount)}</span></div>}
-              {cashOk && <div className="flex justify-between gap-4"><span className="text-ink-600">Receipt no.</span><span className="font-mono font-semibold text-ink-950">{cashOk.receiptNo}</span></div>}
+              {cashOk && <div className="flex justify-between gap-4"><span className="text-ink-600">Invoice no.</span><span className="font-mono font-semibold text-ink-950">{cashOk.invoiceNo}</span></div>}
               {endLabel && <div className="flex justify-between gap-4"><span className="text-ink-600">Active until</span><span className="font-semibold text-ink-950">{endLabel}</span></div>}
             </div>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
