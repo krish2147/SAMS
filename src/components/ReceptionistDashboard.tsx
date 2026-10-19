@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from "motion/react";
 import { 
   Users, CheckCircle2, Clock, Send, Eye, Search, AlertCircle, 
   LogOut, ShieldAlert, Phone, User, Calendar, CreditCard,
-  MapPin, Plus, Check, RefreshCw, X, FileText, Bell, CheckCircle, Heart, QrCode, Maximize2
+  MapPin, Plus, Check, RefreshCw, X, FileText, Bell, CheckCircle, Heart, QrCode, Maximize2,
+  LayoutDashboard, UserPlus, Menu, Sliders
 } from "lucide-react";
 import { AcademyId } from "../types";
 import { QrScannerModal } from "./QrScannerModal";
@@ -17,6 +18,23 @@ import { sessionStore } from "../utils/sessionStore";
 import { useStaffNotifications } from "../utils/useStaffNotifications";
 import { NotificationCountBadge } from "./NotificationCountBadge";
 import { mobileDigits } from "../utils/phone";
+import { SideMenuDrawer } from "./SideMenuDrawer";
+import { SettingsTab } from "./SettingsTab";
+import { RegisterPage } from "./RegisterPage";
+import { useRememberedState } from "../utils/useRememberedState";
+import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-logo";
+
+// Reception has the same layout as the coach and admin dashboards: a sidebar on computers, and on
+// phones a bottom bar plus the side menu. Each page is one front-desk job.
+type ReceptionSection = "home" | "checkin" | "register" | "approvals" | "payments" | "settings";
+const RECEPTION_PAGES: Array<{ id: ReceptionSection; label: string; icon: React.ComponentType<{ className?: string }> }> = [
+  { id: "home", label: "Dashboard", icon: LayoutDashboard },
+  { id: "checkin", label: "Check-in", icon: CheckCircle2 },
+  { id: "register", label: "Register a member", icon: UserPlus },
+  { id: "approvals", label: "Approvals", icon: Clock },
+  { id: "payments", label: "Pending payments", icon: CreditCard },
+  { id: "settings", label: "Settings", icon: Sliders }
+];
 
 interface ReceptionistDashboardProps {
   academyId: AcademyId;
@@ -50,6 +68,9 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
     return "";
   };
 
+  const displayName = sessionUser?.name || userName || "Reception";
+  const photoUrl = sessionUser?.photoUrl || sessionUser?.avatar || "";
+
   // State Management
   const [allMembers, setAllMembers] = useState<any[]>([]);
   const [attendanceLogs, setAttendanceLogs] = useState<any[]>([]);
@@ -76,6 +97,10 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
   const [isTimelineModalOpen, setIsTimelineModalOpen] = useState(false);
   const [isClosingReportModalOpen, setIsClosingReportModalOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [rememberedSection, setSection] = useRememberedState<ReceptionSection>("reception.section", "home");
+  const section: ReceptionSection = RECEPTION_PAGES.some((p) => p.id === rememberedSection) ? rememberedSection : "home";
+  const currentPage = RECEPTION_PAGES.find((p) => p.id === section)!;
+  const [menuOpen, setMenuOpen] = useState(false);
   const staffFeed = useStaffNotifications();
   
   // Local persistent state for walk-in inquiries
@@ -220,6 +245,13 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
     return matchesName || matchesNo || matchesMobile;
   });
 
+  // Picking a member (from search, a QR scan or Pending payments) brings their card into view.
+  useEffect(() => {
+    if (section !== "checkin" || !selectedMember) return;
+    const id = window.setTimeout(() => document.getElementById("member-profile-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+    return () => window.clearTimeout(id);
+  }, [section, selectedMember?.id]);
+
   // Check if selected member is checked in today
   const isAlreadyCheckedIn = selectedMember && todayCheckIns.some(
     log => Number(log.member_id) === Number(selectedMember.id)
@@ -290,18 +322,30 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
       notes: ""
     });
     setIsWalkInModalOpen(false);
-    showToast("Walk-in inquiry logged successfully!");
+    showToast("Enquiry saved on this device.");
   };
 
-  // Send Reminder function (staff restricted capability simulation with visual toast/activity log)
-  const handleSendReminder = (member: any) => {
-    showToast(`Payment reminder sent to ${member.fullName}'s parent on SMS & WhatsApp!`);
+  // Sends the member's payment link on WhatsApp (the approved payment_link template).
+  const [sendingLinkFor, setSendingLinkFor] = useState<number | null>(null);
+  const handleSendReminder = async (member: any) => {
+    setSendingLinkFor(member.id);
+    try {
+      const token = getSessionToken();
+      const res = await fetch("/api/members/resend-whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { "x-session-token": token } : {}) },
+        body: JSON.stringify({ membershipNo: member.membershipNo })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "The payment link could not be sent.");
+      showToast(data.message || `Payment link sent to ${member.fullName} on WhatsApp.`);
+    } catch (err: any) {
+      showToast(err.message || "The payment link could not be sent.", "error");
+    } finally {
+      setSendingLinkFor(null);
+    }
   };
 
-  // Notify Admin function (staff capability simulation)
-  const handleNotifyAdmin = (member: any) => {
-    showToast(`Approval escalation alert transmitted to Swimmer Operations Admin for ${member.fullName}!`);
-  };
 
   // Access validation (Restrict to reception/staff roles)
   const hasAccess = sessionUser && ["receptionist", "staff", "admin", "super_admin"].includes(sessionUser.role);
@@ -329,7 +373,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
   }
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-800 flex flex-col font-sans select-none" id="receptionist-terminal">
+    <div className="min-h-screen bg-[#f8fafc] text-slate-800 flex font-sans" id="receptionist-terminal">
       
       {/* Toast Alert */}
       <AnimatePresence>
@@ -351,106 +395,121 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
         )}
       </AnimatePresence>
 
-      {/* Dashboard Top Navigation */}
-      <header className="bg-white border-b border-slate-100 px-6 py-4 sticky top-0 z-30 shadow-xs" id="dashboard-header">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 bg-sky-500 text-white flex items-center justify-center rounded-xl font-black tracking-tighter text-lg shadow-md shadow-sky-100">
-              BSF
-            </div>
-            <div>
-              <h1 className="text-lg font-black tracking-tight text-slate-950">Baroda Swim Front</h1>
-              <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400">
-                <span className="h-2 w-2 rounded-full bg-sky-400 inline-block animate-pulse"></span>
-                <span>Reception</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3.5 w-full sm:w-auto justify-between sm:justify-end">
-            <div className="text-right hidden md:block">
-              <span className="text-[10px] font-bold font-mono text-slate-400 block uppercase">LOGGED IN AS</span>
-              <span className="text-sm font-extrabold text-slate-800">{userName || "Receptionist"}</span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setIsKioskOpen(true)}
-                className="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-purple-500/20 active:scale-95 cursor-pointer"
-                id="btn-launch-kiosk"
-              >
-                <Maximize2 className="h-4 w-4" />
-                <span className="hidden md:inline">Launch Kiosk Mode</span>
-              </button>
-
-              <button
-                onClick={() => setIsClosingReportModalOpen(true)}
-                className="flex items-center gap-2 px-3.5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
-                id="btn-closing-report"
-              >
-                <FileText className="h-4 w-4 text-emerald-400" />
-                <span className="hidden md:inline">Daily Closing Report</span>
-              </button>
-
-              <button
-                onClick={() => setIsQrScannerOpen(true)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-cyan-500/20 active:scale-95 cursor-pointer"
-                id="btn-scan-qr-header"
-              >
-                <QrCode className="h-4 w-4" />
-                <span>Scan Member QR</span>
-              </button>
-
-              <button
-                onClick={fetchDashboardData}
-                disabled={isRefreshing}
-                className="p-2.5 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl transition-all cursor-pointer border border-slate-100 relative group"
-                title="Refresh"
-                id="btn-refresh-dashboard"
-              >
-                <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin text-sky-500" : ""}`} />
-              </button>
-
-              <button
-                onClick={() => setNotificationsOpen(!notificationsOpen)}
-                className="p-2.5 bg-white hover:bg-slate-50 text-slate-700 rounded-xl transition-all cursor-pointer border border-slate-200 relative group shadow-2xs"
-                title="Notifications" aria-label="Notifications"
-                id="btn-receptionist-bell"
-              >
-                <Bell className="h-4 w-4" />
-                <NotificationCountBadge count={staffFeed.unreadCount} />
-              </button>
-
-              {onLogout && (
-                <button
-                  onClick={onLogout}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-red-50 hover:bg-red-100/80 text-red-600 rounded-xl text-xs font-bold border border-red-100 transition-all cursor-pointer"
-                  id="btn-logout"
-                >
-                  <LogOut className="h-4 w-4" />
-                  <span>Logout</span>
-                </button>
-              )}
-            </div>
+      {/* 1. DESKTOP SIDEBAR (same layout as the coach and admin dashboards) */}
+      <aside className="hidden md:flex flex-col w-64 bg-slate-900 text-slate-300 border-r border-slate-800 shrink-0 h-screen sticky top-0">
+        <div className="h-16 px-6 flex items-center gap-3 border-b border-slate-800 bg-slate-950/40 shrink-0">
+          <img src={BARODA_SWIM_FRONT_LOGO_DATA_URI} alt="Baroda Swim Front" className="h-9 w-9 rounded-xl object-cover shadow-md shrink-0" />
+          <div className="flex flex-col justify-center min-w-0">
+            <span className="text-xs font-black tracking-tight leading-none text-white truncate">Baroda Swim Front</span>
+            <span className="text-[9px] font-mono tracking-widest uppercase font-semibold text-sky-400 mt-1 truncate">Reception</span>
           </div>
         </div>
-      </header>
+        <div className="p-4 border-b border-slate-800 bg-slate-950/20 shrink-0 flex items-center gap-3">
+          <div className="h-9 w-9 rounded-xl overflow-hidden bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-sky-400 uppercase shrink-0">
+            {photoUrl ? <img src={photoUrl} alt="Profile" className="h-full w-full object-cover" /> : displayName.charAt(0)}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-bold text-white truncate">{displayName}</div>
+            <div className="text-[9.5px] font-mono text-sky-400 uppercase font-semibold truncate tracking-wider">Reception</div>
+          </div>
+        </div>
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1" aria-label="Reception pages">
+          {RECEPTION_PAGES.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = section === tab.id;
+            const badge = tab.id === "approvals" ? pendingApprovalsCount : tab.id === "payments" ? pendingPaymentsCount : 0;
+            return (
+              <button
+                key={tab.id}
+                id={`btn-reception-tab-${tab.id}`}
+                onClick={() => setSection(tab.id)}
+                className={`w-full px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-3 transition-all cursor-pointer ${
+                  isActive ? "bg-sky-600 text-white font-bold shadow-sm" : "text-slate-400 hover:text-white hover:bg-slate-800"
+                }`}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                <span className="truncate flex-1 text-left">{tab.label}</span>
+                {badge > 0 && <span className="min-w-5 rounded-full bg-rose-500 px-1.5 py-0.5 text-center text-[10px] font-bold text-white">{badge}</span>}
+              </button>
+            );
+          })}
+          <div className="pt-4 mt-3 border-t border-slate-800 space-y-1">
+            <button onClick={() => setIsKioskOpen(true)} id="btn-launch-kiosk" className="w-full px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-3 text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer">
+              <Maximize2 className="h-4 w-4 shrink-0" /><span>Kiosk mode</span>
+            </button>
+            <button onClick={() => setIsClosingReportModalOpen(true)} id="btn-closing-report" className="w-full px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-3 text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer">
+              <FileText className="h-4 w-4 shrink-0" /><span>Daily closing report</span>
+            </button>
+          </div>
+        </nav>
+        {onLogout && (
+          <div className="p-4 border-t border-slate-800 bg-slate-950/40 shrink-0">
+            <button id="btn-logout" onClick={onLogout} className="w-full px-3 py-2.5 rounded-xl text-xs font-bold text-red-400 hover:text-white hover:bg-red-500/10 flex items-center gap-3 transition-colors cursor-pointer">
+              <LogOut className="h-4 w-4 shrink-0" /><span>Log out</span>
+            </button>
+          </div>
+        )}
+      </aside>
 
-      {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 lg:p-8 space-y-8 overflow-y-auto">
+      {/* 2. MAIN AREA */}
+      <div className="flex-1 flex flex-col min-w-0">
 
+        {/* Phone header: menu, crest, page name; scan and bell on the right */}
+        <header className="md:hidden sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-slate-200/80 bg-white/95 px-3 backdrop-blur-md" id="dashboard-header">
+          <div className="flex min-w-0 items-center gap-2">
+            <button onClick={() => setMenuOpen(true)} aria-label="Open menu" className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg cursor-pointer">
+              <Menu className="h-5 w-5" />
+            </button>
+            <img src={BARODA_SWIM_FRONT_LOGO_DATA_URI} alt="Baroda Swim Front" className="h-8 w-8 rounded-lg object-cover shadow-sm shrink-0" />
+            <div className="min-w-0">
+              <span className="block truncate text-[11px] font-semibold text-slate-500 leading-tight">Baroda Swim Front</span>
+              <span className="block truncate text-sm font-black text-slate-900 leading-tight">{currentPage.label}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setIsQrScannerOpen(true)} aria-label="Scan member QR" id="btn-scan-qr-header" className="p-2 rounded-lg bg-sky-600 text-white shadow-sm cursor-pointer">
+              <QrCode className="h-5 w-5" />
+            </button>
+            <button onClick={() => setNotificationsOpen(!notificationsOpen)} aria-label="Notifications" id="btn-receptionist-bell" className="relative p-2 text-slate-600 hover:bg-slate-50 rounded-lg cursor-pointer">
+              <Bell className="h-5 w-5" />
+              <NotificationCountBadge count={staffFeed.unreadCount} />
+            </button>
+          </div>
+        </header>
+
+        {/* Desktop header */}
+        <header className="hidden md:flex sticky top-0 z-30 h-16 items-center justify-between border-b border-slate-200/80 bg-white px-8">
+          <h1 className="text-xs font-black uppercase tracking-widest text-slate-800">{currentPage.label}</h1>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setIsQrScannerOpen(true)} className="flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-sky-700 cursor-pointer">
+              <QrCode className="h-4 w-4" /><span>Scan member QR</span>
+            </button>
+            <button onClick={fetchDashboardData} disabled={isRefreshing} title="Refresh" aria-label="Refresh" id="btn-refresh-dashboard" className="p-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 cursor-pointer">
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin text-sky-500" : ""}`} />
+            </button>
+            <button onClick={() => setNotificationsOpen(!notificationsOpen)} title="Notifications" aria-label="Notifications" className="relative p-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 cursor-pointer">
+              <Bell className="h-4 w-4" />
+              <NotificationCountBadge count={staffFeed.unreadCount} />
+            </button>
+          </div>
+        </header>
+
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8 pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-8">
+
+        {section === "home" && (
+          <>
         {/* Real-time Statistics Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5 md:gap-5" id="stats-cards-grid">
           
           {/* Card 1: Total Approved Members */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between transition-transform hover:-translate-y-0.5 duration-200">
+          <div className="bg-white p-3.5 md:p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between transition-transform hover:-translate-y-0.5 duration-200">
             <div className="flex justify-between items-start">
               <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Total Members</span>
               <div className="p-2 bg-sky-50 text-sky-500 rounded-xl">
                 <Users className="h-4 w-4" />
               </div>
             </div>
-            <div className="mt-4">
+            <div className="mt-2 md:mt-4">
               {isDataLoading ? (
                 <div className="h-7 w-12 bg-slate-100 rounded-lg animate-pulse"></div>
               ) : (
@@ -461,14 +520,14 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
           </div>
 
           {/* Card 2: Checked In Today */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between transition-transform hover:-translate-y-0.5 duration-200">
+          <div className="bg-white p-3.5 md:p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between transition-transform hover:-translate-y-0.5 duration-200">
             <div className="flex justify-between items-start">
               <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Checked In Today</span>
               <div className="p-2 bg-emerald-50 text-emerald-500 rounded-xl">
                 <CheckCircle2 className="h-4 w-4" />
               </div>
             </div>
-            <div className="mt-4">
+            <div className="mt-2 md:mt-4">
               {isDataLoading ? (
                 <div className="h-7 w-12 bg-slate-100 rounded-lg animate-pulse"></div>
               ) : (
@@ -479,14 +538,14 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
           </div>
 
           {/* Card 3: Pending Approvals */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between transition-transform hover:-translate-y-0.5 duration-200">
+          <div role="button" tabIndex={0} onClick={() => setSection("approvals")} onKeyDown={(e) => { if (e.key === "Enter") setSection("approvals"); }} className="cursor-pointer bg-white p-3.5 md:p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between transition-transform hover:-translate-y-0.5 duration-200">
             <div className="flex justify-between items-start">
               <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Pending Approvals</span>
               <div className="p-2 bg-amber-50 text-amber-500 rounded-xl">
                 <Clock className="h-4 w-4" />
               </div>
             </div>
-            <div className="mt-4">
+            <div className="mt-2 md:mt-4">
               {isDataLoading ? (
                 <div className="h-7 w-12 bg-slate-100 rounded-lg animate-pulse"></div>
               ) : (
@@ -497,14 +556,14 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
           </div>
 
           {/* Card 4: Pending Payments */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between transition-transform hover:-translate-y-0.5 duration-200">
+          <div role="button" tabIndex={0} onClick={() => setSection("payments")} onKeyDown={(e) => { if (e.key === "Enter") setSection("payments"); }} className="cursor-pointer bg-white p-3.5 md:p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between transition-transform hover:-translate-y-0.5 duration-200">
             <div className="flex justify-between items-start">
               <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Pending Payments</span>
               <div className="p-2 bg-rose-50 text-rose-500 rounded-xl">
                 <CreditCard className="h-4 w-4" />
               </div>
             </div>
-            <div className="mt-4">
+            <div className="mt-2 md:mt-4">
               {isDataLoading ? (
                 <div className="h-7 w-12 bg-slate-100 rounded-lg animate-pulse"></div>
               ) : (
@@ -515,14 +574,14 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
           </div>
 
           {/* Card 5: Renewals Due (Next 3 Days) */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between transition-transform hover:-translate-y-0.5 duration-200 col-span-2 lg:col-span-1">
+          <div className="bg-white p-3.5 md:p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between transition-transform hover:-translate-y-0.5 duration-200 col-span-2 lg:col-span-1">
             <div className="flex justify-between items-start">
               <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Renewals Due (3d)</span>
               <div className="p-2 bg-purple-50 text-purple-500 rounded-xl">
                 <Calendar className="h-4 w-4" />
               </div>
             </div>
-            <div className="mt-4">
+            <div className="mt-2 md:mt-4">
               {isDataLoading ? (
                 <div className="h-7 w-12 bg-slate-100 rounded-lg animate-pulse"></div>
               ) : (
@@ -534,12 +593,87 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
 
         </div>
 
-        {/* Workspace Columns */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 items-start">
-          
-          {/* LEFT SIDE WORKSPACE: Member Search, Verification Profile & Check-In */}
-          <div className="lg:col-span-7 space-y-6 md:space-y-8" id="left-workspace">
-            
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 items-start">
+              <div className="lg:col-span-5 space-y-6">
+            {/* Quick actions: the front desk's everyday jobs */}
+            <div className="bg-white p-5 md:p-6 rounded-3xl border border-slate-100 shadow-sm" id="quick-actions-panel">
+              <h2 className="text-base font-extrabold text-slate-900 mb-4">Quick actions</h2>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { id: "qa-scan", label: "Scan member QR", icon: QrCode, tone: "bg-sky-50 text-sky-600", onClick: () => setIsQrScannerOpen(true) },
+                  { id: "qa-checkin", label: "Find & check in", icon: Search, tone: "bg-emerald-50 text-emerald-600", onClick: () => { setSection("checkin"); setTimeout(() => searchInputRef.current?.focus(), 50); } },
+                  { id: "qa-register", label: "Register a member", icon: UserPlus, tone: "bg-violet-50 text-violet-600", onClick: () => setSection("register") },
+                  { id: "action-walk-in", label: "Note an enquiry", icon: Plus, tone: "bg-amber-50 text-amber-600", onClick: () => setIsWalkInModalOpen(true) },
+                  { id: "qa-kiosk", label: "Kiosk mode", icon: Maximize2, tone: "bg-indigo-50 text-indigo-600", onClick: () => setIsKioskOpen(true) },
+                  { id: "qa-closing", label: "Closing report", icon: FileText, tone: "bg-slate-100 text-slate-700", onClick: () => setIsClosingReportModalOpen(true) }
+                ].map(({ id, label, icon: Icon, tone, onClick }) => (
+                  <button key={id} id={id} onClick={onClick} className="flex min-h-[84px] flex-col items-start justify-between gap-2 rounded-2xl border border-slate-200/70 bg-white p-3.5 text-left text-[13px] font-bold text-slate-800 transition-colors hover:border-sky-200 hover:bg-sky-50/40 cursor-pointer">
+                    <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${tone}`}><Icon className="h-4.5 w-4.5" /></span>
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+              </div>
+              <div className="lg:col-span-7 space-y-6">
+            {/* Today's Check-Ins Live List */}
+            <div className="bg-white p-5 md:p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4" id="today-checkins-panel">
+              <div className="flex justify-between items-center pb-2">
+                <div>
+                  <span className="text-[9px] font-mono tracking-widest text-slate-400 uppercase">Today's check-ins</span>
+                  <h3 className="text-base font-extrabold text-slate-900 mt-0.5">Today's Check-Ins</h3>
+                </div>
+                <span className="text-[10px] font-extrabold bg-sky-50 text-sky-600 border border-sky-100 px-3 py-1 rounded-full font-mono">
+                  {todayCheckInsCount} ARRIVALS
+                </span>
+              </div>
+
+              {isDataLoading ? (
+                <div className="py-12 flex flex-col items-center justify-center gap-2 opacity-55">
+                  <RefreshCw className="h-5 w-5 animate-spin" />
+                  <span className="text-xs font-medium">Loading today's attendance...</span>
+                </div>
+              ) : todayCheckIns.length > 0 ? (
+                <div className="overflow-x-auto border border-slate-100 rounded-2xl">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-50/80 text-[10px] font-extrabold tracking-wider text-slate-400 uppercase border-b border-slate-100">
+                        <th className="p-3">Time</th>
+                        <th className="p-3">Swimmer Name</th>
+                        <th className="p-3 hidden sm:table-cell">Membership Number</th>
+                        <th className="p-3">Allotted Slot</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {todayCheckIns.map((log) => (
+                        <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="p-3 font-mono font-black text-sky-600">{log.time}</td>
+                          <td className="p-3 font-extrabold text-slate-800">{log.fullName}<span className="block font-mono text-[10px] font-semibold text-slate-400 sm:hidden">{log.membershipNo}</span></td>
+                          <td className="p-3 font-mono text-slate-500 hidden sm:table-cell">{log.membershipNo}</td>
+                          <td className="p-3 font-semibold text-slate-600">{log.allottedTiming || "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-12 bg-slate-50/40 rounded-2xl border border-dashed border-slate-200">
+                  <AlertCircle className="h-8 w-8 mx-auto text-slate-400 opacity-40 mb-3" />
+                  <p className="text-xs font-extrabold text-slate-500">Live check-in queue is empty</p>
+                  <p className="text-[10px] text-slate-400 mt-1">No swimmers have marked lobby arrival yet today.</p>
+                </div>
+              )}
+            </div>
+
+              </div>
+            </div>
+          </>
+        )}
+
+        {section === "checkin" && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 items-start">
+            <div className="lg:col-span-7 space-y-6 md:space-y-8" id="left-workspace">
             {/* Quick Member Lookup Panel */}
             <div className="bg-white p-5 md:p-6 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden">
               
@@ -698,6 +832,13 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
 
                   </div>
 
+                  {selectedMember.membership_status !== "Active" && (
+                    <div role="alert" className="flex items-start gap-2.5 rounded-2xl border border-amber-200 bg-amber-50 p-3.5 text-xs font-semibold text-amber-800">
+                      <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                      <span>This membership is not active{selectedMember.payment_status !== "Paid" ? " and the fee is not paid" : ""}. Collect the payment or check with the admin before letting them swim.</span>
+                    </div>
+                  )}
+
                   {/* Operational Buttons */}
                   <div className="flex flex-col sm:flex-row gap-3 pt-2">
                     <button
@@ -744,6 +885,8 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
               )}
             </div>
 
+            </div>
+            <div className="lg:col-span-5 space-y-6">
             {/* Today's Check-Ins Live List */}
             <div className="bg-white p-5 md:p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4" id="today-checkins-panel">
               <div className="flex justify-between items-center pb-2">
@@ -768,7 +911,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
                       <tr className="bg-slate-50/80 text-[10px] font-extrabold tracking-wider text-slate-400 uppercase border-b border-slate-100">
                         <th className="p-3">Time</th>
                         <th className="p-3">Swimmer Name</th>
-                        <th className="p-3">Membership Number</th>
+                        <th className="p-3 hidden sm:table-cell">Membership Number</th>
                         <th className="p-3">Allotted Slot</th>
                       </tr>
                     </thead>
@@ -776,9 +919,9 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
                       {todayCheckIns.map((log) => (
                         <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
                           <td className="p-3 font-mono font-black text-sky-600">{log.time}</td>
-                          <td className="p-3 font-extrabold text-slate-800">{log.fullName}</td>
-                          <td className="p-3 font-mono text-slate-500">{log.membershipNo}</td>
-                          <td className="p-3 font-semibold text-slate-600">{log.allottedTiming || "Morning Sunrise"}</td>
+                          <td className="p-3 font-extrabold text-slate-800">{log.fullName}<span className="block font-mono text-[10px] font-semibold text-slate-400 sm:hidden">{log.membershipNo}</span></td>
+                          <td className="p-3 font-mono text-slate-500 hidden sm:table-cell">{log.membershipNo}</td>
+                          <td className="p-3 font-semibold text-slate-600">{log.allottedTiming || "-"}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -793,58 +936,26 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
               )}
             </div>
 
-          </div>
-
-          {/* RIGHT SIDE WORKSPACE: Quick Actions, Approvals & Payments */}
-          <div className="lg:col-span-5 space-y-6 md:space-y-8" id="right-workspace">
-            
-            {/* Quick Actions Panel */}
-            <div className="bg-white p-5 md:p-6 rounded-3xl border border-slate-100 shadow-sm" id="quick-actions-panel">
-              <span className="text-[9px] font-mono tracking-widest text-slate-400 uppercase">Operations Shortcuts</span>
-              <h3 className="text-base font-extrabold text-slate-900 mt-0.5 mb-4">Quick Workflows</h3>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
-                <button
-                  onClick={() => searchInputRef.current?.focus()}
-                  className="w-full p-3.5 bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-200/50 text-left flex items-center justify-between transition-colors cursor-pointer text-xs font-extrabold"
-                  id="action-search"
-                >
-                  <div className="flex items-center gap-3">
-                    <Search className="h-4 w-4 text-sky-500" />
-                    <span>Search Member</span>
-                  </div>
-                  <span className="text-[10px] font-bold text-slate-400 font-mono">FOC</span>
-                </button>
-
-                <button
-                  onClick={() => setIsWalkInModalOpen(true)}
-                  className="w-full p-3.5 bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-200/50 text-left flex items-center justify-between transition-colors cursor-pointer text-xs font-extrabold"
-                  id="action-walk-in"
-                >
-                  <div className="flex items-center gap-3">
-                    <Plus className="h-4 w-4 text-emerald-500" />
-                    <span>Register Walk-In Inquiry</span>
-                  </div>
-                  <span className="text-[10px] font-bold text-slate-400 font-mono">NEW</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    const el = document.getElementById("today-checkins-panel");
-                    el?.scrollIntoView({ behavior: "smooth" });
-                  }}
-                  className="w-full p-3.5 bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-200/50 text-left flex items-center justify-between transition-colors cursor-pointer text-xs font-extrabold"
-                  id="action-view-attendance"
-                >
-                  <div className="flex items-center gap-3">
-                    <CheckCircle2 className="h-4 w-4 text-purple-500" />
-                    <span>View Today's Attendance</span>
-                  </div>
-                  <span className="text-[10px] font-bold text-slate-400 font-mono">LIVE</span>
-                </button>
-              </div>
             </div>
+          </div>
+        )}
 
+        {section === "register" && (
+          <RegisterPage
+            embedded
+            walkIn
+            academyId={academyId}
+            onRegisterSuccess={() => {
+              void fetchDashboardData();
+              showToast("Member registered.");
+              setSection("home");
+            }}
+            onCancel={() => setSection("home")}
+          />
+        )}
+
+        {section === "approvals" && (
+          <div className="max-w-3xl space-y-6">
             {/* Pending Approvals Queue */}
             <div className="bg-white p-5 md:p-6 rounded-3xl border border-slate-100 shadow-sm" id="pending-approvals-panel">
               <div className="flex justify-between items-center mb-4">
@@ -882,13 +993,6 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
                         >
                           View Application
                         </button>
-                        <button
-                          onClick={() => handleNotifyAdmin(m)}
-                          className="py-2 px-3 bg-sky-50 hover:bg-sky-100 text-sky-600 rounded-lg text-[11px] font-extrabold uppercase transition-colors cursor-pointer flex items-center gap-1"
-                        >
-                          <Bell className="h-3 w-3" />
-                          <span>Notify Admin</span>
-                        </button>
                       </div>
                     </div>
                   ))}
@@ -902,6 +1006,11 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
               )}
             </div>
 
+          </div>
+        )}
+
+        {section === "payments" && (
+          <div className="max-w-3xl space-y-6">
             {/* Pending Payments Queue */}
             <div className="bg-white p-5 md:p-6 rounded-3xl border border-slate-100 shadow-sm" id="pending-payments-panel">
               <div className="flex justify-between items-center mb-4">
@@ -936,20 +1045,19 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
                         <button
                           onClick={() => {
                             setSelectedMember(m);
-                            // Scroll to profile panel
-                            const el = document.getElementById("member-profile-panel");
-                            el?.scrollIntoView({ behavior: "smooth" });
+                            setSection("checkin");
                           }}
                           className="flex-1 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-[11px] font-extrabold uppercase transition-colors cursor-pointer text-center"
                         >
                           View Details
                         </button>
                         <button
-                          onClick={() => handleSendReminder(m)}
-                          className="py-2 px-3 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-[11px] font-extrabold uppercase transition-colors cursor-pointer flex items-center gap-1"
+                          onClick={() => void handleSendReminder(m)}
+                          disabled={sendingLinkFor === m.id}
+                          className="py-2 px-3 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-[11px] font-extrabold uppercase transition-colors cursor-pointer flex items-center gap-1 disabled:opacity-60"
                         >
                           <Send className="h-3 w-3" />
-                          <span>Remind Parent</span>
+                          <span>{sendingLinkFor === m.id ? "Sending…" : "Send payment link"}</span>
                         </button>
                       </div>
                     </div>
@@ -963,12 +1071,87 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
                 </div>
               )}
             </div>
-
           </div>
+        )}
 
-        </div>
+        {section === "settings" && (
+          <SettingsTab
+            activeUser={{
+              name: displayName,
+              role: sessionUser?.role || "receptionist",
+              email: sessionUser?.email || "",
+              phoneNumber: sessionUser?.phoneNumber || sessionUser?.phone || "",
+              avatar: photoUrl
+            }}
+            onLogout={() => onLogout?.()}
+            onProfileUpdated={(updated) => {
+              try {
+                const saved = sessionStore.get();
+                if (saved) {
+                  const parsed = JSON.parse(saved);
+                  Object.assign(parsed, { name: updated.name, email: updated.email, phone: updated.phoneNumber, phoneNumber: updated.phoneNumber, photoUrl: updated.avatar, avatar: updated.avatar });
+                  sessionStore.set(JSON.stringify(parsed));
+                  setSessionUser(parsed);
+                }
+              } catch { /* ignore */ }
+            }}
+          />
+        )}
 
       </main>
+      </div>
+
+      {/* 3. PHONE BOTTOM BAR */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 grid h-16 grid-cols-5 border-t border-slate-200/80 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md shadow-[0_-4px_16px_rgba(0,0,0,0.06)]" aria-label="Reception pages">
+        {([
+          { id: "home", label: "Home", icon: LayoutDashboard },
+          { id: "checkin", label: "Check-in", icon: CheckCircle2 },
+          { id: "register", label: "Register", icon: UserPlus },
+          { id: "approvals", label: "Approvals", icon: Clock, badge: pendingApprovalsCount }
+        ] as const).map((item) => {
+          const Icon = item.icon;
+          const active = section === item.id && !menuOpen;
+          return (
+            <button key={item.id} onClick={() => { setSection(item.id); setMenuOpen(false); }} className={`relative flex flex-col items-center justify-center py-1 cursor-pointer ${active ? "text-sky-600 font-bold" : "text-slate-400"}`}>
+              <Icon className="h-5 w-5" />
+              <span className="mt-0.5 text-[10px] font-medium">{item.label}</span>
+              {"badge" in item && item.badge > 0 && <span className="absolute top-1 right-1/2 translate-x-4 min-w-4 rounded-full bg-rose-500 px-1 text-[9px] font-bold leading-4 text-white">{item.badge}</span>}
+            </button>
+          );
+        })}
+        <button onClick={() => setMenuOpen(true)} className={`relative flex flex-col items-center justify-center py-1 cursor-pointer ${menuOpen ? "text-sky-600 font-bold" : "text-slate-400"}`}>
+          <Menu className="h-5 w-5" />
+          <span className="mt-0.5 text-[10px] font-medium">Menu</span>
+          {(pendingPaymentsCount > 0 || staffFeed.unreadCount > 0) && <span className="absolute top-1.5 right-1/2 translate-x-3 h-2 w-2 rounded-full bg-rose-500" />}
+        </button>
+      </nav>
+
+      {/* PHONE MENU */}
+      <SideMenuDrawer
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        sections={[
+          { items: RECEPTION_PAGES.filter((p) => p.id !== "settings").map((p) => ({ ...p, badge: p.id === "approvals" ? pendingApprovalsCount : p.id === "payments" ? pendingPaymentsCount : undefined })) },
+          { heading: "Tools", items: [
+            { id: "tool-kiosk", label: "Kiosk mode", icon: Maximize2 },
+            { id: "tool-closing", label: "Daily closing report", icon: FileText },
+            { id: "tool-notifications", label: "Notifications", icon: Bell, badge: staffFeed.unreadCount }
+          ] },
+          { heading: "Account", items: [{ id: "settings", label: "Settings", icon: Sliders }] }
+        ]}
+        activeId={section}
+        onSelect={(id) => {
+          if (id === "tool-kiosk") setIsKioskOpen(true);
+          else if (id === "tool-closing") setIsClosingReportModalOpen(true);
+          else if (id === "tool-notifications") setNotificationsOpen(true);
+          else setSection(id as ReceptionSection);
+        }}
+        subtitle="Reception"
+        user={{ name: displayName, role: "Reception", avatar: photoUrl || undefined }}
+        onProfile={() => setSection("settings")}
+        onLogout={() => onLogout?.()}
+        primaryAction={{ label: "Scan member QR", icon: QrCode, onClick: () => setIsQrScannerOpen(true) }}
+      />
 
       {/* MODAL 1: Swimmer Detailed Profile Modal */}
       <AnimatePresence>
@@ -1131,7 +1314,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
               <div className="p-5 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
                 <div className="flex items-center gap-2.5">
                   <Plus className="h-5 w-5 text-emerald-500" />
-                  <h3 className="text-base font-black text-slate-900 uppercase">Register Walk-In Inquiry</h3>
+                  <div><h3 className="text-base font-black text-slate-900">Note an enquiry</h3><p className="text-[11px] font-medium text-slate-500">For someone asking about joining. Saved on this device only. To enrol them, use Register a member.</p></div>
                 </div>
                 <button
                   onClick={() => setIsWalkInModalOpen(false)}
@@ -1221,7 +1404,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
                     className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs uppercase font-extrabold shadow-md shadow-emerald-50 active:scale-98 transition-all cursor-pointer text-center"
                     id="btn-submit-walk-in"
                   >
-                    Register Lead
+                    Save enquiry
                   </button>
                 </div>
               </form>
@@ -1330,15 +1513,6 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
                   className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl text-xs uppercase font-extrabold transition-all cursor-pointer text-center"
                 >
                   Close
-                </button>
-                <button
-                  onClick={() => {
-                    handleNotifyAdmin(viewingAppMember);
-                    setIsAppModalOpen(false);
-                  }}
-                  className="flex-1 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-xs uppercase font-extrabold shadow-md transition-all cursor-pointer text-center"
-                >
-                  Notify Operations Admin
                 </button>
               </div>
             </motion.div>
