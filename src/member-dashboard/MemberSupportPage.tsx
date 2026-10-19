@@ -5,7 +5,8 @@ import type { MemberSection } from "./member-navigation";
 
 // Help & Support for members: how to reach the academy, when it is open, and answers to the
 // questions the reception hears most. Contact details and hours are from the academy's Google
-// Maps listing (Baroda Swim Front, Vadodara). Update ACADEMY_CONTACT if they change.
+// Maps listing (Baroda Swim Front, Vadodara); the morning session (6-9 AM) was confirmed by the
+// academy. Update ACADEMY_CONTACT if they change.
 
 export const ACADEMY_CONTACT = {
   phoneDisplay: "+91 93132 41071",
@@ -13,7 +14,7 @@ export const ACADEMY_CONTACT = {
   address: "Aark International School, beside Vasna–Bhayli Main Rd, behind Adventura, near Priya Cinema, Vadodara, Gujarat 391101",
   mapsUrl: "https://maps.app.goo.gl/RpAvS2juSqnszx9Q6",
   // Monday = 1 … Sunday = 0. Times are 24-hour, India time.
-  sessions: [["06:00", "10:00"], ["16:00", "20:00"]] as Array<[string, string]>,
+  sessions: [["06:00", "09:00"], ["16:00", "20:00"]] as Array<[string, string]>,
   closedDays: [0]
 };
 
@@ -26,7 +27,7 @@ function to12h(time: string) {
   return m ? `${hour}:${String(m).padStart(2, "0")} ${suffix}` : `${hour} ${suffix}`;
 }
 
-/** "Open now · until 10 AM" / "Closed · opens 4 PM" / "Closed · opens Monday 6 AM", using India time. */
+/** "Open now · until 9 AM" / "Closed · opens 4 PM" / "Closed · opens Monday 6 AM", using India time. */
 export function openStatus(now = new Date()): { open: boolean; text: string } {
   const india = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
   const day = india.getDay();
