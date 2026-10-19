@@ -1,13 +1,13 @@
 import React, { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, PartyPopper, Waves, CalendarClock } from "lucide-react";
-import { FESTIVALS } from "./festivals";
+import { ChevronLeft, ChevronRight, PartyPopper, Waves, CalendarClock, ExternalLink } from "lucide-react";
+import { ACADEMY_DATES, FESTIVALS } from "./festivals";
 import type { MemberCalendarEvent, MemberCalendarHoliday } from "./calendar-data";
 
 // A month view for members: festivals and public holidays, days the academy has closed the pool,
 // and academy events. Tap a day to see what is on.
 
 type Kind = "festival" | "closed" | "event";
-interface DayItem { kind: Kind; title: string; note?: string }
+interface DayItem { kind: Kind; title: string; note?: string; url?: string }
 
 const KIND_STYLE: Record<Kind, { dot: string; chip: string; label: string; icon: React.ComponentType<{ className?: string }> }> = {
   festival: { dot: "bg-amber-500", chip: "bg-amber-50 text-amber-800 ring-amber-200", label: "Festival", icon: PartyPopper },
@@ -55,6 +55,7 @@ export function MemberMonthCalendar({ events, holidays }: { events: MemberCalend
       if (!start) continue;
       for (const k of eachDay(start, dateOnly(h.endDate))) add(k, { kind: h.facilityClosed === false ? "festival" : "closed", title: h.name, note: h.description || undefined });
     }
+    for (const a of ACADEMY_DATES) add(a.date, { kind: "event", title: a.name, note: a.note, url: a.url });
     for (const e of events) {
       const k = dateOnly(e.eventDate);
       if (k) add(k, { kind: "event", title: e.title, note: [e.location, e.description].filter(Boolean).join(" · ") || undefined });
@@ -199,7 +200,13 @@ function ItemRow({ item, bare = false }: { item: DayItem; bare?: boolean; key?: 
       <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ${style.chip}`}><Icon className="h-4 w-4" /></span>
       <span className="min-w-0">
         <span className="block truncate text-sm font-semibold text-slate-900">{item.title}</span>
-        <span className="block truncate text-xs text-slate-500">{style.label}{item.note ? ` · ${item.note}` : ""}</span>
+        {item.url ? (
+          <a href={item.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-cyan-700 hover:underline">
+            {item.note || "Open"} <ExternalLink className="h-3 w-3" />
+          </a>
+        ) : (
+          <span className="block truncate text-xs text-slate-500">{style.label}{item.note ? ` · ${item.note}` : ""}</span>
+        )}
       </span>
     </>
   );
