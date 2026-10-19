@@ -99,6 +99,34 @@ function guilloche(cx: number, cy: number, rings: number, baseR: number, amp: nu
   return `<g fill="none" stroke="url(#champagne)" stroke-width="1.1" stroke-opacity="${opacity}">${paths.join("")}</g>`;
 }
 
+/** Fine engraved ripples, like light lines on moving water. */
+function ripples(x0: number, x1: number, y0: number, count: number, gap: number, amp: number, opacity: number) {
+  const paths: string[] = [];
+  for (let k = 0; k < count; k++) {
+    const y = y0 + k * gap;
+    const phase = k * 0.42;
+    let d = "";
+    for (let x = x0; x <= x1; x += 8) {
+      const t = (x - x0) / 120;
+      const yy = y + amp * Math.sin(t + phase) + (amp / 2.5) * Math.sin(t * 2.3 - phase * 1.7);
+      d += `${x === x0 ? "M" : "L"}${x} ${yy.toFixed(1)}`;
+    }
+    paths.push(`<path d="${d}"/>`);
+  }
+  return `<g fill="none" stroke="url(#champagne)" stroke-width="1.1" stroke-opacity="${opacity}">${paths.join("")}</g>`;
+}
+
+/** A swimming-lane rope: alternating gold and aqua floats on a thin cord. */
+function laneRope(x0: number, x1: number, y: number, size = 1) {
+  const w = 34 * size, h = 14 * size, gap = 8 * size;
+  const floats: string[] = [];
+  let i = 0;
+  for (let x = x0; x + w <= x1; x += w + gap, i++) {
+    floats.push(`<rect x="${x.toFixed(1)}" y="${(y - h / 2).toFixed(1)}" width="${w}" height="${h}" rx="${h / 2}" fill="${i % 4 < 2 ? "url(#champagne)" : "url(#aquaFloat)"}" fill-opacity="${i % 4 < 2 ? 0.85 : 0.7}"/>`);
+  }
+  return `<line x1="${x0}" y1="${y}" x2="${x1}" y2="${y}" stroke="#c9a85c" stroke-opacity="0.35" stroke-width="${1.5 * size}"/>${floats.join("")}`;
+}
+
 /** Shared defs: graphite body, brushed-metal grain, champagne foil, engraving and foil-tint filters. */
 function sharedDefs(prefix: string) {
   return `
@@ -106,9 +134,9 @@ function sharedDefs(prefix: string) {
     <clipPath id="${prefix}Crest"><rect x="104" y="96" width="92" height="92" rx="22"/></clipPath>
     <clipPath id="${prefix}CrestSmall"><rect x="1418" y="852" width="64" height="64" rx="16"/></clipPath>
     <linearGradient id="graphite" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#23262c"/>
-      <stop offset="0.45" stop-color="#121418"/>
-      <stop offset="1" stop-color="#07080a"/>
+      <stop offset="0" stop-color="#14323a"/>
+      <stop offset="0.45" stop-color="#0a1c21"/>
+      <stop offset="1" stop-color="#040b0d"/>
     </linearGradient>
     <radialGradient id="falloff" cx="0.18" cy="0.12" r="0.9">
       <stop offset="0" stop-color="#ffffff" stop-opacity="0.10"/>
@@ -131,6 +159,14 @@ function sharedDefs(prefix: string) {
       <feTurbulence type="fractalNoise" baseFrequency="0.004 0.9" numOctaves="2" seed="7" result="n"/>
       <feColorMatrix in="n" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.07 0"/>
     </filter>
+    <filter id="caustics" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="turbulence" baseFrequency="0.0075 0.011" numOctaves="2" seed="11" result="t"/>
+      <feColorMatrix in="t" type="matrix" values="0 0 0 0 0.65  0 0 0 0 0.95  0 0 0 0 0.95  -3.2 0 0 0 1" result="lines"/>
+      <feComponentTransfer in="lines"><feFuncA type="gamma" amplitude="0.16" exponent="2.4" offset="0"/></feComponentTransfer>
+    </filter>
+    <linearGradient id="aquaFloat" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7fe3e0"/><stop offset="1" stop-color="#1f8f96"/>
+    </linearGradient>
     <filter id="engrave" x="-5%" y="-30%" width="110%" height="160%">
       <feDropShadow dx="0" dy="-1.5" stdDeviation="0.4" flood-color="#ffffff" flood-opacity="0.35"/>
       <feDropShadow dx="0" dy="2.5" stdDeviation="1.2" flood-color="#000000" flood-opacity="0.85"/>
@@ -145,7 +181,8 @@ function cardBody(prefix: string, extra = "") {
   return `
   <g clip-path="url(#${prefix}Clip)">
     <rect width="${CARD_WIDTH}" height="${CARD_HEIGHT}" fill="url(#graphite)"/>
-    <rect width="${CARD_WIDTH}" height="${CARD_HEIGHT}" filter="url(#grain)"/>
+    <rect width="${CARD_WIDTH}" height="${CARD_HEIGHT}" filter="url(#caustics)"/>
+    <rect width="${CARD_WIDTH}" height="${CARD_HEIGHT}" filter="url(#grain)" opacity="0.6"/>
     ${extra}
     <rect width="${CARD_WIDTH}" height="${CARD_HEIGHT}" fill="url(#falloff)"/>
   </g>
@@ -173,12 +210,12 @@ export function buildMembershipCardSvg(data: MemberDashboardData, _images?: Card
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${CARD_WIDTH} ${CARD_HEIGHT}" width="${CARD_WIDTH}" height="${CARD_HEIGHT}" role="img" aria-label="Baroda Swim Front membership card for ${escapeXml(data.member.fullName || "member")}">
   <defs>${sharedDefs("front")}</defs>
-  ${cardBody("front", guilloche(1250, 470, 26, 250, 26, 9, 0.16) + guilloche(1250, 470, 10, 120, 14, 12, 0.12))}
+  ${cardBody("front", ripples(760, 1600, 250, 30, 15, 16, 0.17) + guilloche(1250, 470, 8, 112, 10, 10, 0.1) + laneRope(0, CARD_WIDTH, 936))}
 
   <image href="${BARODA_SWIM_FRONT_LOGO_DATA_URI}" x="104" y="96" width="92" height="92" filter="url(#foil)" opacity="0.9" clip-path="url(#frontCrest)"/>
   <rect x="104" y="96" width="92" height="92" rx="22" fill="none" stroke="url(#champagne)" stroke-width="2"/>
   <text x="224" y="134" font-family="${FONT}" font-size="27" font-weight="600" letter-spacing="9" fill="url(#champagne)">BARODA SWIM FRONT</text>
-  <text x="224" y="172" font-family="${FONT}" font-size="18" font-weight="500" letter-spacing="7" fill="#9b9182">VADODARA · SWIM FOR LIFE</text>
+  <text x="224" y="172" font-family="${FONT}" font-size="18" font-weight="500" letter-spacing="7" fill="#9b9182">SWIM FOR LIFE · VADODARA</text>
 
   <text x="1482" y="134" text-anchor="end" font-family="${FONT}" font-size="22" font-weight="600" letter-spacing="10" fill="url(#champagne)">MEMBER</text>
   <circle cx="${1482 - status.length * 16.6 - 16}" cy="166" r="6" fill="${statusColor(status)}"/>
@@ -220,7 +257,7 @@ export function buildMembershipCardBackSvg(data: MemberDashboardData, images: Ca
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${CARD_WIDTH} ${CARD_HEIGHT}" width="${CARD_WIDTH}" height="${CARD_HEIGHT}" role="img" aria-label="Back of the membership card">
   <defs>${sharedDefs("back")}</defs>
-  ${cardBody("back", `<rect x="0" y="86" width="${CARD_WIDTH}" height="132" fill="#030304"/><rect x="0" y="86" width="${CARD_WIDTH}" height="132" filter="url(#grain)" opacity="0.6"/>` + guilloche(260, 780, 18, 170, 18, 8, 0.08))}
+  ${cardBody("back", `<rect x="0" y="96" width="${CARD_WIDTH}" height="118" fill="#02080a" fill-opacity="0.85"/>` + laneRope(0, CARD_WIDTH, 155, 1.6) + ripples(-20, 820, 720, 14, 15, 12, 0.1))}
 
   ${photo}
   <rect x="98" y="312" width="260" height="312" rx="27" fill="none" stroke="url(#champagne)" stroke-width="2.5"/>
