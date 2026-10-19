@@ -96,12 +96,12 @@ export function MemberCardViewer({ data, open, onClose, onDownload, downloading 
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 mix-blend-overlay"
         style={{
-          backgroundImage: "linear-gradient(115deg, transparent 20%, rgba(255,255,255,0.55) 42%, rgba(165,243,252,0.35) 50%, transparent 66%)",
+          backgroundImage: "linear-gradient(115deg, transparent 20%, rgba(255,248,230,0.32) 44%, rgba(255,255,255,0.12) 50%, transparent 66%)",
           backgroundSize: "260% 260%",
           backgroundPosition: shinePosition
         }}
       />
-      <motion.div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-[0.13] mix-blend-color-dodge" style={{ backgroundImage: holo }} />
+      <motion.div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-[0.05] mix-blend-color-dodge" style={{ backgroundImage: holo }} />
     </>
   );
 
@@ -118,7 +118,7 @@ export function MemberCardViewer({ data, open, onClose, onDownload, downloading 
           exit={{ opacity: 0 }}
           onPointerMove={onPointerMove}
           onPointerLeave={onPointerLeave}
-          style={{ background: "radial-gradient(120% 80% at 50% 0%, #0b3a66 0%, #04152d 45%, #01060f 100%)" }}
+          style={{ background: "radial-gradient(120% 80% at 50% 0%, #2a2620 0%, #121110 45%, #050505 100%)" }}
         >
           {/* Light moving like sun through pool water. */}
           {!reduceMotion && (
@@ -130,7 +130,7 @@ export function MemberCardViewer({ data, open, onClose, onDownload, downloading 
                   style={{
                     width: `${55 + i * 15}vmax`, height: `${55 + i * 15}vmax`,
                     left: `${[-15, 45, 10][i]}%`, top: `${[-20, 30, 60][i]}%`,
-                    background: ["#0ea5e955", "#22d3ee33", "#6366f133"][i]
+                    background: ["#d9bd7c22", "#ffffff10", "#a8843f1c"][i]
                   }}
                   animate={{ x: [0, 40, -30, 0], y: [0, -30, 20, 0] }}
                   transition={{ duration: 14 + i * 4, repeat: Infinity, ease: "easeInOut" }}
@@ -144,7 +144,7 @@ export function MemberCardViewer({ data, open, onClose, onDownload, downloading 
           </button>
 
           <motion.p
-            className="relative mb-6 text-center text-sm font-medium tracking-[0.3em] text-cyan-100/80"
+            className="relative mb-6 text-center text-sm font-medium tracking-[0.3em] text-[#d9bd7c]"
             initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
           >
             BARODA SWIM FRONT · MEMBER
