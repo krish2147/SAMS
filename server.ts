@@ -8,6 +8,7 @@ import express from "express";
 import { validateRuntimeConfiguration } from "./src/config/runtime";
 import { startNotificationWorker } from "./src/services/notification-worker.service";
 import { startPostPaymentWorker } from "./src/services/post-payment-worker.service";
+import { startRenewalReminderWorker } from "./src/services/renewal-reminder.service";
 
 const PORT = Number.parseInt(process.env.PORT || "3000", 10);
 
@@ -72,6 +73,7 @@ async function startServer() {
     console.log(`✅ SAMS application successfully running on http://localhost:${PORT}`);
     startNotificationWorker();
     startPostPaymentWorker();
+    startRenewalReminderWorker();
   });
 }
 

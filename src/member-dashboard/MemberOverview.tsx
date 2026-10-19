@@ -3,6 +3,7 @@ import { CalendarClock, CircleHelp, CreditCard, ReceiptText, ShieldCheck, UserRo
 import type { MemberSection } from "./member-navigation";
 import { DashboardSkeleton } from "./DashboardSkeleton";
 import { MembershipOverviewCard } from "./MembershipOverviewCard";
+import { RenewalBanner } from "./MemberRenewal";
 import { OverviewSummaryCards } from "./OverviewSummaryCards";
 import { firstName, greetingForHour, invoiceHref, type MemberDashboardData, type MemberPayment } from "./member-overview-data";
 
@@ -62,6 +63,8 @@ export function MemberOverview({ sessionName, onNavigate }: MemberOverviewProps)
       <div><h1 className="font-display text-[22px] font-bold leading-[1.15] tracking-[-0.02em] text-ink-950 sm:text-[30px]">{greetingForHour(new Date().getHours())}, {greetingName}</h1><p className="mt-1.5 text-sm leading-6 text-ink-600 sm:text-[15px]">Manage your membership, batch and payments from one place.</p></div>
       <div className="flex flex-wrap gap-2"><button type="button" onClick={() => onNavigate("membership")} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50">View membership</button>{invoiceUrl && <a href={invoiceUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800"><ReceiptText className="h-4 w-4" />View invoice</a>}</div>
     </header>
+
+    <RenewalBanner data={dashboard} />
 
     <MembershipOverviewCard data={dashboard} onNavigate={onNavigate} />
 

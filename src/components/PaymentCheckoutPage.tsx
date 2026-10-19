@@ -89,7 +89,7 @@ export function PaymentCheckoutPage({ orderId }: { orderId: string }) {
           if (!verifyResponse.ok || !result.success) {
             throw new Error(result.error || "Payment verification failed.");
           }
-          setSuccess(`Payment received. Receipt ${result.receiptNo || "generated"}. Your membership is now active.`);
+          setSuccess("Payment received. Your membership is active, and the invoice is in Payments.");
         } catch (err: any) {
           setError(err.message || "Payment verification failed. Please contact the academy.");
         } finally {
@@ -117,6 +117,7 @@ export function PaymentCheckoutPage({ orderId }: { orderId: string }) {
           {loading && <div className="py-14 flex justify-center"><LoaderCircle className="h-8 w-8 animate-spin text-sky-600" /></div>}
           {!loading && error && <div className="rounded-2xl bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</div>}
           {!loading && success && <div className="rounded-2xl bg-emerald-50 p-5 text-emerald-800 flex gap-3"><CheckCircle2 className="h-6 w-6 shrink-0" /><p className="font-semibold">{success}</p></div>}
+          {!loading && (success || !checkout) && <a href="/" className="mt-6 flex w-full items-center justify-center rounded-2xl border border-slate-200 py-3.5 font-bold text-slate-800 hover:bg-slate-50">Back to Baroda Swim Front</a>}
           {!loading && checkout && !success && (
             <>
               <div className="space-y-4">
