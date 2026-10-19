@@ -1,0 +1,24 @@
+[
+  {
+    "name": "payment_invoice",
+    "language": "en",
+    "category": "UTILITY",
+    "components": [
+      {
+        "type": "HEADER",
+        "format": "DOCUMENT"
+      },
+      {
+        "type": "BODY",
+        "text": "Hello {{1}}, your invoice {{2}} from Baroda Swim Front is attached.\n\nAmount paid: Rs {{3}}\nMembership period: {{4}} to {{5}}\n\nPlease keep it for your records.",
+        "example": {
+          "body_text": [["Priya Shah", "BSF-INV-2026-000001", "9800", "19/10/2026", "18/01/2027"]]
+        }
+      },
+      {
+        "type": "FOOTER",
+        "text": "Baroda Swim Front, Vadodara"
+      }
+    ]
+  }
+]

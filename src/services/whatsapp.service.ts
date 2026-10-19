@@ -1,6 +1,19 @@
 import axios, { AxiosResponse } from "axios";
 import fs from "fs";
 import { isMetaWhatsAppEnabled, sendMetaTemplate } from "./meta-whatsapp.service";
+import { formatDateOnlyForWhatsApp } from "../utils/membership-date";
+
+// Template values read like the message text: dates as 19/10/2026 (database DATE values otherwise
+// print as "Mon Oct 19 2026 00:00:00 GMT…"), amounts as 9,800 or 9,800.50.
+function waDate(value: unknown): string {
+  if (!value) return "-";
+  try { return formatDateOnlyForWhatsApp(value as any); } catch { return String(value); }
+}
+function waAmount(value: unknown): string {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return String(value || "0");
+  return n.toLocaleString("en-IN", { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 });
+}
 
 /**
  * Interface representing the MSG91 WhatsApp Outbound Request Payload
@@ -124,7 +137,7 @@ async function sendMsg91Template(
 /**
  * Sends the "payment_success" WhatsApp template once a membership is activated.
  * Confirmed live against MSG91's approved template body (Manage Templates -> payment_success):
- * {{1}} name, {{2}} amount paid, {{3}} membership number, {{4}} receipt number,
+ * {{1}} name, {{2}} amount paid, {{3}} membership number, {{4}} invoice number,
  * {{5}} start date, {{6}} end date.
  */
 export async function sendPaymentSuccessWhatsApp(params: {
@@ -132,23 +145,23 @@ export async function sendPaymentSuccessWhatsApp(params: {
   memberName: string;
   amount: string | number;
   membershipNo: string;
-  receiptNo: string;
-  startDate: string;
-  endDate: string;
+  invoiceNo: string;
+  startDate: string | Date;
+  endDate: string | Date;
 }): Promise<Msg91WhatsAppResponse> {
   const templateName = process.env.MSG91_PAYMENT_SUCCESS_TEMPLATE || "payment_success";
   if (isMetaWhatsAppEnabled()) {
     return sendMetaTemplate(normalizePhoneNumber(params.phoneNumber), templateName, [
-      params.memberName, String(params.amount || "0"), params.membershipNo, params.receiptNo, params.startDate, params.endDate
+      params.memberName, waAmount(params.amount), params.membershipNo, params.invoiceNo, waDate(params.startDate), waDate(params.endDate)
     ]);
   }
   return sendMsg91Template(params.phoneNumber, templateName, {
     body_1: { type: "text", value: String(params.memberName).trim() },
-    body_2: { type: "text", value: String(params.amount || "0") },
+    body_2: { type: "text", value: waAmount(params.amount) },
     body_3: { type: "text", value: String(params.membershipNo || "").trim() },
-    body_4: { type: "text", value: String(params.receiptNo || "").trim() },
-    body_5: { type: "text", value: String(params.startDate || "").trim() },
-    body_6: { type: "text", value: String(params.endDate || "").trim() }
+    body_4: { type: "text", value: String(params.invoiceNo || "").trim() },
+    body_5: { type: "text", value: waDate(params.startDate) },
+    body_6: { type: "text", value: waDate(params.endDate) }
   });
 }
 
@@ -169,8 +182,8 @@ export async function sendPaymentInvoiceWhatsApp(params: {
   memberName: string;
   invoiceNo: string;
   amount: string | number;
-  startDate: string;
-  endDate: string;
+  startDate: string | Date;
+  endDate: string | Date;
   pdfBuffer?: Buffer;
   pdfFilePath?: string;
 }): Promise<Msg91WhatsAppResponse> {
@@ -183,7 +196,7 @@ export async function sendPaymentInvoiceWhatsApp(params: {
     return sendMetaTemplate(
       normalizePhoneNumber(params.phoneNumber),
       templateName,
-      [params.memberName, params.invoiceNo, String(params.amount || "0"), params.startDate, params.endDate],
+      [params.memberName, params.invoiceNo, waAmount(params.amount), waDate(params.startDate), waDate(params.endDate)],
       { buffer: fileBuffer, filename: `${params.invoiceNo || "invoice"}.pdf` }
     );
   }
@@ -193,9 +206,9 @@ export async function sendPaymentInvoiceWhatsApp(params: {
     header_1: { type: "document", value: dataUri, filename: `${params.invoiceNo || "invoice"}.pdf` },
     body_1: { type: "text", value: String(params.memberName).trim() },
     body_2: { type: "text", value: String(params.invoiceNo || "").trim() },
-    body_3: { type: "text", value: String(params.amount || "0") },
-    body_4: { type: "text", value: String(params.startDate || "").trim() },
-    body_5: { type: "text", value: String(params.endDate || "").trim() }
+    body_3: { type: "text", value: waAmount(params.amount) },
+    body_4: { type: "text", value: waDate(params.startDate) },
+    body_5: { type: "text", value: waDate(params.endDate) }
   });
 }
 
@@ -253,7 +266,7 @@ export async function sendPaymentReminder(
     }
     const templateName = process.env.WHATSAPP_TEMPLATE_NAME || process.env.MSG91_PAYMENT_LINK_TEMPLATE || "payment_link";
     return sendMetaTemplate(normalizePhoneNumber(phoneNumber), templateName, [
-      customerName, membershipNo, String(amount || "0"), paymentLink
+      customerName, membershipNo, waAmount(amount), paymentLink
     ]);
   }
 
@@ -277,7 +290,7 @@ export async function sendPaymentReminder(
   }
 
   const formattedToNumber = normalizePhoneNumber(phoneNumber);
-  const formattedAmount = String(amount || "0");
+  const formattedAmount = waAmount(amount);
 
   console.log("[WHATSAPP-DEBUG] Payment link received", { to: formattedToNumber, amount: formattedAmount });
   console.log("[WHATSAPP-DEBUG] Mobile number normalized", { original: phoneNumber, normalized: formattedToNumber });
