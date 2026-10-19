@@ -1,0 +1,25 @@
+[
+  {
+    "name": "renewal_reminder",
+    "language": "en",
+    "category": "UTILITY",
+    "components": [
+      {
+        "type": "HEADER",
+        "format": "TEXT",
+        "text": "Membership renewal reminder"
+      },
+      {
+        "type": "BODY",
+        "text": "Hello {{1}}, your Baroda Swim Front membership {{2}} ends {{3}}, on {{4}}.\n\nRenew online from the member app (Home > Renew now) or at the reception to keep your place in {{5}}. Thank you for swimming with us.",
+        "example": {
+          "body_text": [["Priya Shah", "BSF-2026-0142", "in 7 days", "26/10/2026", "Morning Batch 1 (06:00 AM - 07:00 AM)"]]
+        }
+      },
+      {
+        "type": "FOOTER",
+        "text": "Baroda Swim Front, Vadodara"
+      }
+    ]
+  }
+]

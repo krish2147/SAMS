@@ -1,5 +1,6 @@
 import { getDbPool, isMockDatabase } from "../config/db";
 import { sendEventNotification } from "./communication.service";
+import { sendRenewalReminderWhatsApp } from "./whatsapp.service";
 import { calendarDaysBetween, formatDateOnlyForWhatsApp, toDateOnlyString } from "../utils/membership-date";
 
 // Renewal reminders: each active member gets a WhatsApp/SMS/email message (the "renewal_reminder"
@@ -94,6 +95,18 @@ export async function sendDueRenewalReminders(now = new Date()): Promise<number>
         "INSERT INTO notifications (member_id, title, message, type) VALUES (?, ?, ?, 'Renewal Reminder')",
         [member.id, `Your membership ends ${when}`, `Your membership ends on ${ends}. Tap Renew now on Home to pay online, or renew at the reception.`]
       );
+      // WhatsApp goes through the approved "renewal_reminder" template (one variable per detail);
+      // SMS and email use the communication template. A WhatsApp failure doesn't stop the others.
+      if (member.mobileNo) {
+        await sendRenewalReminderWhatsApp({
+          phoneNumber: member.mobileNo,
+          memberName: member.fullName,
+          membershipNo: member.membershipNo,
+          endsText: when,
+          endDate: ends,
+          batch: member.batch_name || "your batch"
+        }).catch((err) => console.error(`[RenewalReminder] WhatsApp to member ${member.id} failed:`, err?.message || err));
+      }
       await sendEventNotification(
         "renewal_reminder",
         { id: member.id, memberName: member.fullName, mobileNo: member.mobileNo, email: member.email || undefined },
@@ -105,7 +118,8 @@ export async function sendDueRenewalReminders(now = new Date()): Promise<number>
           daysLeftText: when,
           paymentLink: appUrl || undefined
         },
-        "Renewal reminder"
+        "Renewal reminder",
+        { channels: ["sms", "email"] }
       );
       sent += 1;
     } catch (err) {
