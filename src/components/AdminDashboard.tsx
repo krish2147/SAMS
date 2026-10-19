@@ -37,6 +37,7 @@ import { useStaffNotifications } from "../utils/useStaffNotifications";
 import { NotificationCountBadge } from "./NotificationCountBadge";
 import { PasswordInput } from "./PasswordInput";
 import { CHARACTER_AVATARS } from "../utils/avatars";
+import { mobileDigits } from "../utils/phone";
 
 
 
@@ -1421,23 +1422,33 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
 
                       {/* Specs Block 2: Emergency Relations */}
                       <div className="space-y-2.5">
-                        <span className="text-[9.5px] font-mono font-bold text-slate-400 uppercase tracking-wider block border-b border-slate-100 pb-1">2. Guardian & Emergency Contacts</span>
+                        <span className="text-[9.5px] font-mono font-bold text-slate-400 uppercase tracking-wider block border-b border-slate-100 pb-1">2. Emergency Contact</span>
                         <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                          <div>
-                            <span className="opacity-55 block text-[8px] font-mono uppercase">Guardian Name</span>
-                            <span className="font-medium">{selectedMember.parentName || "N/A"}</span>
-                          </div>
-                          <div>
-                            <span className="opacity-55 block text-[8px] font-mono uppercase">Guardian relation</span>
-                            <span className="font-medium">{selectedMember.parentRelation || "N/A"}</span>
-                          </div>
+                          {/* The registration form asks for one emergency contact and their relationship; a
+                              separate guardian is only shown when one was recorded. */}
+                          {selectedMember.parentName && (
+                            <>
+                              <div>
+                                <span className="opacity-55 block text-[8px] font-mono uppercase">Guardian Name</span>
+                                <span className="font-medium">{selectedMember.parentName}</span>
+                              </div>
+                              <div>
+                                <span className="opacity-55 block text-[8px] font-mono uppercase">Guardian relation</span>
+                                <span className="font-medium">{selectedMember.parentRelation || "Not given"}</span>
+                              </div>
+                            </>
+                          )}
                           <div>
                             <span className="opacity-55 block text-[8px] font-mono uppercase">Emergency contact</span>
-                            <span className="font-bold text-red-500">{selectedMember.emergencyName}</span>
+                            <span className="font-bold text-red-500">{selectedMember.emergencyName || "Not given"}</span>
                           </div>
                           <div>
+                            <span className="opacity-55 block text-[8px] font-mono uppercase">Relation</span>
+                            <span className="font-medium">{selectedMember.emergencyRelation && selectedMember.emergencyRelation !== "Contact" ? selectedMember.emergencyRelation : "Not given"}</span>
+                          </div>
+                          <div className="col-span-2">
                             <span className="opacity-55 block text-[8px] font-mono uppercase">Emergency phone</span>
-                            <span className="font-mono font-bold text-red-500">{selectedMember.emergencyPhone || selectedMember.emergencyMobile || "N/A"}</span>
+                            <span className="font-mono font-bold text-red-500">{selectedMember.emergencyPhone || selectedMember.emergencyMobile || "Not given"}</span>
                           </div>
                         </div>
                       </div>
@@ -1922,7 +1933,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                           inputMode="numeric"
                           autoComplete="off"
                           value={newStaffPhone}
-                          onChange={(e) => { setNewStaffPhone(e.target.value.replace(/\D/g, "").slice(0, 10)); clearStaffError("phone"); }}
+                          onChange={(e) => { setNewStaffPhone(mobileDigits(e.target.value)); clearStaffError("phone"); }}
                           placeholder="98765 43210"
                           className={`${inputStyle} !pl-14 tabular-nums${staffErrors.phone ? " !border-rose-400" : ""}`}
                         />

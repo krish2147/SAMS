@@ -16,6 +16,7 @@ import { NotificationDrawer, SysNotification } from "./NotificationDrawer";
 import { sessionStore } from "../utils/sessionStore";
 import { useStaffNotifications } from "../utils/useStaffNotifications";
 import { NotificationCountBadge } from "./NotificationCountBadge";
+import { mobileDigits } from "../utils/phone";
 
 interface ReceptionistDashboardProps {
   academyId: AcademyId;
@@ -1162,7 +1163,7 @@ export function ReceptionistDashboard({ academyId, userName, onLogout }: Recepti
                       inputMode="numeric"
                       required
                       value={walkInForm.mobileNo}
-                      onChange={(e) => setWalkInForm(prev => ({ ...prev, mobileNo: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
+                      onChange={(e) => setWalkInForm(prev => ({ ...prev, mobileNo: mobileDigits(e.target.value) }))}
                       placeholder="98765 43210"
                       pattern="[6-9][0-9]{9}"
                       title="Enter the 10-digit mobile number, starting with 6, 7, 8 or 9."

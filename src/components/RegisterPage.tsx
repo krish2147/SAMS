@@ -10,6 +10,7 @@ import swimmerImage from "../assets/registration-swimmer.jpg";
 import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-logo";
 import { PhotoPicker } from "./PhotoPicker";
 import { sessionStore } from "../utils/sessionStore";
+import { mobileDigits } from "../utils/phone";
 
 interface RegisterPageProps {
   academyId: AcademyId;
@@ -207,8 +208,8 @@ function validate(form: FormState): Partial<Record<FieldKey, string>> {
   else if (ageFrom(form.dateOfBirth) === null) e.dateOfBirth = "Enter a valid date of birth.";
   if (!form.gender) e.gender = "Choose an option.";
   if (!form.bloodGroup) e.bloodGroup = "Choose your blood group, or Not known.";
-  if (digitsOnly(form.mobileNumber).length !== 10) e.mobileNumber = "Enter a 10-digit mobile number.";
-  if (!form.whatsappSameAsMobile && digitsOnly(form.whatsappNumber).length !== 10) e.whatsappNumber = "Enter a 10-digit WhatsApp number.";
+  if (!/^[6-9]\d{9}$/.test(digitsOnly(form.mobileNumber))) e.mobileNumber = "Enter a 10-digit mobile number starting with 6, 7, 8 or 9.";
+  if (!form.whatsappSameAsMobile && !/^[6-9]\d{9}$/.test(digitsOnly(form.whatsappNumber))) e.whatsappNumber = "Enter a 10-digit WhatsApp number starting with 6, 7, 8 or 9.";
   if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) e.email = "Enter a valid email address, or leave it blank.";
 
   if (!form.address.trim()) e.address = "Enter your house and street.";
@@ -216,7 +217,7 @@ function validate(form: FormState): Partial<Record<FieldKey, string>> {
   if (!form.state.trim()) e.state = "Enter your state.";
   if (!/^\d{6}$/.test(form.pincode.trim())) e.pincode = "Enter a 6-digit PIN code.";
   if (!form.emergencyContactName.trim()) e.emergencyContactName = "Enter who we should call in an emergency.";
-  if (digitsOnly(form.emergencyContactNumber).length !== 10) e.emergencyContactNumber = "Enter their 10-digit phone number.";
+  if (!/^[6-9]\d{9}$/.test(digitsOnly(form.emergencyContactNumber))) e.emergencyContactNumber = "Enter their 10-digit mobile number, starting with 6, 7, 8 or 9.";
   else if (digitsOnly(form.emergencyContactNumber) === digitsOnly(form.mobileNumber)) e.emergencyContactNumber = "Use someone else's number, not your own.";
   if (!form.relationship.trim()) e.relationship = "Choose how they are related to you.";
 
@@ -897,7 +898,7 @@ export function RegisterPage({ academyId, onCancel, embedded = false, walkIn = f
                 <Label htmlFor="reg-mobile">Mobile number</Label>
                 <div className={`flex items-center rounded-xl border bg-white transition focus-within:ring-4 ${errors.mobileNumber ? "border-rose-300 focus-within:ring-rose-100" : "border-ink-200 focus-within:border-aqua-500 focus-within:ring-aqua-500/15"}`}>
                   <span className="pl-4 pr-2 text-[15px] font-medium text-ink-600">+91</span>
-                  <input id="reg-mobile" name="mobileNumber" inputMode="numeric" autoComplete="tel-national" value={form.mobileNumber} onChange={e => update("mobileNumber", digitsOnly(e.target.value).slice(0, 10))} placeholder="98250 12345" className="w-full rounded-r-xl bg-transparent py-3 pr-4 text-[15px] tabular-nums text-ink-950 outline-none placeholder:text-ink-400" />
+                  <input id="reg-mobile" name="mobileNumber" inputMode="numeric" autoComplete="tel-national" value={form.mobileNumber} onChange={e => update("mobileNumber", mobileDigits(e.target.value))} placeholder="98250 12345" className="w-full rounded-r-xl bg-transparent py-3 pr-4 text-[15px] tabular-nums text-ink-950 outline-none placeholder:text-ink-400" />
                 </div>
                 <p className="mt-2 text-[13px] text-ink-600">You'll sign in with a code sent to this number.</p>
                 <FieldError message={errors.mobileNumber} />
@@ -922,7 +923,7 @@ export function RegisterPage({ academyId, onCancel, embedded = false, walkIn = f
                   <Label htmlFor="reg-whatsapp">WhatsApp number</Label>
                   <div className={`flex items-center rounded-xl border bg-white focus-within:ring-4 ${errors.whatsappNumber ? "border-rose-300 focus-within:ring-rose-100" : "border-ink-200 focus-within:border-aqua-500 focus-within:ring-aqua-500/15"}`}>
                     <span className="pl-4 pr-2 text-[15px] font-medium text-ink-600">+91</span>
-                    <input id="reg-whatsapp" name="whatsappNumber" inputMode="numeric" value={form.whatsappNumber} onChange={e => update("whatsappNumber", digitsOnly(e.target.value).slice(0, 10))} placeholder="98250 12345" className="w-full rounded-r-xl bg-transparent py-3 pr-4 text-[15px] tabular-nums outline-none" />
+                    <input id="reg-whatsapp" name="whatsappNumber" inputMode="numeric" value={form.whatsappNumber} onChange={e => update("whatsappNumber", mobileDigits(e.target.value))} placeholder="98250 12345" className="w-full rounded-r-xl bg-transparent py-3 pr-4 text-[15px] tabular-nums outline-none" />
                   </div>
                   <FieldError message={errors.whatsappNumber} />
                 </div>
@@ -972,7 +973,7 @@ export function RegisterPage({ academyId, onCancel, embedded = false, walkIn = f
                   <Label htmlFor="reg-ec-phone">Their phone</Label>
                   <div className={`flex items-center rounded-xl border bg-white focus-within:ring-4 ${errors.emergencyContactNumber ? "border-rose-300 focus-within:ring-rose-100" : "border-ink-200 focus-within:border-aqua-500 focus-within:ring-aqua-500/15"}`}>
                     <span className="pl-4 pr-2 text-[15px] font-medium text-ink-600">+91</span>
-                    <input id="reg-ec-phone" name="emergencyContactNumber" inputMode="numeric" value={form.emergencyContactNumber} onChange={e => update("emergencyContactNumber", digitsOnly(e.target.value).slice(0, 10))} className="w-full rounded-r-xl bg-transparent py-3 pr-4 text-[15px] tabular-nums outline-none" />
+                    <input id="reg-ec-phone" name="emergencyContactNumber" inputMode="numeric" value={form.emergencyContactNumber} onChange={e => update("emergencyContactNumber", mobileDigits(e.target.value))} className="w-full rounded-r-xl bg-transparent py-3 pr-4 text-[15px] tabular-nums outline-none" />
                   </div>
                   <FieldError message={errors.emergencyContactNumber} />
                 </div>

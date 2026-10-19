@@ -5,6 +5,7 @@ import { PhotoPicker } from "./PhotoPicker";
 import { 
   X, Camera, Phone, User, Heart, Upload, Check, AlertCircle, RefreshCw, MapPin, ShieldAlert, Activity
 } from "lucide-react";
+import { mobileDigits } from "../utils/phone";
 
 interface EditProfileModalProps {
   isOpen: boolean;
@@ -327,7 +328,7 @@ export function EditProfileModal({ isOpen, onClose, currentProfile, onSave, isSw
                     type="tel" 
                     value={mobileNo.startsWith("+91 ") ? mobileNo.replace("+91 ", "") : mobileNo} 
                     onChange={(e) => {
-                      const clean = e.target.value.replace(/\D/g, "").slice(0, 10);
+                      const clean = mobileDigits(e.target.value);
                       setMobileNo("+91 " + clean);
                     }}
                     placeholder="99012 34567"
@@ -454,7 +455,7 @@ export function EditProfileModal({ isOpen, onClose, currentProfile, onSave, isSw
                     type="tel" 
                     value={parentMobile.startsWith("+91 ") ? parentMobile.replace("+91 ", "") : parentMobile} 
                     onChange={(e) => {
-                      const clean = e.target.value.replace(/\D/g, "").slice(0, 10);
+                      const clean = mobileDigits(e.target.value);
                       setParentMobile("+91 " + clean);
                     }}
                     placeholder="99012 34503"
@@ -506,7 +507,7 @@ export function EditProfileModal({ isOpen, onClose, currentProfile, onSave, isSw
                     type="tel" 
                     value={emergencyPhone.startsWith("+91 ") ? emergencyPhone.replace("+91 ", "") : emergencyPhone} 
                     onChange={(e) => {
-                      const clean = e.target.value.replace(/\D/g, "").slice(0, 10);
+                      const clean = mobileDigits(e.target.value);
                       setEmergencyPhone("+91 " + clean);
                     }}
                     placeholder="99012 34502"
