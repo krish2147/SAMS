@@ -137,7 +137,7 @@ async function sendMsg91Template(
 /**
  * Sends the "payment_success" WhatsApp template once a membership is activated.
  * Confirmed live against MSG91's approved template body (Manage Templates -> payment_success):
- * {{1}} name, {{2}} amount paid, {{3}} membership number, {{4}} receipt number,
+ * {{1}} name, {{2}} amount paid, {{3}} membership number, {{4}} invoice number,
  * {{5}} start date, {{6}} end date.
  */
 export async function sendPaymentSuccessWhatsApp(params: {
@@ -145,21 +145,21 @@ export async function sendPaymentSuccessWhatsApp(params: {
   memberName: string;
   amount: string | number;
   membershipNo: string;
-  receiptNo: string;
+  invoiceNo: string;
   startDate: string | Date;
   endDate: string | Date;
 }): Promise<Msg91WhatsAppResponse> {
   const templateName = process.env.MSG91_PAYMENT_SUCCESS_TEMPLATE || "payment_success";
   if (isMetaWhatsAppEnabled()) {
     return sendMetaTemplate(normalizePhoneNumber(params.phoneNumber), templateName, [
-      params.memberName, waAmount(params.amount), params.membershipNo, params.receiptNo, waDate(params.startDate), waDate(params.endDate)
+      params.memberName, waAmount(params.amount), params.membershipNo, params.invoiceNo, waDate(params.startDate), waDate(params.endDate)
     ]);
   }
   return sendMsg91Template(params.phoneNumber, templateName, {
     body_1: { type: "text", value: String(params.memberName).trim() },
     body_2: { type: "text", value: waAmount(params.amount) },
     body_3: { type: "text", value: String(params.membershipNo || "").trim() },
-    body_4: { type: "text", value: String(params.receiptNo || "").trim() },
+    body_4: { type: "text", value: String(params.invoiceNo || "").trim() },
     body_5: { type: "text", value: waDate(params.startDate) },
     body_6: { type: "text", value: waDate(params.endDate) }
   });

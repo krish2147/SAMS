@@ -832,7 +832,7 @@ export class PaymentService {
           [
             member.id,
             "Payment Confirmed",
-            `Your payment of ₹${payment.amount} (Receipt #${receiptNo}) was verified. Membership active until ${expiryDateStr}.`
+            `Your payment of ₹${payment.amount} (Invoice ${invoiceNo}) was verified. Membership active until ${expiryDateStr}.`
           ]
         );
       }
@@ -1008,7 +1008,7 @@ export class PaymentService {
       );
       await conn.query(
         "INSERT INTO notifications (member_id, title, message, type) VALUES (?, ?, ?, 'Payment Success')",
-        [member.id, "Payment Confirmed", `Your cash payment of ₹${pricing.totalAmount} (Receipt #${receiptNo}) was received. Membership active until ${expiryDateStr}.`]
+        [member.id, "Payment Confirmed", `Your cash payment of ₹${pricing.totalAmount} (Invoice ${invoiceNo}) was received. Membership active until ${expiryDateStr}.`]
       );
 
       await conn.commit();
@@ -2034,7 +2034,7 @@ export class PaymentService {
           memberName: row.member_name,
           amount: row.amount,
           membershipNo: row.membershipNo,
-          receiptNo: row.receipt_no,
+          invoiceNo: row.invoice_no,
           startDate: row.membership_start_date,
           endDate: row.membership_end_date
         });
