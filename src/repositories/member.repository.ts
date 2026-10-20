@@ -1,4 +1,5 @@
 import { getDbPool } from "../config/db";
+import { toDateOnlyString } from "../utils/membership-date";
 
 export class MemberRepository {
   private mapRowToMember(row: any) {
@@ -48,6 +49,9 @@ export class MemberRepository {
       registration_status: row.registration_status,
       payment_status: row.payment_status,
       membership_status: row.membership_status,
+      // Membership period, for renewals and expiry lists (YYYY-MM-DD).
+      startDate: toDateOnlyString(row.membership_start_date),
+      endDate: toDateOnlyString(row.membership_end_date),
       login_enabled: Boolean(row.login_enabled),
       // Mapped legacy compatibility fields
       status: row.registration_status,

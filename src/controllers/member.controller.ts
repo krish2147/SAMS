@@ -217,7 +217,8 @@ export class MemberController {
       const user = (req as any).user || {};
       const result = await new PaymentService().recordCashPayment({
         membershipNo: String(membershipNo),
-        receivedBy: user.name || user.fullName || "Front desk"
+        receivedBy: user.name || user.fullName || "Front desk",
+        paymentType: req.body?.paymentType === "Renewal" ? "Renewal" : "Registration"
       });
       if (result.selectedBatchId) await this.memberService.syncBatchStrength(result.selectedBatchId);
       res.json(result);
