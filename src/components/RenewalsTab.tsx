@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { FilterMenu } from "./FilterMenu";
 import { AnimatePresence, motion } from "motion/react";
 import { CheckCircle2, ChevronRight, IndianRupee, LoaderCircle, RefreshCw, Search, Smartphone, X } from "lucide-react";
 
@@ -110,22 +111,22 @@ export function RenewalsTab({ members, getSessionToken, onRenewed }: RenewalsTab
         </div>
       )}
 
-      <section className="overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-card">
-        <div className="flex flex-col gap-3 border-b border-ink-100 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex gap-1.5 overflow-x-auto" role="tablist" aria-label="Filter renewals">
-            {([["all", "All"], ["soon", "Ending soon"], ["ended", "Ended"]] as Array<[Filter, string]>).map(([id, label]) => (
-              <button key={id} type="button" role="tab" aria-selected={filter === id} onClick={() => setFilter(id)}
-                className={`min-h-10 whitespace-nowrap rounded-full px-3.5 text-sm font-semibold transition-colors cursor-pointer ${filter === id ? "bg-ink-900 text-white" : "bg-ink-50 text-ink-600 hover:bg-ink-100"}`}>
-                {label} <span className={filter === id ? "text-white/70" : "text-ink-400"}>{counts[id]}</span>
-              </button>
-            ))}
-          </div>
-          <label className="relative block sm:w-72">
+      <section className="rounded-2xl border border-ink-100 bg-white shadow-card">
+        <div className="flex items-center gap-2 border-b border-ink-100 p-4">
+          <label className="relative block min-w-0 flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, number or phone"
+            <input value={query} aria-label="Search by name, membership number or phone" onChange={(e) => setQuery(e.target.value)} placeholder="Search renewals"
               className="min-h-11 w-full rounded-xl border border-ink-200 bg-white pl-9 pr-3 text-sm text-ink-900 placeholder-ink-400 outline-none focus:border-aqua-400 focus-visible:ring-2 focus-visible:ring-aqua-400/30" />
           </label>
+          <FilterMenu label="Filter renewals" value={filter} onChange={setFilter}
+            options={([["all", "All renewals"], ["soon", "Ending soon"], ["ended", "Ended"]] as Array<[Filter, string]>).map(([id, label]) => ({ id, label, count: counts[id] }))} />
         </div>
+        {filter !== "all" && (
+          <div className="flex items-center justify-between gap-3 border-b border-ink-100 bg-ink-50/60 px-4 py-2.5 text-sm">
+            <span className="text-ink-600">Showing <span className="font-semibold text-ink-900">{({ soon: "Ending soon", ended: "Ended" } as Record<string, string>)[filter]}</span> · {visible.length}</span>
+            <button type="button" onClick={() => setFilter("all")} className="font-semibold text-aqua-600 hover:text-aqua-500 cursor-pointer">Clear filter</button>
+          </div>
+        )}
 
         {visible.length === 0 ? (
           <div className="px-6 py-14 text-center">
@@ -134,7 +135,7 @@ export function RenewalsTab({ members, getSessionToken, onRenewed }: RenewalsTab
             <p className="mt-1 text-sm text-ink-500">{rows.length === 0 ? "Members appear here once their first payment is recorded." : "Try another search or filter."}</p>
           </div>
         ) : (
-          <ul className="divide-y divide-ink-100">
+          <ul className="divide-y divide-ink-100 overflow-hidden rounded-b-2xl">
             {visible.map((m) => {
               const status = statusOf(m.daysLeft);
               return (
