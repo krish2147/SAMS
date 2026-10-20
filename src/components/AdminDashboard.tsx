@@ -28,7 +28,6 @@ import { CalendarTab } from "./CalendarTab";
 import { CommunicationTab } from "./CommunicationTab";
 import { AnalyticsDashboard } from "./AnalyticsDashboard";
 import { CommandPaletteModal } from "./CommandPaletteModal";
-import { QuickActionsFab } from "./QuickActionsFab";
 import { RegisterPage } from "./RegisterPage";
 import { DailyClosingReportModal } from "./DailyClosingReportModal";
 import { sessionStore } from "../utils/sessionStore";
@@ -2335,16 +2334,6 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
         }}
         onTriggerQuickAction={handleQuickAction}
       />
-
-      {/* Quick Actions Floating Action Button */}
-      {/* Hidden on the registration form, where it covered the Continue button. */}
-      {activeTab !== "register" && (
-        <QuickActionsFab
-          onAction={handleQuickAction}
-          onOpenCommandPalette={() => setCommandPaletteOpen(true)}
-          isActionAllowed={(id) => tabAllowed(viewRole, ({ add_member: "register", approve_members: "registrations", collect_payment: "revenue", create_event: "calendar" } as Record<string, string>)[id] || id)}
-        />
-      )}
 
       {/* Daily Closing Report Modal */}
       <DailyClosingReportModal
