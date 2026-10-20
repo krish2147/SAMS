@@ -117,6 +117,11 @@ export class MemberController {
         return res.status(400).json({ error: "Membership number is required." });
       }
       const approved = await this.memberService.approveMember(membershipNo);
+      if (approved?.alreadyApproved) {
+        // Approving twice must not create or send another payment link.
+        const { alreadyApproved, ...member } = approved;
+        return res.json({ success: true, alreadyApproved: true, member, message: `${member.fullName || "This member"} is already approved.` });
+      }
       if (approved) {
         const targetMobile = approved.mobileNo || approved.whatsappNumber || approved.mobile || approved.emergencyContactNumber || approved.undertakerParentPhone || "";
         const memberName = approved.fullName || approved.name || "Member";
