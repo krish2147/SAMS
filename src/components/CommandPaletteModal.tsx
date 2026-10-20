@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { sessionStore } from "../utils/sessionStore";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Search, Command, X, Users, CreditCard, Calendar, CheckCircle2,
@@ -46,7 +47,11 @@ export function CommandPaletteModal({
     setIsLoading(true);
     const handler = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/search/global?q=${encodeURIComponent(query.trim())}`);
+        let token = "";
+        try { token = JSON.parse(sessionStore.get() || "{}")?.token || ""; } catch { /* signed out */ }
+        const res = await fetch(`/api/search/global?q=${encodeURIComponent(query.trim())}`, {
+          headers: token ? { "x-session-token": token } : {}
+        });
         const data = await res.json().catch(() => ({}));
         if (data.success) {
           setResults(data.results);

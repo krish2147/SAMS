@@ -8,19 +8,20 @@ import {
 interface QuickActionsFabProps {
   onAction: (action: string) => void;
   onOpenCommandPalette: () => void;
+  /** Hide actions the signed-in role can't use (e.g. payments for reception, approvals for coaches). */
+  isActionAllowed?: (action: string) => boolean;
 }
 
-export function QuickActionsFab({ onAction, onOpenCommandPalette }: QuickActionsFabProps) {
+export function QuickActionsFab({ onAction, onOpenCommandPalette, isActionAllowed }: QuickActionsFabProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const actions = [
-    { id: "scan_qr", label: "Scan Member QR", icon: QrCode, color: "from-cyan-500 to-blue-600" },
     { id: "add_member", label: "Register Swimmer", icon: UserPlus, color: "from-emerald-500 to-teal-600" },
     { id: "approve_members", label: "Pending Approvals", icon: ShieldCheck, color: "from-indigo-500 to-purple-600" },
     { id: "collect_payment", label: "Collect Payment", icon: CreditCard, color: "from-amber-500 to-orange-600" },
     { id: "create_event", label: "Schedule Event", icon: Calendar, color: "from-rose-500 to-pink-600" },
     { id: "command_palette", label: "Command Palette (Ctrl+K)", icon: Command, color: "from-slate-700 to-slate-900" }
-  ];
+  ].filter((a) => a.id === "command_palette" || !isActionAllowed || isActionAllowed(a.id));
 
   const handleTrigger = (id: string) => {
     if (id === "command_palette") {

@@ -3,20 +3,18 @@ import test from "node:test";
 import { readFile } from "node:fs/promises";
 
 test("all operational membership-date fallbacks use the shared calendar helper", async () => {
-  const [payment, member, dashboard, attendance, receptionist] = await Promise.all([
+  const [payment, member, dashboard, attendance] = await Promise.all([
     readFile(new URL("../services/payment.service.ts", import.meta.url), "utf8"),
     readFile(new URL("../services/member.service.ts", import.meta.url), "utf8"),
     readFile(new URL("../routes/member-dashboard.routes.ts", import.meta.url), "utf8"),
-    readFile(new URL("../controllers/member.controller.ts", import.meta.url), "utf8"),
-    readFile(new URL("../components/ReceptionistDashboard.tsx", import.meta.url), "utf8")
+    readFile(new URL("../controllers/member.controller.ts", import.meta.url), "utf8")
   ]);
-  const operationalSources = [payment, member, dashboard, attendance, receptionist].join("\n");
+  const operationalSources = [payment, member, dashboard, attendance].join("\n");
   assert.doesNotMatch(operationalSources, /\.setMonth\s*\(/);
   assert.match(payment, /calculateActivationMembershipPeriod/);
   assert.match(member, /calculateMembershipPeriod/);
   assert.match(dashboard, /membershipPeriodSummary/);
   assert.match(attendance, /calculateMembershipPeriod/);
-  assert.match(receptionist, /calculateMembershipPeriod/);
 });
 
 test("initial, offline, manual, and self-renewal writers persist the canonical dates", async () => {

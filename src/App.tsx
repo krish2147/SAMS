@@ -15,8 +15,6 @@ import { PaymentCheckoutPage } from "./components/PaymentCheckoutPage";
 // Sub Dashboards
 import { ParentDashboard } from "./components/ParentDashboard";
 import { MemberDashboardShell } from "./components/MemberDashboardShell";
-import { CoachDashboard } from "./components/CoachDashboard";
-import { ReceptionistDashboard } from "./components/ReceptionistDashboard";
 import { AdminDashboard } from "./components/AdminDashboard";
 import { sessionStore } from "./utils/sessionStore";
 import { useRememberedState, clearRememberedViews } from "./utils/useRememberedState";
@@ -171,11 +169,11 @@ export default function App() {
         return <ParentDashboard academyId={selectedAcademyId!} userName={userSession.name} />;
       case "member":
         return <MemberDashboardShell userName={userSession.name} avatar={userSession.avatar} onLogout={requestLogout} />;
+      // Admin, reception and coaches share one dashboard (same layout and theme); each role sees
+      // only its own pages.
       case "coach":
-        return <CoachDashboard academyId={selectedAcademyId!} userName={userSession.name} onLogout={requestLogout} onSessionExpired={handleLogout} userSession={userSession} />;
       case "staff":
       case "receptionist":
-        return <ReceptionistDashboard academyId={selectedAcademyId!} userName={userSession.name} onLogout={requestLogout} />;
       case "developer":
       case "super_admin":
       case "admin":

@@ -72,6 +72,22 @@ interface AdminDashboardProps {
   onProfileUpdated?: (updatedUser: { name: string; email: string; phoneNumber: string; avatar: string }) => void;
 }
 
+// Which dashboard pages each staff role gets. Same layout and theme for everyone; only the pages differ.
+type StaffViewRole = "admin" | "staff" | "coach";
+const ROLE_TABS: Record<Exclude<StaffViewRole, "admin">, string[]> = {
+  staff: ["home", "members", "registrations", "register", "renewals", "batches", "calendar", "events", "holidays", "communication", "activity", "settings"],
+  coach: ["home", "members", "batches", "calendar", "events", "holidays", "activity", "settings"]
+};
+function staffViewRole(role: unknown): StaffViewRole {
+  const r = String(role || "");
+  if (["developer", "super_admin", "admin"].includes(r)) return "admin";
+  if (r === "staff" || r === "receptionist") return "staff";
+  return "coach";
+}
+function tabAllowed(role: StaffViewRole, tab: string) {
+  return role === "admin" || ROLE_TABS[role].includes(tab);
+}
+
 export function AdminDashboard({ academyId, userName, userRole = "admin", onLogout, userSession, onProfileUpdated }: AdminDashboardProps) {
   const isSwim = academyId === "swim";
 
@@ -109,8 +125,11 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
     });
   }, [userName, userRole, userSession]);
   
-  // Tab control
-  const [activeTab, setActiveTab] = useRememberedState<string>("admin.tab", "home");
+  // Tab control. Admin, reception and coaches all use this dashboard; each role sees its own pages
+  // (ROLE_TABS), and a page the role can't use (remembered, or opened from a shortcut) shows Home.
+  const viewRole = staffViewRole(userSession?.role || userRole);
+  const [storedTab, setActiveTab] = useRememberedState<string>("admin.tab", "home");
+  const activeTab = tabAllowed(viewRole, storedTab) ? storedTab : "home";
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [mobileMenuDrawerOpen, setMobileMenuDrawerOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -822,11 +841,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
   }`;
 
   // Normalize userRole based on activeUser
-  const normalizedRole = (["developer", "super_admin", "admin"].includes(activeUser.role)) 
-    ? "admin" 
-    : (activeUser.role === "receptionist" || activeUser.role === "staff") 
-      ? "staff" 
-      : "coach";
+  const normalizedRole = viewRole;
 
   const allTabs = [
     { id: "home", label: "Dashboard", icon: LayoutDashboard },
@@ -845,11 +860,9 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
     { id: "settings", label: "Settings", icon: Sliders, hideForCoach: true }
   ];
 
-  const visibleTabs = allTabs.filter(tab => {
-    if (tab.adminOnly && normalizedRole !== "admin") return false;
-    if (tab.hideForCoach && normalizedRole === "coach") return false;
-    return true;
-  });
+  const visibleTabs = allTabs.filter(tab => tabAllowed(viewRole, tab.id));
+  // Coaches can look at members but not change them (the server refuses their edits anyway).
+  const canManageMembers = normalizedRole !== "coach";
 
   // Phone menu: the everyday pages first, then the rest grouped like the office thinks of them.
   const MENU_GROUPS: { heading?: string; ids: string[] }[] = [
@@ -883,7 +896,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
               Baroda Swim Front
             </span>
             <span className="text-[11px] font-medium tracking-wide text-aqua-300 mt-1 truncate">
-              Admin dashboard
+              {normalizedRole === "coach" ? "Coach dashboard" : normalizedRole === "staff" ? "Reception" : "Admin dashboard"}
             </span>
           </div>
         </div>
@@ -960,7 +973,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
             )}
             <div>
               <span className="text-xs font-black text-slate-800 block tracking-tight">Baroda Swim Front</span>
-              <span className="text-[9px] font-mono text-sky-600 font-bold uppercase tracking-wider block leading-none">Admin dashboard</span>
+              <span className="text-[9px] font-mono text-sky-600 font-bold uppercase tracking-wider block leading-none">{normalizedRole === "coach" ? "Coach dashboard" : normalizedRole === "staff" ? "Reception" : "Admin dashboard"}</span>
             </div>
           </div>
 
@@ -1248,7 +1261,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                                 >
                                   <Eye className="h-4.5 w-4.5" />
                                 </button>
-                                <button
+                                {canManageMembers && (<button
                                   id={`btn-toggle-member-${m.membershipNo}`}
                                   onClick={() => handleToggleMemberStatus(m.membershipNo)}
                                   className={`p-1.5 rounded cursor-pointer transition-colors ${
@@ -1261,23 +1274,23 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                                   title={m.status === "Approved" ? "Suspend member access" : m.status === "Pending Approval" ? "Approve member & send WhatsApp payment link" : "Re-activate access"}
                                 >
                                   <Check className="h-4.5 w-4.5" />
-                                </button>
-                                <button
+                                </button>)}
+                                {canManageMembers && (<button
                                   id={`btn-reject-member-${m.membershipNo}`}
                                   onClick={() => handleOpenRejectModal(m.membershipNo)}
                                   className="p-1.5 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 cursor-pointer transition-colors"
                                   title="Reject application / Mark as rejected"
                                 >
                                   <X className="h-4.5 w-4.5" />
-                                </button>
-                                <button
+                                </button>)}
+                                {canManageMembers && (<button
                                   id={`btn-delete-member-${m.membershipNo}`}
                                   onClick={() => handleDeleteMember(m.membershipNo)}
                                   className="p-1.5 rounded bg-red-500/10 hover:bg-red-500/20 text-red-500 cursor-pointer transition-colors"
                                   title="Permanently erase record"
                                 >
                                   <Trash2 className="h-4.5 w-4.5" />
-                                </button>
+                                </button>)}
                               </div>
                             </td>
                           </tr>
@@ -1488,7 +1501,8 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                         </div>
                       </div>
 
-                      {/* Admin Quick Action Controls */}
+                      {/* Admin Quick Action Controls (not for coaches) */}
+                      {canManageMembers && (
                       <div className="pt-4 border-t border-slate-100 space-y-2">
                         <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400 font-extrabold block">Admin Quick Actions</span>
                         <div className="flex flex-wrap gap-2">
@@ -1518,6 +1532,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                           )}
                         </div>
                       </div>
+                      )}
 
                     </div>
 
@@ -2291,7 +2306,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
         sections={menuSections}
         activeId={activeTab}
         onSelect={(id) => { setActiveTab(id); setSelectedMember(null); }}
-        subtitle={normalizedRole === "coach" ? "Coach dashboard" : "Admin dashboard"}
+        subtitle={normalizedRole === "coach" ? "Coach dashboard" : normalizedRole === "staff" ? "Reception" : "Admin dashboard"}
         user={{ name: activeUser.name, role: roleLabel(activeUser.role), avatar: activeUser.avatar }}
         onProfile={visibleTabs.some((t) => t.id === "settings") ? () => { setActiveTab("settings"); setSelectedMember(null); } : undefined}
         onSearch={() => setCommandPaletteOpen(true)}
@@ -2327,6 +2342,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
         <QuickActionsFab
           onAction={handleQuickAction}
           onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+          isActionAllowed={(id) => tabAllowed(viewRole, ({ add_member: "register", approve_members: "registrations", collect_payment: "revenue", create_event: "calendar" } as Record<string, string>)[id] || id)}
         />
       )}
 
