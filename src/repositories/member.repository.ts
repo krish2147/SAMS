@@ -57,8 +57,9 @@ export class MemberRepository {
       status: row.registration_status,
       paymentStatus: row.payment_status,
       typeOfMembership: row.planName || "General",
-      batchSchedule: row.batchName?.includes("Morning") ? "MWF" : "TTS",
-      batchTiming: row.batchName || "Morning Sunrise Batch (A)"
+      batchName: row.batchName || "",
+      batchSchedule: row.batchName || "",
+      batchTiming: row.batchName || ""
     };
   }
 

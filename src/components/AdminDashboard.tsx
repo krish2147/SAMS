@@ -16,6 +16,7 @@ import { swimCoaches, cricketCoaches } from "../data";
 import { HomeTab } from "./HomeTab";
 import { BatchesTab } from "./BatchesTab";
 import { RenewalsTab } from "./RenewalsTab";
+import { MembersTab } from "./MembersTab";
 import { ReportsTab } from "./ReportsTab";
 import { ActivityTab } from "./ActivityTab";
 import { PaymentsTab } from "./PaymentsTab";
@@ -178,8 +179,6 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
 
   // Members Directory state
   const [members, setMembers] = useState<any[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
   const [selectedMember, setSelectedMember] = useState<any>(null);
 
   // Registration management state
@@ -653,6 +652,14 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
 
   // Add Member Manual Entry
 
+  // Reload the member list after a payment or renewal changes it on the server.
+  const refreshMembers = () => {
+    const token = getSessionToken();
+    fetch("/api/members", { headers: token ? { "x-session-token": token } : {} })
+      .then(res => res.ok ? res.json().catch(() => []) : [])
+      .then(data => { if (Array.isArray(data)) setMembers(data.filter((m: any) => m.academyId === academyId)); });
+  };
+
   // Delete Member Handler
   const handleDeleteMember = (membershipNo: string) => {
     handleDeleteMemberBatch([membershipNo]);
@@ -697,50 +704,6 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
     }
   };
 
-  // Toggle Member Approval Status or Approve Pending Members
-  const handleToggleMemberStatus = (membershipNo: string) => {
-    let nextStatus = "Approved";
-    let isApproveAction = false;
-
-    const matched = members.find(m => m.membershipNo === membershipNo);
-    if (!matched) return;
-
-    if (matched.status === "Pending Approval") {
-      nextStatus = "Approved";
-      isApproveAction = true;
-    } else {
-      nextStatus = matched.status === "Approved" ? "Suspended" : "Approved";
-    }
-
-    const token = getSessionToken();
-    fetch("/api/members/approve", {
-      method: "POST",
-      headers: { 
-        "Content-Type": "application/json",
-        ...(token ? { "x-session-token": token } : {})
-      },
-      body: JSON.stringify({ membershipNo, status: nextStatus })
-    })
-    .then(res => res.ok ? res.json().catch(() => ({})) : ({}))
-    .then((data: any) => {
-      if (data && data.success) {
-        setMembers(prev => prev.map(m => m.membershipNo === membershipNo ? { ...m, status: nextStatus, paymentStatus: isApproveAction ? "Unpaid" : m.paymentStatus } : m));
-      }
-    })
-    .catch(err => {
-      console.error("Failed to approve member via API", err);
-      // Client-side fallback
-      setMembers(prev => prev.map(m => m.membershipNo === membershipNo ? { ...m, status: nextStatus, paymentStatus: isApproveAction ? "Unpaid" : m.paymentStatus } : m));
-    });
-
-    if (selectedMember?.membershipNo === membershipNo) {
-      setSelectedMember(prev => {
-        if (!prev) return null;
-        return { ...prev, status: nextStatus, paymentStatus: isApproveAction ? "Unpaid" : prev.paymentStatus };
-      });
-    }
-  };
-
   // Handle Attendance status cycle
   const cycleAttendanceStatus = (membershipNo: string) => {
     setAttendanceRecords(prev => {
@@ -755,25 +718,6 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
 
   // Real SAMS Renewal action logic
 
-  // Filters search members
-  const filteredMembers = members.filter(m => {
-    const matchesSearch = (m.fullName || "").toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          (m.membershipNo || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          (m.mobileNo || "").includes(searchQuery);
-    
-    const rStatus = m.registration_status || m.status || "Pending";
-    const isRejected = rStatus === "Rejected" || m.status === "Rejected" || m.admin_approval === "Rejected";
-
-    const matchesStatus = 
-      (statusFilter === "All" && !isRejected) || 
-      (statusFilter === "Pending Approval" && (rStatus === "Pending" || rStatus === "Pending Approval") && !isRejected) ||
-      (statusFilter === "Approved" && (rStatus === "Approved" || m.status === "Approved")) ||
-      (statusFilter === "Suspended" && m.membership_status === "Suspended") ||
-      (statusFilter === "Rejected" && isRejected) ||
-      (rStatus === statusFilter && !isRejected);
-
-    return matchesSearch && matchesStatus;
-  });
 
   // Financial aggregates
   const calculateAggregateRevenue = () => {
@@ -1142,386 +1086,19 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
 
         {/* TAB 2: MEMBER DIRECTORY */}
         {activeTab === "members" && (
-          <div className="space-y-6 animate-in fade-in duration-300">
-            <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
-              
-              {/* Search and filters bar */}
-              <div className="flex flex-wrap sm:flex-nowrap gap-3.5 items-center flex-grow w-full max-w-2xl">
-                <div className="relative flex-grow w-full min-w-[200px]">
-                  <Search className="absolute left-3.5 top-3 h-4.5 w-4.5 opacity-40" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search directory by member name, phone number, or ID..."
-                    className={`pl-10 ${inputStyle}`}
-                  />
-                </div>
-
-                <div className="flex items-center gap-2.5 shrink-0">
-                  <Filter className="h-4 w-4 opacity-50" />
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="p-3 text-xs rounded-xl focus:outline-none border font-semibold bg-current/5 border-current/10 text-current"
-                  >
-                    <option value="All">All Active & Pending</option>
-                    <option value="Pending Approval">Pending Approvals</option>
-                    <option value="Approved">Active Members</option>
-                    <option value="Suspended">Suspended Members</option>
-                    <option value="Rejected">Rejected Applications</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Add member button */}
-              <button
-                id="btn-admin-add-member-modal"
-                onClick={() => { setActiveTab("register"); setSelectedMember(null); }}
-                className={`py-3 px-4.5 rounded-xl text-xs uppercase tracking-wider font-extrabold flex items-center justify-center gap-2 cursor-pointer shadow-sm transition-all whitespace-nowrap shrink-0 ${buttonPrimary}`}
-              >
-                <UserPlus className="h-4 w-4" />
-                <span>Onboard Member</span>
-              </button>
-
-            </div>
-
-            {/* Grid Layout: Left is Master table, Right is detailed profile view (if selected) */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
-              
-              {/* Left Side: Table List */}
-              <div className={`min-w-0 transition-all duration-300 ${selectedMember ? "col-span-12 lg:col-span-7" : "col-span-12 lg:col-span-12"} rounded-3xl border overflow-hidden ${bgCard}`}>
-                <div className="overflow-x-auto w-full hidden md:block">
-                  <table className="w-full text-left border-collapse text-xs min-w-[620px]">
-                    <thead>
-                      <tr className="bg-current/5 border-b border-current/10 font-mono text-[10px] opacity-75 uppercase tracking-wider whitespace-nowrap">
-                        <th className="p-4 pl-4.5">Membership ID</th>
-                        <th className="p-4">Full Member Name</th>
-                        <th className="p-4">Batch schedule</th>
-                        <th className="p-4">Mobile</th>
-                        <th className="p-4 text-center">Status</th>
-                        <th className="p-4 pr-4 text-center">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-current/5">
-                      {filteredMembers.length > 0 ? (
-                        filteredMembers.map((m) => (
-                          <tr key={m.membershipNo} className={`hover:bg-current/5 transition-colors ${selectedMember?.membershipNo === m.membershipNo ? "bg-current/5" : ""}`}>
-                            <td className="p-4 pl-4.5 font-mono font-bold text-sky-500 whitespace-nowrap">{m.membershipNo}</td>
-                            <td className="p-4">
-                              <div className="min-w-[130px]">
-                                <span className="font-extrabold block text-slate-900 dark:text-white uppercase truncate">{m.fullName}</span>
-                                <span className="text-[10px] opacity-55 block font-mono mt-0.5 whitespace-nowrap">{m.typeOfMembership} • Age: {m.age}</span>
-                              </div>
-                            </td>
-                            <td className="p-4 whitespace-nowrap">
-                              <span className="font-semibold">{m.batchSchedule} • {(m.batchTiming || "").split(" ")[0]}</span>
-                            </td>
-                            <td className="p-4 font-mono opacity-80 whitespace-nowrap">{m.mobileNo}</td>
-                            <td className="p-4 text-center whitespace-nowrap">
-                              <span className={`text-[8.5px] font-bold font-mono px-2.5 py-1 rounded-full uppercase border ${
-                                m.status === "Approved" 
-                                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" 
-                                  : m.status === "Pending Approval"
-                                    ? "bg-amber-500/10 text-amber-400 border-amber-500/20 animate-pulse"
-                                    : "bg-red-500/10 text-red-500 border-red-500/20"
-                              }`}>
-                                {m.status}
-                              </span>
-                            </td>
-                            <td className="p-4 pr-4 text-center whitespace-nowrap">
-                              <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
-                                <button
-                                  id={`btn-view-member-spec-${m.membershipNo}`}
-                                  onClick={() => setSelectedMember(m)}
-                                  className="p-1.5 rounded bg-sky-500/10 hover:bg-sky-500/20 text-sky-500 cursor-pointer transition-colors"
-                                  title="Inspect paper specs folder"
-                                >
-                                  <Eye className="h-4.5 w-4.5" />
-                                </button>
-                                {canManageMembers && (<button
-                                  id={`btn-toggle-member-${m.membershipNo}`}
-                                  onClick={() => handleToggleMemberStatus(m.membershipNo)}
-                                  className={`p-1.5 rounded cursor-pointer transition-colors ${
-                                    m.status === "Approved" 
-                                      ? "bg-amber-500/10 hover:bg-amber-500/20 text-amber-500" 
-                                      : m.status === "Pending Approval"
-                                        ? "bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-400 border border-emerald-500/30 animate-bounce"
-                                        : "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500"
-                                  }`}
-                                  title={m.status === "Approved" ? "Suspend member access" : m.status === "Pending Approval" ? "Approve member & send WhatsApp payment link" : "Re-activate access"}
-                                >
-                                  <Check className="h-4.5 w-4.5" />
-                                </button>)}
-                                {canManageMembers && (<button
-                                  id={`btn-reject-member-${m.membershipNo}`}
-                                  onClick={() => handleOpenRejectModal(m.membershipNo)}
-                                  className="p-1.5 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 cursor-pointer transition-colors"
-                                  title="Reject application / Mark as rejected"
-                                >
-                                  <X className="h-4.5 w-4.5" />
-                                </button>)}
-                                {canManageMembers && (<button
-                                  id={`btn-delete-member-${m.membershipNo}`}
-                                  onClick={() => handleDeleteMember(m.membershipNo)}
-                                  className="p-1.5 rounded bg-red-500/10 hover:bg-red-500/20 text-red-500 cursor-pointer transition-colors"
-                                  title="Permanently erase record"
-                                >
-                                  <Trash2 className="h-4.5 w-4.5" />
-                                </button>)}
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={6} className="text-center py-12 opacity-50 font-light">
-                            No matching members found.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Mobile Member Cards (Visible only on mobile) */}
-                <div className="md:hidden block p-4 space-y-4">
-                  {filteredMembers.length > 0 ? (
-                    filteredMembers.map((m) => (
-                      <div 
-                        key={m.membershipNo}
-                        onClick={() => setSelectedMember(m)}
-                        className={`p-4 rounded-2xl border transition-all cursor-pointer text-left ${
-                          selectedMember?.membershipNo === m.membershipNo 
-                            ? "bg-sky-500/10 border-sky-500/30 shadow-xs" 
-                            : isSwim 
-                              ? "bg-slate-50 border-slate-200/60 hover:bg-slate-100/50" 
-                              : "bg-emerald-900/10 border-emerald-900/30 hover:bg-emerald-900/20"
-                        }`}
-                      >
-                        <div className="flex justify-between items-start gap-2">
-                          <div>
-                            <h4 className="font-extrabold text-slate-900 dark:text-white uppercase text-xs">{m.fullName}</h4>
-                            <p className="text-[10px] opacity-65 font-mono mt-0.5">{m.typeOfMembership} • ID: {m.membershipNo}</p>
-                            <p className="text-[10px] font-semibold text-sky-600 mt-1">{m.batchSchedule} ({(m.batchTiming || "").split(" ")[0]})</p>
-                          </div>
-                          <div className="flex flex-col items-end gap-1.5">
-                            <span className={`text-[8px] font-bold font-mono px-2 py-0.5 rounded-full uppercase border ${
-                              m.status === "Approved" 
-                                ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" 
-                                : m.status === "Pending Approval"
-                                  ? "bg-amber-500/10 text-amber-500 border-amber-500/20 animate-pulse"
-                                  : "bg-red-500/10 text-red-550 border-red-500/20"
-                            }`}>
-                              {m.status}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="mt-3 flex justify-between items-center border-t border-current/5 pt-2 text-[10px]">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleToggleMemberStatus(m.membershipNo);
-                            }}
-                            className="px-2.5 py-1 rounded bg-sky-500/15 text-sky-600 text-[9px] font-bold uppercase tracking-wider"
-                          >
-                            Toggle Status
-                          </button>
-                          <span className="text-sky-500 font-bold uppercase tracking-wider">Tap to view spec &rarr;</span>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-8 opacity-50 text-xs">
-                      No matching member records found.
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Right Side: Detailed spec inspection folder (Paper spec sheets) */}
-              <AnimatePresence>
-                {selectedMember && (
-                  <div className="fixed inset-0 z-50 lg:relative lg:inset-auto col-span-12 lg:col-span-5 lg:z-0 flex flex-col justify-end lg:justify-start min-w-0">
-                    {/* Backdrop for mobile */}
-                    <div className="absolute inset-0 bg-slate-950/60 lg:hidden animate-in fade-in duration-300" onClick={() => setSelectedMember(null)} />
-                    
-                    <motion.div 
-                      initial={{ opacity: 0, y: 100 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 100 }}
-                      className="relative w-full max-h-[90vh] lg:max-h-[600px] bg-white text-slate-800 rounded-t-3xl lg:rounded-3xl border border-slate-200 text-left space-y-6 overflow-y-auto shadow-2xl lg:shadow-lg p-6 md:p-8"
-                    >
-                    
-                    {/* Header */}
-                    <div className="flex justify-between items-start border-b border-slate-100 pb-4">
-                      <div>
-                        <span className="text-[10px] font-mono uppercase tracking-widest text-sky-600 font-extrabold block">Member Spec Sheet</span>
-                        <h4 className="text-lg font-black text-slate-950 mt-1 uppercase">{selectedMember.fullName}</h4>
-                        <span className="text-[10.5px] font-mono text-sky-600 block mt-0.5">{selectedMember.membershipNo}</span>
-                      </div>
-                      <button 
-                        onClick={() => setSelectedMember(null)}
-                        className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 cursor-pointer"
-                      >
-                        <X className="h-5 w-5" />
-                      </button>
-                    </div>
-
-                    {/* Member Quick Bio spec block */}
-                    <div className="grid grid-cols-2 gap-4 text-xs">
-                      <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                        <span className="opacity-60 block font-mono text-[8px] uppercase">Plan Details</span>
-                        <span className="font-bold text-slate-800">{selectedMember.typeOfMembership} subscription</span>
-                      </div>
-                      <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                        <span className="opacity-60 block font-mono text-[8px] uppercase">Batch Schedule</span>
-                        <span className="font-bold text-slate-800">{selectedMember.batchSchedule} ({(selectedMember.batchTiming || "").split(" ")[0]})</span>
-                      </div>
-                    </div>
-
-                    {/* Specifications categories */}
-                    <div className="space-y-4 text-xs">
-                      
-                      {/* Specs Block 1: Contact Details */}
-                      <div className="space-y-2.5">
-                        <span className="text-[9.5px] font-mono font-bold text-slate-400 uppercase tracking-wider block border-b border-slate-100 pb-1">1. Contact Specifications</span>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                          <div>
-                            <span className="opacity-55 block text-[8px] font-mono uppercase">DOB & Age</span>
-                            <span className="font-medium">{formatDateToIndian(selectedMember.dateOfBirth)} (Age: {selectedMember.age})</span>
-                          </div>
-                          <div>
-                            <span className="opacity-55 block text-[8px] font-mono uppercase">Gender</span>
-                            <span className="font-medium">{selectedMember.gender}</span>
-                          </div>
-                          <div className="col-span-2">
-                            <span className="opacity-55 block text-[8px] font-mono uppercase">Home Address</span>
-                            <span className="font-medium leading-relaxed block">{selectedMember.addressLine1}, {selectedMember.addressLine2 || ""}</span>
-                          </div>
-                          <div>
-                            <span className="opacity-55 block text-[8px] font-mono uppercase">Mobile phone</span>
-                            <span className="font-bold font-mono">{selectedMember.mobileNo}</span>
-                          </div>
-                          <div>
-                            <span className="opacity-55 block text-[8px] font-mono uppercase">Email address</span>
-                            <span className="font-mono text-sky-600 font-medium block truncate" title={selectedMember.email}>{selectedMember.email}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Specs Block 2: Emergency Relations */}
-                      <div className="space-y-2.5">
-                        <span className="text-[9.5px] font-mono font-bold text-slate-400 uppercase tracking-wider block border-b border-slate-100 pb-1">2. Emergency Contact</span>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                          {/* The registration form asks for one emergency contact and their relationship; a
-                              separate guardian is only shown when one was recorded. */}
-                          {selectedMember.parentName && (
-                            <>
-                              <div>
-                                <span className="opacity-55 block text-[8px] font-mono uppercase">Guardian Name</span>
-                                <span className="font-medium">{selectedMember.parentName}</span>
-                              </div>
-                              <div>
-                                <span className="opacity-55 block text-[8px] font-mono uppercase">Guardian relation</span>
-                                <span className="font-medium">{selectedMember.parentRelation || "Not given"}</span>
-                              </div>
-                            </>
-                          )}
-                          <div>
-                            <span className="opacity-55 block text-[8px] font-mono uppercase">Emergency contact</span>
-                            <span className="font-bold text-red-500">{selectedMember.emergencyName || "Not given"}</span>
-                          </div>
-                          <div>
-                            <span className="opacity-55 block text-[8px] font-mono uppercase">Relation</span>
-                            <span className="font-medium">{selectedMember.emergencyRelation && selectedMember.emergencyRelation !== "Contact" ? selectedMember.emergencyRelation : "Not given"}</span>
-                          </div>
-                          <div className="col-span-2">
-                            <span className="opacity-55 block text-[8px] font-mono uppercase">Emergency phone</span>
-                            <span className="font-mono font-bold text-red-500">{selectedMember.emergencyPhone || selectedMember.emergencyMobile || "Not given"}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Specs Block 3: Medical Diagnostics */}
-                      <div className="space-y-2.5">
-                        <span className="text-[9.5px] font-mono font-bold text-slate-400 uppercase tracking-wider block border-b border-slate-100 pb-1">3. Health Diagnostics</span>
-                        <div className="grid grid-cols-3 gap-x-4 gap-y-2">
-                          <div>
-                            <span className="opacity-55 block text-[8px] font-mono uppercase">Blood group</span>
-                            <span className="font-extrabold text-red-500 font-mono">{selectedMember.bloodGroup}</span>
-                          </div>
-                          <div>
-                            <span className="opacity-55 block text-[8px] font-mono uppercase">Height (cm)</span>
-                            <span className="font-medium">{selectedMember.height} cm</span>
-                          </div>
-                          <div>
-                            <span className="opacity-55 block text-[8px] font-mono uppercase">Weight (kg)</span>
-                            <span className="font-medium">{selectedMember.weight} kg</span>
-                          </div>
-                          <div className="col-span-3">
-                            <span className="opacity-55 block text-[8px] font-mono uppercase">Disabilities / Medical Illnesses</span>
-                            <span className="font-medium text-slate-600 block">{selectedMember.hasMedicalCondition === "Yes" ? selectedMember.medicalDetails : selectedMember.hasMedicalCondition === "No" ? "None declared" : "Not recorded"}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Specs Block 4: Electronic Signatures */}
-                      <div className="space-y-2.5">
-                        <span className="text-[9.5px] font-mono font-bold text-slate-400 uppercase tracking-wider block border-b border-slate-100 pb-1">4. Contract Undertaking Signature</span>
-                        <div className="h-16 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-center p-2 shadow-inner">
-                          {selectedMember.signatureDataUrl ? (
-                            <img src={selectedMember.signatureDataUrl} alt="Electronic Signature" className="max-h-full object-contain filter invert mix-blend-multiply" />
-                          ) : (
-                            <span className="font-serif italic text-lg text-slate-800 tracking-widest">{selectedMember.typedSignature || selectedMember.fullName}</span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Admin Quick Action Controls (not for coaches) */}
-                      {canManageMembers && (
-                      <div className="pt-4 border-t border-slate-100 space-y-2">
-                        <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400 font-extrabold block">Admin Quick Actions</span>
-                        <div className="flex flex-wrap gap-2">
-                          {(selectedMember.status !== "Approved" && selectedMember.registration_status !== "Approved") && (
-                            <button
-                              onClick={() => handleApproveRegistration(selectedMember.membershipNo)}
-                              className="flex-1 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold transition-all cursor-pointer shadow-xs"
-                            >
-                              ✓ Approve Member
-                            </button>
-                          )}
-                           {(selectedMember.status === "Approved" || selectedMember.registration_status === "Approved") && (
-                            <button
-                              onClick={() => handleSendWhatsAppPaymentLink(selectedMember.membershipNo, selectedMember.mobileNo)}
-                              className="flex-1 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold transition-all cursor-pointer shadow-xs inline-flex items-center justify-center gap-1.5"
-                            >
-                              <span>💬 Send WhatsApp Link</span>
-                            </button>
-                          )}
-                          {(selectedMember.status !== "Rejected" && selectedMember.registration_status !== "Rejected") && (
-                            <button
-                              onClick={() => handleOpenRejectModal(selectedMember.membershipNo)}
-                              className="flex-1 py-2.5 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold transition-all cursor-pointer shadow-xs"
-                            >
-                              ✕ Reject Member
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      )}
-
-                    </div>
-
-                  </motion.div>
-                </div>
-              )}
-              </AnimatePresence>
-
-            </div>
-
-          </div>
+          <MembersTab
+            members={members}
+            getSessionToken={getSessionToken}
+            canManage={canManageMembers}
+            canDelete={normalizedRole === "admin"}
+            onApprove={handleApproveRegistration}
+            onReject={handleOpenRejectModal}
+            onSendPaymentLink={handleSendWhatsAppPaymentLink}
+            onDelete={handleDeleteMember}
+            onRegister={() => setActiveTab("register")}
+            onRenew={() => setActiveTab("renewals")}
+            onChanged={refreshMembers}
+          />
         )}
 
         {/* TAB 3: DAILY ATTENDANCE MARKER SHEET */}
@@ -2015,12 +1592,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
             isSwim={isSwim}
             members={members}
             getSessionToken={getSessionToken}
-            onRenewed={() => {
-              const token = getSessionToken();
-              fetch("/api/members", { headers: token ? { "x-session-token": token } : {} })
-                .then(res => res.ok ? res.json().catch(() => []) : [])
-                .then(data => { if (Array.isArray(data)) setMembers(data.filter((m: any) => m.academyId === academyId)); });
-            }}
+            onRenewed={refreshMembers}
           />
         )}
 
