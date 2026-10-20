@@ -101,7 +101,8 @@ export function HomeTab({
   // which showed revenue that was never collected and missed payments made today.
   const [todaysCollections, setTodaysCollections] = useState<number | null>(null);
   useEffect(() => {
-    if (!isAdmin && !isStaff) return;
+    // Money figures are for admins only; reception and coaches don't see collections.
+    if (!isAdmin) return;
     let cancelled = false;
     fetch("/api/admin/payments", { credentials: "same-origin" })
       .then(res => (res.ok ? res.json() : null))
@@ -111,7 +112,7 @@ export function HomeTab({
       })
       .catch(() => { if (!cancelled) setTodaysCollections(null); });
     return () => { cancelled = true; };
-  }, [isAdmin, isStaff]);
+  }, [isAdmin]);
   const todaysCollectionsLabel = todaysCollections === null ? "—" : formatCurrency(todaysCollections);
 
   // Quick actions grid
@@ -225,12 +226,14 @@ export function HomeTab({
             >
               <span>• {renewalsDueCount} Renewals Due</span>
             </div>
-            <div 
-              onClick={() => onNavigate("revenue")}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs font-bold cursor-pointer transition-colors"
-            >
-              <span>• {todaysCollectionsLabel} Today's Collections</span>
-            </div>
+            {isAdmin && (
+              <div 
+                onClick={() => onNavigate("revenue")}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs font-bold cursor-pointer transition-colors"
+              >
+                <span>• {todaysCollectionsLabel} Today's Collections</span>
+              </div>
+            )}
           </div>
         </div>
 

@@ -2340,6 +2340,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
         isOpen={isClosingReportModalOpen}
         onClose={() => setIsClosingReportModalOpen(false)}
         members={members}
+        showRevenue={normalizedRole === "admin"}
       />
 
       </div>

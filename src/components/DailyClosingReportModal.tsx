@@ -7,6 +7,8 @@ interface DailyClosingReportModalProps {
   members: any[];
   paymentsList?: any[];
   renewalsList?: any[];
+  /** Money totals are for admins; reception and coaches get the report without them. */
+  showRevenue?: boolean;
 }
 
 export function DailyClosingReportModal({
@@ -14,7 +16,8 @@ export function DailyClosingReportModal({
   onClose,
   members = [],
   paymentsList = [],
-  renewalsList = []
+  renewalsList = [],
+  showRevenue = true
 }: DailyClosingReportModalProps) {
   const [reportDate, setReportDate] = useState<string>(new Date().toISOString().split("T")[0]);
   const [downloadSuccess, setDownloadSuccess] = useState<string | null>(null);
@@ -37,7 +40,7 @@ export function DailyClosingReportModal({
       ["Generated At", new Date().toLocaleString()],
       [""],
       ["Metric", "Value"],
-      ["Total Revenue Collected (₹)", totalRevenue],
+      ...(showRevenue ? [["Total Revenue Collected (₹)", totalRevenue]] : []),
       ["New Registrations Today", todayMembers.length],
       ["Pending Approvals", pendingApprovalsCount],
       ["Pending Payments", pendingPaymentsCount],
@@ -136,11 +139,13 @@ export function DailyClosingReportModal({
         <div className="p-6 overflow-y-auto space-y-6">
           {/* Executive Metrics Grid */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-100">
-              <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block">Total Revenue</span>
-              <span className="text-2xl font-black text-slate-900 block mt-1">₹{totalRevenue.toLocaleString("en-IN")}</span>
-              <span className="text-[10px] text-slate-500 block mt-0.5">Collected today</span>
-            </div>
+            {showRevenue && (
+              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-100">
+                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block">Total Revenue</span>
+                <span className="text-2xl font-black text-slate-900 block mt-1">₹{totalRevenue.toLocaleString("en-IN")}</span>
+                <span className="text-[10px] text-slate-500 block mt-0.5">Collected today</span>
+              </div>
+            )}
 
             <div className="p-4 rounded-2xl bg-indigo-50 border border-indigo-100">
               <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider block">New Members</span>
