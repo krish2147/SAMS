@@ -946,7 +946,13 @@ export class PaymentService {
    * invoice) but records the payment method as Cash and never sends a payment link. Any payment
    * link still open for the member is cancelled so they cannot pay twice.
    */
-  async recordCashPayment(payload: { membershipNo: string; receivedBy: string }) {
+  /**
+   * Cash taken at the counter. "Registration" activates a new member; "Renewal" charges the plan's
+   * renewal fee and extends the membership from its current end date (or from today if it has
+   * already ended), the same as an online renewal.
+   */
+  async recordCashPayment(payload: { membershipNo: string; receivedBy: string; paymentType?: "Registration" | "Renewal" }) {
+    const paymentType = payload.paymentType === "Renewal" ? "Renewal" : "Registration";
     const pool = await getDbPool();
     const [memberRows]: any = await pool.query("SELECT * FROM members WHERE membershipNo = ?", [payload.membershipNo]);
     const member = memberRows?.[0];
@@ -955,13 +961,18 @@ export class PaymentService {
       err.status = 404;
       throw err;
     }
-    if (standardizeStatus(member.payment_status) === "Paid" && member.membership_status === "Active") {
+    if (paymentType === "Registration" && standardizeStatus(member.payment_status) === "Paid" && member.membership_status === "Active") {
       const err: any = new Error("This member has already paid and is active.");
       err.status = 409;
       throw err;
     }
+    if (paymentType === "Renewal" && !member.membership_end_date) {
+      const err: any = new Error("This member has no membership to renew yet. Record their first payment from Register or Approvals.");
+      err.status = 409;
+      throw err;
+    }
 
-    const pricing = await this.calculatePayableAmount(member.membership_plan_id, "Registration");
+    const pricing = await this.calculatePayableAmount(member.membership_plan_id, paymentType);
     const receiptNo = await this.generateSequentialNumber("REC");
     const invoiceNo = await this.generateSequentialNumber("INV");
     const { startDateStr, expiryDateStr } = this.calculateExpiryDates(member.membership_end_date, pricing.durationMonths);
@@ -979,10 +990,17 @@ export class PaymentService {
       const [insertResult]: any = await conn.query(
         `INSERT INTO payments
           (member_id, membership_plan_id, payment_type, amount, registration_fee, renewal_fee, payment_status, payment_method, approved_by, receipt_no, invoice_no, payment_date)
-         VALUES (?, ?, 'Registration', ?, ?, ?, 'Paid', 'Cash', ?, ?, ?, CURRENT_TIMESTAMP)`,
-        [member.id, member.membership_plan_id || 1, pricing.totalAmount, pricing.registrationFee, pricing.renewalFee, payload.receivedBy, receiptNo, invoiceNo]
+         VALUES (?, ?, ?, ?, ?, ?, 'Paid', 'Cash', ?, ?, ?, CURRENT_TIMESTAMP)`,
+        [member.id, member.membership_plan_id || 1, paymentType, pricing.totalAmount, pricing.registrationFee, pricing.renewalFee, payload.receivedBy, receiptNo, invoiceNo]
       );
       paymentId = insertResult?.insertId;
+
+      if (paymentType === "Renewal") {
+        await conn.query(
+          "INSERT INTO renewals (member_id, due_date, amount, status, payment_id) VALUES (?, ?, ?, 'Completed', ?)",
+          [member.id, expiryDateStr, pricing.totalAmount, paymentId]
+        );
+      }
 
       await conn.query(
         `UPDATE members SET
@@ -1004,7 +1022,9 @@ export class PaymentService {
 
       await conn.query(
         "INSERT INTO activities (userName, action, status, performedBy) VALUES (?, ?, 'Payment Successful', ?)",
-        [member.fullName, `Cash payment of ₹${pricing.totalAmount} received at the counter - Membership Activated until ${expiryDateStr}`, payload.receivedBy]
+        [member.fullName, paymentType === "Renewal"
+          ? `Cash renewal of ₹${pricing.totalAmount} received at the counter - Membership extended until ${expiryDateStr}`
+          : `Cash payment of ₹${pricing.totalAmount} received at the counter - Membership Activated until ${expiryDateStr}`, payload.receivedBy]
       );
       await conn.query(
         "INSERT INTO notifications (member_id, title, message, type) VALUES (?, ?, ?, 'Payment Success')",
