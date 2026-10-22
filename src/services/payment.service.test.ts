@@ -36,8 +36,8 @@ test("two database plans create fixed, idempotent payment links and webhook acti
   const [batchRows]: any = await pool.query("SELECT * FROM batches");
   const registrationBatch = batchRows.find((batch: any) => batch.academy_id === "swim" && batch.status === "OPEN");
   assert.ok(registrationBatch, "payment regression fixture requires an OPEN database batch");
-  assert.equal(planRows.filter((plan: any) => plan.description === "OFFICIAL_RATE_CARD_2026").length, 27);
-  assert.equal(OFFICIAL_MEMBERSHIP_PLANS.length, 27);
+  assert.equal(planRows.filter((plan: any) => plan.description === "OFFICIAL_RATE_CARD_2026").length, 37);
+  assert.equal(OFFICIAL_MEMBERSHIP_PLANS.length, 37);
   for (const [code, , category, frequency, duration, , expectedFee] of OFFICIAL_MEMBERSHIP_PLANS) {
     const rows = planRows.filter((plan: any) => plan.plan_code === code && Number(plan.is_active) !== 0);
     assert.equal(rows.length, 1, `${code} must resolve to exactly one active plan`);

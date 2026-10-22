@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import {
   ArrowLeft, ArrowRight, Check, CheckCircle2, AlertCircle, Upload, X, Sun, Moon,
-  Waves, Users, Dumbbell, ShieldCheck, MessageCircle, CreditCard, Sparkles,
+  Waves, GraduationCap, Users, Dumbbell, ShieldCheck, MessageCircle, CreditCard, Sparkles,
   Pencil, Loader2, RefreshCw, HeartPulse, Lock
 } from "lucide-react";
 import { AcademyId, UserSession } from "../types";
@@ -22,7 +22,7 @@ interface RegisterPageProps {
   walkIn?: boolean;
 }
 
-type Category = "Learners" | "General" | "Family_4" | "Family_3";
+type Category = "Learners" | "Learners_Self" | "General" | "Family_4" | "Family_3";
 type Frequency = "6_days" | "3_days";
 type Duration = "1_month" | "3_months" | "6_months" | "9_months" | "annual";
 
@@ -89,7 +89,8 @@ const INITIAL_FORM_STATE: FormState = {
 const REGISTRATION_FEE = 300;
 
 const CATEGORIES: Array<{ id: Category; name: string; tagline: string; who: string; icon: typeof Waves }> = [
-  { id: "Learners", name: "Learners", tagline: "Learn to swim with stroke drills and a coach on deck.", who: "New and improving swimmers", icon: Waves },
+  { id: "Learners", name: "Learners with coaching", tagline: "Learn to swim with stroke drills and a coach guiding you.", who: "New and improving swimmers", icon: GraduationCap },
+  { id: "Learners_Self", name: "Learners without coaching", tagline: "Practise at your own pace, without a coach.", who: "Improving swimmers", icon: Waves },
   { id: "General", name: "General", tagline: "Lane swimming for fitness and regular practice.", who: "Confident swimmers", icon: Dumbbell },
   { id: "Family_4", name: "Family of four", tagline: "Pool access for 2 adults and 2 kids, 6 days a week.", who: "2 adults + 2 kids", icon: Users },
   { id: "Family_3", name: "Family of three", tagline: "Pool access for 2 adults and 1 kid, 6 days a week.", who: "2 adults + 1 kid", icon: Users },
@@ -107,6 +108,10 @@ const DURATION_LABEL: Record<Duration, string> = { "1_month": "1 month", "3_mont
 // registration itself from membership_plans; this mirror only drives what the form displays.
 const RATE_CARD: Record<Category, Partial<Record<Frequency, Partial<Record<Duration, number>>>>> = {
   Learners: {
+    "6_days": { "1_month": 3500, "3_months": 9500, "6_months": 18500, "9_months": 26500, annual: 33500 },
+    "3_days": { "1_month": 3000, "3_months": 8500, "6_months": 16000, "9_months": 22500, annual: 28500 },
+  },
+  Learners_Self: {
     "6_days": { "1_month": 3500, "3_months": 9500, "6_months": 18500, "9_months": 26500, annual: 33500 },
     "3_days": { "1_month": 3000, "3_months": 8500, "6_months": 16000, "9_months": 22500, annual: 28500 },
   },
@@ -171,10 +176,6 @@ const durationsFor = (category: Category | "", frequency: Frequency | "") =>
 
 const priceFor = (category: Category | "", frequency: Frequency | "", duration: Duration | "") =>
   category && frequency && duration ? RATE_CARD[category][frequency]?.[duration] ?? null : null;
-
-/** Lowest monthly price across a category's options, shown as "from" on the plan card. */
-const fromPriceFor = (category: Category) =>
-  Math.min(...frequenciesFor(category).map(f => RATE_CARD[category][f]?.["1_month"] ?? Infinity));
 
 /** What a longer plan saves against paying the 1-month rate every month, from the rate card. */
 const savingFor = (category: Category | "", frequency: Frequency | "", duration: Duration) => {
@@ -759,9 +760,6 @@ export function RegisterPage({ academyId, onCancel, embedded = false, walkIn = f
                     </div>
                     <p className={`mt-4 font-display text-lg font-semibold ${selected ? "text-white" : "text-ink-950"}`}>{c.name}</p>
                     <p className={`mt-1 text-sm leading-6 ${selected ? "text-ink-200" : "text-ink-600"}`}>{c.tagline}</p>
-                    <p className={`mt-4 text-sm ${selected ? "text-ink-200" : "text-ink-600"}`}>
-                      from <span className={`font-display text-xl font-bold tabular-nums ${selected ? "text-white" : "text-ink-950"}`}>{rupees(fromPriceFor(c.id))}</span> / month
-                    </p>
                   </button>
                 );
               })}
@@ -1156,7 +1154,7 @@ export function RegisterPage({ academyId, onCancel, embedded = false, walkIn = f
               <h1 className="font-display text-[28px] font-bold leading-tight tracking-[-0.02em] text-ink-950 sm:text-[34px]">{STEPS[step].title}</h1>
               <p className="mt-2 max-w-[60ch] text-[15px] leading-6 text-ink-600">
                 {[
-                  "Official 2026 rates. Longer plans cost less per month.",
+                  "Choose your plan, how often you'll swim and for how long.",
                   "Live availability. Each batch is one hour in the pool.",
                   "We'll use this to set up your membership card.",
                   "Where you live, and who to call if you ever need help at the pool.",

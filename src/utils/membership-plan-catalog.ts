@@ -1,4 +1,4 @@
-export type MembershipType = "Learners" | "General" | "Family" | "Guest" | "Group";
+export type MembershipType = "Learners" | "Learners_Self" | "General" | "Family" | "Guest" | "Group";
 
 export interface MembershipPlanRecord {
   id: number | string;
@@ -20,7 +20,7 @@ export interface PlanSelection {
   duration: string;
 }
 
-const TYPE_ORDER: MembershipType[] = ["Learners", "General", "Family", "Guest", "Group"];
+const TYPE_ORDER: MembershipType[] = ["Learners", "Learners_Self", "General", "Family", "Guest", "Group"];
 const DURATION_ORDER = ["hourly", "weekend_hourly", "1_month", "3_months", "6_months", "9_months", "annual", "one_time"];
 
 export const membershipTypeForPlan = (plan: MembershipPlanRecord): MembershipType | null => {
@@ -84,7 +84,7 @@ export const resolveRegistrationPlan = (plans: MembershipPlanRecord[], selection
 };
 
 export const membershipTypeLabel = (type: MembershipType | "") => ({
-  Learners: "Learners", General: "General", Family: "Family Membership",
+  Learners: "Learners with coaching", Learners_Self: "Learners without coaching", General: "General", Family: "Family Membership",
   Guest: "Guest / Without Membership", Group: "Group"
 }[type] || "");
 
