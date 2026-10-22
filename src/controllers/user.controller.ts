@@ -448,7 +448,7 @@ export class UserController {
 
       // 6. Get Announcements & Notifications
       const [notifications]: any = await pool.query(
-        "SELECT * FROM notifications ORDER BY id DESC LIMIT 30"
+        "SELECT * FROM notifications WHERE type IS NULL OR type <> 'WhatsApp Debug' ORDER BY id DESC LIMIT 30"
       );
 
       // Calculate stats for Today
