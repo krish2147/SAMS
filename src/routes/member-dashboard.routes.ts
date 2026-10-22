@@ -167,7 +167,7 @@ router.get("/member/dashboard", requireAuth(["member", "parent"]), async (req: a
 
     // Fetch notifications
     const [notifications]: any = await pool.query(
-      "SELECT * FROM notifications WHERE member_id IS NULL OR member_id = ? ORDER BY id DESC LIMIT 5",
+      "SELECT * FROM notifications WHERE (member_id IS NULL OR member_id = ?) AND (type IS NULL OR type <> 'WhatsApp Debug') ORDER BY id DESC LIMIT 5",
       [member.id]
     );
     const recentNotifications = notifications || [];
@@ -350,7 +350,7 @@ router.get("/member/notifications", requireAuth(["member", "parent"]), async (re
     const pool = await getDbPool();
     const memberId = member ? member.id : 0;
     const [notifications]: any = await pool.query(
-      "SELECT * FROM notifications WHERE member_id IS NULL OR member_id = ? ORDER BY id DESC LIMIT 20",
+      "SELECT * FROM notifications WHERE (member_id IS NULL OR member_id = ?) AND (type IS NULL OR type <> 'WhatsApp Debug') ORDER BY id DESC LIMIT 20",
       [memberId]
     );
     let readIds = new Set<number>();

@@ -1357,18 +1357,6 @@ export class PaymentService {
       payload.approvedBy || "Admin"
     );
 
-    try {
-      await pool.query(
-        "INSERT INTO notifications (member_id, title, message, type) VALUES (?, ?, ?, 'WhatsApp Debug')",
-        [
-          member.id,
-          `WhatsApp payment-link ${whatsappStatus}`,
-          whatsappStatus === "Delivered"
-            ? `MSG91 accepted: ${JSON.stringify(whatsappResponse)}`
-            : `MSG91/send error: ${whatsappErrorDetail}`
-        ]
-      );
-    } catch (_) {}
 
     return {
       success: true,
@@ -1529,19 +1517,6 @@ export class PaymentService {
       payload.approvedBy || "Admin"
     );
 
-    // Diagnostic record with the full MSG91 response/error, queryable without server terminal access.
-    try {
-      await pool.query(
-        "INSERT INTO notifications (member_id, title, message, type) VALUES (?, ?, ?, 'WhatsApp Debug')",
-        [
-          member.id,
-          `WhatsApp payment-link ${whatsappStatus}`,
-          whatsappStatus === "Delivered"
-            ? `MSG91 accepted: ${JSON.stringify(whatsappResponse)}`
-            : `MSG91/send error: ${whatsappErrorDetail}`
-        ]
-      );
-    } catch (_) {}
 
     return {
       success: true,
