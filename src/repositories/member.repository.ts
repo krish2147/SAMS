@@ -57,6 +57,9 @@ export class MemberRepository {
       status: row.registration_status,
       paymentStatus: row.payment_status,
       typeOfMembership: row.planName || "General",
+      // Fees of the chosen plan, for showing what a pending registration will cost.
+      planFee: row.planFee == null ? null : Number(row.planFee),
+      planRegistrationFee: row.planRegistrationFee == null ? null : Number(row.planRegistrationFee),
       batchName: row.batchName || "",
       batchSchedule: row.batchName || "",
       batchTiming: row.batchName || ""
@@ -66,7 +69,7 @@ export class MemberRepository {
   async getAll(): Promise<any[]> {
     const pool = await getDbPool();
     const [rows]: any = await pool.query(`
-      SELECT m.*, p.name as planName, b.batch_name as batchName 
+      SELECT m.*, p.name as planName, p.renewal_fee as planFee, p.registration_fee as planRegistrationFee, b.batch_name as batchName 
       FROM members m
       LEFT JOIN membership_plans p ON m.membership_plan_id = p.id
       LEFT JOIN batches b ON m.selected_batch_id = b.id
@@ -80,7 +83,7 @@ export class MemberRepository {
     const cleanPhone = phoneNumber.replace(/\D/g, "");
     
     const [rows]: any = await pool.query(`
-      SELECT m.*, p.name as planName, b.batch_name as batchName 
+      SELECT m.*, p.name as planName, p.renewal_fee as planFee, p.registration_fee as planRegistrationFee, b.batch_name as batchName 
       FROM members m
       LEFT JOIN membership_plans p ON m.membership_plan_id = p.id
       LEFT JOIN batches b ON m.selected_batch_id = b.id
@@ -96,7 +99,7 @@ export class MemberRepository {
   async getByEmail(email: string): Promise<any | null> {
     const pool = await getDbPool();
     const [rows]: any = await pool.query(`
-      SELECT m.*, p.name as planName, b.batch_name as batchName 
+      SELECT m.*, p.name as planName, p.renewal_fee as planFee, p.registration_fee as planRegistrationFee, b.batch_name as batchName 
       FROM members m
       LEFT JOIN membership_plans p ON m.membership_plan_id = p.id
       LEFT JOIN batches b ON m.selected_batch_id = b.id
@@ -109,7 +112,7 @@ export class MemberRepository {
   async getByMembershipNo(membershipNo: string): Promise<any | null> {
     const pool = await getDbPool();
     const [rows]: any = await pool.query(`
-      SELECT m.*, p.name as planName, b.batch_name as batchName 
+      SELECT m.*, p.name as planName, p.renewal_fee as planFee, p.registration_fee as planRegistrationFee, b.batch_name as batchName 
       FROM members m
       LEFT JOIN membership_plans p ON m.membership_plan_id = p.id
       LEFT JOIN batches b ON m.selected_batch_id = b.id
@@ -172,7 +175,7 @@ export class MemberRepository {
       let insertedRow: any = [];
       if (insertedId) {
         [insertedRow] = await pool.query(`
-          SELECT m.*, p.name as planName, b.batch_name as batchName 
+          SELECT m.*, p.name as planName, p.renewal_fee as planFee, p.registration_fee as planRegistrationFee, b.batch_name as batchName 
           FROM members m
           LEFT JOIN membership_plans p ON m.membership_plan_id = p.id
           LEFT JOIN batches b ON m.selected_batch_id = b.id
@@ -181,7 +184,7 @@ export class MemberRepository {
       }
       if (!insertedRow || !insertedRow[0]) {
         [insertedRow] = await pool.query(`
-          SELECT m.*, p.name as planName, b.batch_name as batchName 
+          SELECT m.*, p.name as planName, p.renewal_fee as planFee, p.registration_fee as planRegistrationFee, b.batch_name as batchName 
           FROM members m
           LEFT JOIN membership_plans p ON m.membership_plan_id = p.id
           LEFT JOIN batches b ON m.selected_batch_id = b.id

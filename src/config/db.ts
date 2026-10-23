@@ -896,7 +896,7 @@ function executeMockQuery(sql: string, params: any[] = []): [any, any] {
   }
 
   // 6. Members queries
-  if (sqlTrim.match(/SELECT m\.\*, p\.name as planName, b\.batch_name as batchName.*FROM members/i) || sqlTrim.match(/SELECT \* FROM members/i)) {
+  if (sqlTrim.match(/SELECT m\.\*, p\.name as planName,.*FROM members/i) || sqlTrim.match(/SELECT \* FROM members/i)) {
     const whereMembershipNo = sqlTrim.match(/WHERE m\.membershipNo\s*=\s*\?/i) || sqlTrim.match(/WHERE membershipNo\s*=\s*\?/i);
     const whereMobileNo = sqlTrim.match(/WHERE REPLACE\(m\.mobileNo.*LIKE/i) || sqlTrim.match(/WHERE mobileNo\s*=\s*\?/i);
     const whereEmail = sqlTrim.match(/WHERE LOWER\(m\.email\)\s*=\s*LOWER\(\?\)/i) || sqlTrim.match(/WHERE m\.email\s*=\s*\?/i) || sqlTrim.match(/WHERE LOWER\(email\)\s*=\s*LOWER\(\?\)/i) || sqlTrim.match(/WHERE email\s*=\s*\?/i);
@@ -949,6 +949,8 @@ function executeMockQuery(sql: string, params: any[] = []): [any, any] {
       return {
         ...m,
         planName: plan ? plan.name : "General",
+        planFee: plan ? plan.renewal_fee : null,
+        planRegistrationFee: plan ? plan.registration_fee : null,
         batchName: batch ? batch.batch_name : "Morning Sunrise Batch (A)",
         start_time: batch ? batch.start_time : "06:00 AM",
         end_time: batch ? batch.end_time : "07:00 AM"

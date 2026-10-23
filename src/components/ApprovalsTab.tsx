@@ -21,6 +21,8 @@ interface Member {
   batchTiming?: string;
   batchSchedule?: string;
   amountPaid?: number;
+  planFee?: number | null;
+  planRegistrationFee?: number | null;
   undertakerParentName?: string;
   undertakerParentPhone?: string;
   registrationDate?: string;
@@ -560,10 +562,27 @@ export function ApprovalsTab({ members, onApprove, onReject, onDelete, academyId
                         <span className="text-slate-400">Requested Batch:</span>
                         <span className="text-slate-800 uppercase">{inspectingMember.batchTiming || "No Batch Selected"}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">Calculated Fees:</span>
-                        <span className="text-slate-800 font-mono font-black">₹{(inspectingMember.amountPaid || 3500).toLocaleString("en-IN")}</span>
-                      </div>
+                      {inspectingMember.planFee != null ? (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">Membership Fee:</span>
+                            <span className="text-slate-800 font-mono">₹{Number(inspectingMember.planFee).toLocaleString("en-IN")}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">Registration Fee:</span>
+                            <span className="text-slate-800 font-mono">₹{Number(inspectingMember.planRegistrationFee || 0).toLocaleString("en-IN")}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">Total Payable:</span>
+                            <span className="text-slate-800 font-mono font-black">₹{(Number(inspectingMember.planFee) + Number(inspectingMember.planRegistrationFee || 0)).toLocaleString("en-IN")}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Total Payable:</span>
+                          <span className="text-slate-500">No plan selected</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
