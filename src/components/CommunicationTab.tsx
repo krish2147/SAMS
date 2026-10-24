@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   MessageSquare,
   Send,
@@ -100,6 +100,16 @@ export const CommunicationTab: React.FC = () => {
   const [bulkSubject, setBulkSubject] = useState<string>("Important Announcement - Baroda Swim Front");
   const [bulkMessage, setBulkMessage] = useState<string>("");
   const [bulkSending, setBulkSending] = useState<boolean>(false);
+  // The header button opens the announcement form, which sits below the stats: scroll to it and
+  // put the cursor in the message box so the tap visibly does something.
+  const bulkFormRef = useRef<HTMLDivElement>(null);
+  const bulkMessageRef = useRef<HTMLTextAreaElement>(null);
+  const [bulkFocusRequest, setBulkFocusRequest] = useState(0);
+  useEffect(() => {
+    if (!bulkFocusRequest || activeTab !== "bulk") return;
+    bulkFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    bulkMessageRef.current?.focus({ preventScroll: true });
+  }, [bulkFocusRequest, activeTab]);
 
   // Template Editing State
   const [editingTemplate, setEditingTemplate] = useState<CommunicationTemplate | null>(null);
@@ -330,7 +340,7 @@ export const CommunicationTab: React.FC = () => {
               Refresh Data
             </button>
             <button
-              onClick={() => setActiveTab("bulk")}
+              onClick={() => { setActiveTab("bulk"); setBulkFocusRequest(n => n + 1); }}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white text-xs font-bold transition shadow-lg shadow-sky-500/25"
             >
               <Send className="w-3.5 h-3.5" />
@@ -626,7 +636,7 @@ export const CommunicationTab: React.FC = () => {
 
       {/* VIEW 2: BULK ANNOUNCEMENT CENTER */}
       {activeTab === "bulk" && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div ref={bulkFormRef} className="grid grid-cols-1 lg:grid-cols-3 gap-6 scroll-mt-24">
           <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-6">
             <div>
               <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
@@ -679,6 +689,7 @@ export const CommunicationTab: React.FC = () => {
                   <span className="text-[11px] text-slate-400">{bulkMessage.length} characters</span>
                 </div>
                 <textarea
+                  ref={bulkMessageRef}
                   rows={6}
                   value={bulkMessage}
                   onChange={(e) => setBulkMessage(e.target.value)}
