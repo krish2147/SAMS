@@ -1,7 +1,6 @@
 import { formatBatchTime, formatMemberDate, getMembershipDisplayStatus, type MemberDashboardData } from "./member-overview-data";
 import QRCode from "qrcode";
 import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-logo";
-import { ACADEMY_CONTACT } from "./MemberSupportPage";
 // Underwater pool lanes, Unsplash photo 1669185694564 (Unsplash licence), cropped to card shape.
 // Served from public/ so it is a plain URL (the unit tests run in Node, which cannot import images).
 const poolPhotoUrl = "/images/card-pool.jpg";
@@ -86,7 +85,7 @@ export async function prepareCardImages(data: MemberDashboardData): Promise<Card
 // ---------------------------------------------------------------------------------------------
 // An upright, ID-badge style member card: a navy pool-photo header with the academy crest, the
 // member's photo overlapping it, then name, details and the entry QR on white, and an aqua
-// footer. The back carries the pool rules and the academy's contact details.
+// footer. The card has a front only.
 // ---------------------------------------------------------------------------------------------
 
 const FONT = "Inter, 'Segoe UI', Helvetica, Arial, sans-serif";
@@ -198,51 +197,6 @@ export function buildMembershipCardSvg(data: MemberDashboardData, images?: CardI
 </svg>`;
 }
 
-const CARD_RULES = [
-  "Show this card at reception before entering the pool.",
-  "Swimwear and a silicone swim cap are compulsory.",
-  "Shower before entering the water.",
-  "Follow the instructions of the coach and lifeguard.",
-  "This card is personal and cannot be transferred."
-];
-
-/** Back of the card: pool rules and how to reach the academy. */
-export function buildMembershipCardBackSvg(data: MemberDashboardData, images: CardImages): string {
-  const memberNo = data.member.membershipNo || "Pending";
-  const HEADER = 260;
-  const rules = CARD_RULES.map((rule, i) => `
-    <circle cx="96" cy="${410 + i * 68}" r="7" fill="${AQUA}"/>
-    <text x="122" y="${419 + i * 68}" font-family="${FONT}" font-size="${fitSize(rule, 800, 29, 22, 0.5)}" fill="${INK}">${escapeXml(rule)}</text>`).join("");
-  const addressLines = ["Aark International School,", "Vasna–Bhayli Main Rd, Vadodara, Gujarat 391101"];
-
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${CARD_HEIGHT}" width="${W}" height="${CARD_HEIGHT}" role="img" aria-label="Back of the membership card">
-  <defs>${sharedDefs("back", HEADER)}</defs>
-  ${cardFrame("back", images.pool, HEADER)}
-
-  ${crest(70, 60, 120, "back")}
-  <text x="214" y="118" font-family="${FONT}" font-size="44" font-weight="800" fill="#ffffff">Baroda Swim Front</text>
-  <text x="216" y="164" font-family="${FONT}" font-size="22" font-weight="700" letter-spacing="7" fill="#67e8f9">MEMBER INFORMATION</text>
-  <text x="216" y="214" font-family="${FONT}" font-size="28" font-weight="600" fill="#ffffff" fill-opacity="0.85">${escapeXml(memberNo)}</text>
-
-  ${label(80, 350, "POOL RULES")}
-  ${rules}
-
-  <line x1="80" y1="780" x2="${W - 80}" y2="780" stroke="#e2e8f0" stroke-width="2"/>
-  ${label(80, 846, "CONTACT")}
-  <text x="80" y="900" font-family="${FONT}" font-size="40" font-weight="800" fill="${INK}">${escapeXml(ACADEMY_CONTACT.phoneDisplay)}</text>
-  ${addressLines.map((line, i) => `<text x="80" y="${956 + i * 40}" font-family="${FONT}" font-size="27" fill="${MUTED}">${escapeXml(line)}</text>`).join("")}
-
-  ${label(80, 1110, "HOURS")}
-  <text x="80" y="1160" font-family="${FONT}" font-size="30" font-weight="600" fill="${INK}">Monday to Saturday</text>
-  <text x="80" y="1204" font-family="${FONT}" font-size="28" fill="${MUTED}">6 – 9 AM and 4 – 8 PM · Closed on Sunday</text>
-
-  <text x="${CX}" y="1380" text-anchor="middle" font-family="${FONT}" font-size="25" fill="${MUTED}">If found, please return this card to</text>
-  <text x="${CX}" y="1418" text-anchor="middle" font-family="${FONT}" font-size="25" font-weight="700" fill="${INK}">Baroda Swim Front, Vadodara.</text>
-
-  <text x="${CX}" y="1550" text-anchor="middle" font-family="${FONT}" font-size="26" font-weight="700" letter-spacing="4" fill="#ffffff">SWIM FOR LIFE · VADODARA</text>
-</svg>`;
-}
-
 async function svgToImage(svg: string) {
   const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
   try {
@@ -258,17 +212,14 @@ async function svgToImage(svg: string) {
   }
 }
 
-/** Saves both sides, front above back, on a soft studio background. */
+/** Saves the card on a soft studio background. */
 export async function downloadMembershipCardPng(data: MemberDashboardData) {
   const images = await prepareCardImages(data);
-  const [front, back] = await Promise.all([
-    svgToImage(buildMembershipCardSvg(data, images)),
-    svgToImage(buildMembershipCardBackSvg(data, images))
-  ]);
-  const M = 80, GAP = 70;
+  const front = await svgToImage(buildMembershipCardSvg(data, images));
+  const M = 80;
   const canvas = document.createElement("canvas");
   canvas.width = CARD_WIDTH + M * 2;
-  canvas.height = CARD_HEIGHT * 2 + GAP + M * 2;
+  canvas.height = CARD_HEIGHT + M * 2;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas is unavailable");
   const bg = ctx.createLinearGradient(0, 0, 0, canvas.height);
@@ -276,14 +227,12 @@ export async function downloadMembershipCardPng(data: MemberDashboardData) {
   bg.addColorStop(1, "#e6e1d6");
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  for (const [img, y] of [[front, M], [back, M + CARD_HEIGHT + GAP]] as const) {
-    ctx.save();
-    ctx.shadowColor = "rgba(0,0,0,0.35)";
-    ctx.shadowBlur = 50;
-    ctx.shadowOffsetY = 24;
-    ctx.drawImage(img, M, y, CARD_WIDTH, CARD_HEIGHT);
-    ctx.restore();
-  }
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,0.35)";
+  ctx.shadowBlur = 50;
+  ctx.shadowOffsetY = 24;
+  ctx.drawImage(front, M, M, CARD_WIDTH, CARD_HEIGHT);
+  ctx.restore();
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
   if (!blob) throw new Error("Membership card export failed");
   const url = URL.createObjectURL(blob);
