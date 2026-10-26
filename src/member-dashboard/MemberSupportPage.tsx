@@ -13,6 +13,8 @@ export const ACADEMY_CONTACT = {
   phoneTel: "+919313241071",
   address: "Aark International School, beside Vasna–Bhayli Main Rd, behind Adventura, near Priya Cinema, Vadodara, Gujarat 391101",
   mapsUrl: "https://maps.app.goo.gl/RpAvS2juSqnszx9Q6",
+  // Google Maps embed of the academy's listing (no API key needed).
+  mapEmbedUrl: "https://www.google.com/maps/embed?origin=mfe&pb=!1m3!2m1!1sBaroda+Swim+Front,+Aark+International+School,+Vadodara!6i16",
   // Monday = 1 … Sunday = 0. Times are 24-hour, India time.
   sessions: [["06:00", "09:00"], ["16:00", "20:00"]] as Array<[string, string]>,
   closedDays: [0]
@@ -118,6 +120,23 @@ export function MemberSupportPage({ onNavigate }: { onNavigate: (section: Member
             <Navigation className="h-5 w-5" />Directions
           </a>
         </div>
+      </section>
+
+      {/* Map */}
+      <section aria-label="Academy location" className="mb-4 overflow-hidden rounded-3xl border border-slate-200 bg-white">
+        <iframe
+          title="Baroda Swim Front on Google Maps"
+          src={ACADEMY_CONTACT.mapEmbedUrl}
+          className="block h-64 w-full border-0 sm:h-72"
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+          allowFullScreen
+        />
+        <a href={ACADEMY_CONTACT.mapsUrl} target="_blank" rel="noreferrer" className="flex min-h-12 items-center gap-3 px-4 py-3 hover:bg-slate-50">
+          <MapPin className="h-5 w-5 shrink-0 text-cyan-700" />
+          <span className="min-w-0 flex-1 text-sm text-slate-600">Aark International School, Vasna–Bhayli Main Rd, Vadodara</span>
+          <span className="shrink-0 text-sm font-semibold text-cyan-700">Open in Maps</span>
+        </a>
       </section>
 
       <SettingsGroup heading="Contact">
