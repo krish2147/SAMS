@@ -15,7 +15,7 @@ export function MemberDigitalCard({ data, onOpen }: { data: MemberDashboardData;
   return (
     <section
       aria-labelledby="digital-membership-card-title"
-      className="relative w-full self-start overflow-hidden rounded-[4%/6.3%] shadow-[0_30px_60px_-24px_rgba(2,6,23,0.65)]"
+      className="relative mx-auto w-full max-w-[380px] self-start overflow-hidden rounded-[4.4%/2.8%] shadow-[0_30px_60px_-24px_rgba(2,6,23,0.65)]"
       style={{ aspectRatio: `${CARD_WIDTH} / ${CARD_HEIGHT}` }}
     >
       <h2 id="digital-membership-card-title" className="sr-only">Membership card for {data.member.fullName}</h2>

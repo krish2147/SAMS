@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import { AnimatePresence, animate, motion, useMotionTemplate, useMotionValue, useReducedMotion, useSpring, useTransform } from "motion/react";
-import { Download, RotateCw, X } from "lucide-react";
+import { Download, X } from "lucide-react";
 import type { MemberDashboardData } from "./member-overview-data";
 import {
-  buildMembershipCardBackSvg, buildMembershipCardSvg, prepareCardImages, CARD_HEIGHT, CARD_WIDTH, type CardImages
+  buildMembershipCardSvg, prepareCardImages, CARD_HEIGHT, CARD_WIDTH, type CardImages
 } from "./download-membership-card";
 
 // "Open card": the membership card in 3D. It flies in, tilts with the finger, mouse or the phone's
@@ -21,7 +21,6 @@ interface MemberCardViewerProps {
 export function MemberCardViewer({ data, open, onClose, onDownload, downloading }: MemberCardViewerProps) {
   const reduceMotion = useReducedMotion();
   const [images, setImages] = useState<CardImages>({ qr: null, photo: null });
-  const [flipped, setFlipped] = useState(false);
   const interacted = useRef(false);
 
   const tiltX = useMotionValue(0);
@@ -44,7 +43,6 @@ export function MemberCardViewer({ data, open, onClose, onDownload, downloading 
   // Escape closes; the page behind does not scroll.
   useEffect(() => {
     if (!open) return;
-    setFlipped(false);
     interacted.current = false;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     const overflow = document.body.style.overflow;
@@ -89,7 +87,7 @@ export function MemberCardViewer({ data, open, onClose, onDownload, downloading 
   // Drawn at twice the size and scaled down, so the browser keeps the text sharp while the card is
   // tilted in 3D (tilted layers are otherwise painted at low resolution and look blurry).
   const sharp = "absolute left-0 top-0 h-[200%] w-[200%] origin-top-left scale-50 [&>svg]:block [&>svg]:h-full [&>svg]:w-full";
-  const face = "absolute inset-0 overflow-hidden rounded-[4%/6.3%] [backface-visibility:hidden] [-webkit-backface-visibility:hidden]";
+  const face = "absolute inset-0 overflow-hidden rounded-[4.4%/2.8%] [backface-visibility:hidden] [-webkit-backface-visibility:hidden]";
   const shine = (
     <>
       <motion.div
@@ -144,14 +142,14 @@ export function MemberCardViewer({ data, open, onClose, onDownload, downloading 
           </button>
 
           <motion.p
-            className="relative mb-6 text-center text-sm font-medium tracking-[0.3em] text-[#d9bd7c]"
+            className="relative mb-6 px-14 text-center text-xs font-semibold tracking-[0.25em] text-cyan-200/80"
             initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
           >
-            BARODA SWIM FRONT · MEMBER
+            MEMBERSHIP CARD
           </motion.p>
 
           {/* The card */}
-          <div className="relative w-full max-w-[560px] [perspective:1400px]">
+          <div className="relative w-full [perspective:1400px]" style={{ maxWidth: `min(380px, calc((100dvh - 260px) * ${CARD_WIDTH / CARD_HEIGHT}))` }}>
             <motion.div
               initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.55, rotateY: -75, rotateX: 25, y: 120 }}
               animate={reduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1, rotateY: 0, rotateX: 0, y: 0 }}
@@ -164,28 +162,17 @@ export function MemberCardViewer({ data, open, onClose, onDownload, downloading 
                 transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
                 className="[transform-style:preserve-3d]"
               >
-                <motion.button
-                  type="button"
-                  onClick={() => setFlipped((f) => !f)}
-                  aria-label={flipped ? "Show the front of the card" : "Show the back of the card"}
-                  className="relative block w-full cursor-pointer [transform-style:preserve-3d]"
+                <motion.div
+                  role="img"
+                  aria-label={`Membership card for ${data.member.fullName}`}
+                  className="relative block w-full [transform-style:preserve-3d]"
                   style={{ aspectRatio: `${CARD_WIDTH} / ${CARD_HEIGHT}`, rotateX, rotateY }}
                 >
-                  <motion.div
-                    className="absolute inset-0 [transform-style:preserve-3d]"
-                    animate={{ rotateY: flipped ? 180 : 0 }}
-                    transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 70, damping: 13 }}
-                  >
-                    <div className={`${face} shadow-[0_40px_80px_-20px_rgba(0,0,0,0.75)]`}>
-                      <div className={sharp} dangerouslySetInnerHTML={{ __html: buildMembershipCardSvg(data, images) }} />
-                      {shine}
-                    </div>
-                    <div className={`${face} [transform:rotateY(180deg)] shadow-[0_40px_80px_-20px_rgba(0,0,0,0.75)]`}>
-                      <div className={sharp} dangerouslySetInnerHTML={{ __html: buildMembershipCardBackSvg(data, images) }} />
-                      {shine}
-                    </div>
-                  </motion.div>
-                </motion.button>
+                  <div className={`${face} shadow-[0_40px_80px_-20px_rgba(0,0,0,0.75)]`}>
+                    <div className={sharp} dangerouslySetInnerHTML={{ __html: buildMembershipCardSvg(data, images) }} />
+                    {shine}
+                  </div>
+                </motion.div>
               </motion.div>
             </motion.div>
             {/* Soft shadow on the "floor" */}
@@ -196,17 +183,14 @@ export function MemberCardViewer({ data, open, onClose, onDownload, downloading 
             className="relative mt-4 text-center text-sm text-white/60"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }}
           >
-            {flipped ? "Show the QR code at the reception" : "Tap the card to turn it over"}
+            Show the QR code at reception
           </motion.p>
 
           <motion.div
             className="relative mt-6 flex w-full max-w-[560px] gap-3"
             initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }}
           >
-            <button type="button" onClick={() => setFlipped((f) => !f)} className="flex h-12 flex-1 items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 text-[15px] font-semibold text-white backdrop-blur hover:bg-white/20 cursor-pointer">
-              <RotateCw className="h-5 w-5" /> {flipped ? "Front" : "Back"}
-            </button>
-            <button type="button" onClick={onDownload} disabled={downloading} className="flex h-12 flex-[1.4] items-center justify-center gap-2 rounded-full bg-white text-[15px] font-semibold text-slate-950 hover:bg-cyan-50 disabled:opacity-70 cursor-pointer">
+            <button type="button" onClick={onDownload} disabled={downloading} className="flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-white text-[15px] font-semibold text-slate-950 hover:bg-cyan-50 disabled:opacity-70 cursor-pointer">
               <Download className="h-5 w-5" /> {downloading ? "Preparing…" : "Download"}
             </button>
           </motion.div>
