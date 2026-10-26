@@ -89,7 +89,7 @@ export function MemberCardViewer({ data, open, onClose, onDownload, downloading 
   // Drawn at twice the size and scaled down, so the browser keeps the text sharp while the card is
   // tilted in 3D (tilted layers are otherwise painted at low resolution and look blurry).
   const sharp = "absolute left-0 top-0 h-[200%] w-[200%] origin-top-left scale-50 [&>svg]:block [&>svg]:h-full [&>svg]:w-full";
-  const face = "absolute inset-0 overflow-hidden rounded-[4%/6.3%] [backface-visibility:hidden] [-webkit-backface-visibility:hidden]";
+  const face = "absolute inset-0 overflow-hidden rounded-[4.4%/2.8%] [backface-visibility:hidden] [-webkit-backface-visibility:hidden]";
   const shine = (
     <>
       <motion.div
@@ -151,7 +151,7 @@ export function MemberCardViewer({ data, open, onClose, onDownload, downloading 
           </motion.p>
 
           {/* The card */}
-          <div className="relative w-full max-w-[560px] [perspective:1400px]">
+          <div className="relative w-full [perspective:1400px]" style={{ maxWidth: `min(380px, calc((100dvh - 260px) * ${CARD_WIDTH / CARD_HEIGHT}))` }}>
             <motion.div
               initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.55, rotateY: -75, rotateX: 25, y: 120 }}
               animate={reduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1, rotateY: 0, rotateX: 0, y: 0 }}
