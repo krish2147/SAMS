@@ -1,6 +1,7 @@
 import { formatBatchTime, formatMemberDate, getMembershipDisplayStatus, type MemberDashboardData } from "./member-overview-data";
 import QRCode from "qrcode";
 import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-logo";
+import { ACADEMY_CONTACT } from "./MemberSupportPage";
 // Underwater pool lanes, Unsplash photo 1669185694564 (Unsplash licence), cropped to card shape.
 // Served from public/ so it is a plain URL (the unit tests run in Node, which cannot import images).
 const poolPhotoUrl = "/images/card-pool.jpg";
@@ -19,9 +20,6 @@ export function memberQrPayload(membershipNo: string) {
 
 export const cardInitials = (name: string) =>
   name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "M";
-
-const statusColor = (status: string) =>
-  status === "Expiring Soon" ? "#fbbf24" : status === "Expired" ? "#94a3b8" : status === "Pending" ? "#7dd3fc" : "#4ade80";
 
 const escapeXml = (value: string) =>
   value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -85,176 +83,153 @@ export async function prepareCardImages(data: MemberDashboardData): Promise<Card
 }
 
 // ---------------------------------------------------------------------------------------------
-// A real pool photo (underwater lanes) under premium card details: the academy crest in full
-// colour, a gold chip and engraved lettering. The front stays minimal like a premium bank card;
-// the back carries the photo, details and QR over a darker veil of the same pool.
+// An ID-style member card, not a bank card: a navy pool-photo header with the academy crest, a
+// white body with the member's photo and details, the entry QR, and an aqua footer. The back
+// carries the pool rules and the academy's contact details.
 // ---------------------------------------------------------------------------------------------
 
 const FONT = "Inter, 'Segoe UI', Helvetica, Arial, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace";
+const INK = "#0b1f3a";
+const MUTED = "#5b6b82";
+const AQUA = "#0891b2";
+const HEADER_H = 250;
+const FOOTER_Y = 912;
 
-/** "BSF-2026-8339" -> "BSF  2026  8339", spaced like the digits on a bank card. */
-const cardNumber = (membershipNo: string) => membershipNo.split(/[-\s]+/).filter(Boolean).join("  ");
+const statusPill = (status: string) => ({
+  "Active": { fill: "#dcfce7", text: "#166534" },
+  "Expiring Soon": { fill: "#fef3c7", text: "#92400e" },
+  "Expired": { fill: "#fee2e2", text: "#991b1b" },
+  "Pending": { fill: "#e0f2fe", text: "#075985" }
+}[status] || { fill: "#e0f2fe", text: "#075985" });
 
-/** "2027-01-18" -> "01/27". */
-const validThru = (value?: string | null) => {
-  const m = String(value || "").match(/^(\d{4})-(\d{2})/);
-  return m ? `${m[2]}/${m[1].slice(2)}` : "--/--";
-};
-
-/** Shared defs: pool-blue fallback, readability shades, champagne gold and the engraving filter. */
 function sharedDefs(prefix: string) {
   return `
-    <clipPath id="${prefix}Clip"><rect width="${CARD_WIDTH}" height="${CARD_HEIGHT}" rx="58"/></clipPath>
-    <clipPath id="${prefix}Crest"><rect x="100" y="82" width="140" height="140" rx="32"/></clipPath>
-    <filter id="crestShadow" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000814" flood-opacity="0.55"/></filter>
-    <clipPath id="${prefix}CrestSmall"><rect x="1418" y="852" width="64" height="64" rx="16"/></clipPath>
-    <linearGradient id="graphite" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#1468a8"/>
-      <stop offset="0.5" stop-color="#0a4a86"/>
-      <stop offset="1" stop-color="#052a55"/>
+    <clipPath id="${prefix}Clip"><rect width="${CARD_WIDTH}" height="${CARD_HEIGHT}" rx="44"/></clipPath>
+    <clipPath id="${prefix}Header"><rect width="${CARD_WIDTH}" height="${HEADER_H}"/></clipPath>
+    <clipPath id="${prefix}Crest"><rect x="84" y="55" width="140" height="140" rx="30"/></clipPath>
+    <filter id="${prefix}Lift" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#000814" flood-opacity="0.45"/></filter>
+    <linearGradient id="${prefix}Navy" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b3b6f"/><stop offset="1" stop-color="#061a36"/>
     </linearGradient>
-    <radialGradient id="falloff" cx="0.18" cy="0.12" r="0.9">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.10"/>
-      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0.02"/>
-      <stop offset="1" stop-color="#000000" stop-opacity="0.35"/>
-    </radialGradient>
-    <linearGradient id="champagne" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#f6e7bf"/>
-      <stop offset="0.3" stop-color="#d9bd7c"/>
-      <stop offset="0.55" stop-color="#a8843f"/>
-      <stop offset="0.8" stop-color="#e8d29a"/>
-      <stop offset="1" stop-color="#b8954d"/>
+    <linearGradient id="${prefix}Veil" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#04162f" stop-opacity="0.82"/><stop offset="1" stop-color="#04162f" stop-opacity="0.45"/>
     </linearGradient>
-    <linearGradient id="edgeLight" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.35"/>
-      <stop offset="0.4" stop-color="#ffffff" stop-opacity="0.05"/>
-      <stop offset="1" stop-color="#ffffff" stop-opacity="0.18"/>
-    </linearGradient>
-    <linearGradient id="shadeLeft" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#021a3a" stop-opacity="0.5"/>
-      <stop offset="0.5" stop-color="#021a3a" stop-opacity="0.08"/>
-      <stop offset="1" stop-color="#021a3a" stop-opacity="0"/>
-    </linearGradient>
-    <linearGradient id="shadeBottom" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0.6" stop-color="#010e22" stop-opacity="0"/>
-      <stop offset="1" stop-color="#010e22" stop-opacity="0.55"/>
-    </linearGradient>
-    <linearGradient id="shadeTop" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#010e22" stop-opacity="0.3"/>
-      <stop offset="0.3" stop-color="#010e22" stop-opacity="0"/>
-    </linearGradient>
-    <filter id="engrave" x="-5%" y="-30%" width="110%" height="160%">
-      <feDropShadow dx="0" dy="-1.5" stdDeviation="0.4" flood-color="#ffffff" flood-opacity="0.35"/>
-      <feDropShadow dx="0" dy="2.5" stdDeviation="1.2" flood-color="#000000" flood-opacity="0.85"/>
-    </filter>`;
+    <linearGradient id="${prefix}Aqua" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#0e7490"/><stop offset="1" stop-color="#22d3ee"/>
+    </linearGradient>`;
 }
 
-function cardBody(prefix: string, pool: string | null | undefined, extra = "", veil = 0) {
+/** White card with the pool-photo header band and the aqua footer, shared by both sides. */
+function cardFrame(prefix: string, pool: string | null | undefined, title: string, right = "") {
   return `
   <g clip-path="url(#${prefix}Clip)">
-    <rect width="${CARD_WIDTH}" height="${CARD_HEIGHT}" fill="url(#graphite)"/>
-    ${pool ? `<image href="${escapeXml(pool)}" width="${CARD_WIDTH}" height="${CARD_HEIGHT}" preserveAspectRatio="xMidYMid slice"/>` : ""}
-    <rect width="${CARD_WIDTH}" height="${CARD_HEIGHT}" fill="url(#shadeTop)"/>
-    <rect width="${CARD_WIDTH}" height="${CARD_HEIGHT}" fill="url(#shadeLeft)"/>
-    <rect width="${CARD_WIDTH}" height="${CARD_HEIGHT}" fill="url(#shadeBottom)"/>
-    ${veil ? `<rect width="${CARD_WIDTH}" height="${CARD_HEIGHT}" fill="#021531" fill-opacity="${veil}"/>` : ""}
-    ${extra}
-    <rect width="${CARD_WIDTH}" height="${CARD_HEIGHT}" fill="url(#falloff)" opacity="0.35"/>
+    <rect width="${CARD_WIDTH}" height="${CARD_HEIGHT}" fill="#ffffff"/>
+    <g clip-path="url(#${prefix}Header)">
+      <rect width="${CARD_WIDTH}" height="${HEADER_H}" fill="url(#${prefix}Navy)"/>
+      ${pool ? `<image href="${escapeXml(pool)}" width="${CARD_WIDTH}" height="${CARD_HEIGHT}" y="-260" preserveAspectRatio="xMidYMid slice"/>` : ""}
+      <rect width="${CARD_WIDTH}" height="${HEADER_H}" fill="url(#${prefix}Veil)"/>
+    </g>
+    <rect y="${HEADER_H}" width="${CARD_WIDTH}" height="8" fill="url(#${prefix}Aqua)"/>
+    <path d="M0 ${HEADER_H + 30} q 60 -14 120 0 t 120 0 t 120 0 t 120 0 t 120 0 t 120 0 t 120 0 t 120 0 t 120 0 t 120 0 t 120 0 t 120 0 t 120 0 t 120 0" fill="none" stroke="${AQUA}" stroke-opacity="0.12" stroke-width="3"/>
+    <rect y="${FOOTER_Y}" width="${CARD_WIDTH}" height="${CARD_HEIGHT - FOOTER_Y}" fill="url(#${prefix}Aqua)"/>
   </g>
-  <rect x="1.5" y="1.5" width="${CARD_WIDTH - 3}" height="${CARD_HEIGHT - 3}" rx="57" fill="none" stroke="url(#edgeLight)" stroke-width="3"/>`;
+  <rect x="1" y="1" width="${CARD_WIDTH - 2}" height="${CARD_HEIGHT - 2}" rx="43" fill="none" stroke="#cbd5e1" stroke-width="2"/>
+
+  <rect x="84" y="55" width="140" height="140" rx="30" fill="#0a3d7a" filter="url(#${prefix}Lift)"/>
+  <image href="${BARODA_SWIM_FRONT_LOGO_DATA_URI}" x="84" y="55" width="140" height="140" preserveAspectRatio="xMidYMid slice" clip-path="url(#${prefix}Crest)"/>
+  <text x="258" y="118" font-family="${FONT}" font-size="46" font-weight="800" letter-spacing="1" fill="#ffffff">Baroda Swim Front</text>
+  <text x="260" y="166" font-family="${FONT}" font-size="24" font-weight="700" letter-spacing="7" fill="#67e8f9">${escapeXml(title)}</text>
+  ${right}`;
 }
+
+const label = (x: number, y: number, text: string, anchor = "start") =>
+  `<text x="${x}" y="${y}" text-anchor="${anchor}" font-family="${FONT}" font-size="19" font-weight="700" letter-spacing="3" fill="${MUTED}">${text}</text>`;
+const value = (x: number, y: number, text: string, maxWidth = 360, size = 32) =>
+  `<text x="${x}" y="${y}" font-family="${FONT}" font-size="${fitSize(text, maxWidth, size, 22, 0.56)}" font-weight="700" fill="${INK}">${escapeXml(text)}</text>`;
 
 export function buildMembershipCardSvg(data: MemberDashboardData, images?: CardImages): string {
-  const name = (data.member.fullName || "Member").toUpperCase();
-  const number = data.member.membershipNo ? cardNumber(data.member.membershipNo) : "PENDING";
-  const status = getMembershipDisplayStatus(data.membership.status, data.membership.expiryDate, data.membership.daysRemaining);
-  const plan = (data.membership.planName || "").replace(/\s*-\s*/g, " · ").toUpperCase();
-  const nameSize = fitSize(name, 1000, 44, 30, 0.72);
-  const numberSize = fitSize(number, 1100, 66, 44, 0.66);
-
-  const chip = `
-    <g transform="translate(118 392)">
-      <rect width="150" height="114" rx="20" fill="url(#champagne)"/>
-      <rect x="1.5" y="1.5" width="147" height="111" rx="19" fill="none" stroke="#000" stroke-opacity="0.25" stroke-width="2"/>
-      <g fill="none" stroke="#5c461c" stroke-opacity="0.55" stroke-width="2.2">
-        <path d="M0 38 H46 M0 76 H46 M104 38 H150 M104 76 H150"/>
-        <rect x="46" y="20" width="58" height="74" rx="12"/>
-        <path d="M75 0 V20 M75 94 V114"/>
-      </g>
-    </g>`;
-
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${CARD_WIDTH} ${CARD_HEIGHT}" width="${CARD_WIDTH}" height="${CARD_HEIGHT}" role="img" aria-label="Baroda Swim Front membership card for ${escapeXml(data.member.fullName || "member")}">
-  <defs>${sharedDefs("front")}</defs>
-  ${cardBody("front", images?.pool)}
-
-  <!-- The academy crest in its own colours, large and crisp, with a soft shadow and a gold edge. -->
-  <rect x="100" y="82" width="140" height="140" rx="32" fill="#0a3d7a" filter="url(#crestShadow)"/>
-  <image href="${BARODA_SWIM_FRONT_LOGO_DATA_URI}" x="100" y="82" width="140" height="140" preserveAspectRatio="xMidYMid slice" clip-path="url(#frontCrest)"/>
-  <rect x="101.5" y="83.5" width="137" height="137" rx="31" fill="none" stroke="url(#champagne)" stroke-width="3"/>
-  <text x="274" y="148" font-family="${FONT}" font-size="40" font-weight="700" letter-spacing="5" fill="#ffffff" filter="url(#engrave)">BARODA SWIM FRONT</text>
-  <text x="276" y="194" font-family="${FONT}" font-size="20" font-weight="600" letter-spacing="8" fill="url(#champagne)">SWIM FOR LIFE · VADODARA</text>
-
-  <text x="1482" y="146" text-anchor="end" font-family="${FONT}" font-size="24" font-weight="700" letter-spacing="10" fill="url(#champagne)">MEMBER</text>
-  <circle cx="${1482 - status.length * 16.6 - 16}" cy="184" r="6" fill="${statusColor(status)}"/>
-  <text x="1482" y="191" text-anchor="end" font-family="${FONT}" font-size="18" font-weight="500" letter-spacing="5" fill="#b9cbe0">${escapeXml(status.toUpperCase())}</text>
-
-  ${chip}
-
-  <text x="118" y="672" font-family="${MONO}" font-size="${numberSize}" font-weight="500" letter-spacing="7" fill="#ece6d8" filter="url(#engrave)">${escapeXml(number)}</text>
-
-  ${plan ? `<text x="118" y="760" font-family="${FONT}" font-size="20" font-weight="500" letter-spacing="6" fill="#b9cbe0">${escapeXml(plan)}</text>` : ""}
-  <text x="118" y="866" font-family="${FONT}" font-size="${nameSize}" font-weight="600" letter-spacing="6" fill="#ece6d8" filter="url(#engrave)">${escapeXml(name)}</text>
-
-  <text x="1482" y="866" text-anchor="end" font-family="${MONO}" font-size="40" font-weight="500" letter-spacing="3" fill="#ece6d8" filter="url(#engrave)">${validThru(data.membership.expiryDate)}</text>
-  <text x="1318" y="842" text-anchor="end" font-family="${FONT}" font-size="14" font-weight="600" letter-spacing="3" fill="#b9cbe0">VALID</text>
-  <text x="1318" y="862" text-anchor="end" font-family="${FONT}" font-size="14" font-weight="600" letter-spacing="3" fill="#b9cbe0">THRU</text>
-</svg>`;
-}
-
-/** Back of the card: photo, details and the QR for the counter. */
-export function buildMembershipCardBackSvg(data: MemberDashboardData, images: CardImages): string {
   const name = data.member.fullName || "Member";
   const memberNo = data.member.membershipNo || "Pending";
+  const status = getMembershipDisplayStatus(data.membership.status, data.membership.expiryDate, data.membership.daysRemaining);
+  const pill = statusPill(status);
+  const plan = data.membership.planName || "Plan not assigned";
   const batch = data.batch
     ? [formatBatchTime(data.batch.startTime), formatBatchTime(data.batch.endTime)].filter(Boolean).join(" – ") || data.batch.name
     : data.membership.batchName || "Not assigned yet";
   const from = formatMemberDate(data.membership.startDate) || "Pending";
-  const thru = formatMemberDate(data.membership.expiryDate) || "Pending";
-  const plan = data.membership.planName || "Plan not assigned";
-  const label = (x: number, y: number, text: string) =>
-    `<text x="${x}" y="${y}" font-family="${FONT}" font-size="17" font-weight="600" letter-spacing="5" fill="#b9cbe0">${text}</text>`;
-  const value = (x: number, y: number, text: string, size = 30) =>
-    `<text x="${x}" y="${y}" font-family="${FONT}" font-size="${fitSize(text, 470, size, 22, 0.55)}" font-weight="500" fill="#ece6d8">${escapeXml(text)}</text>`;
+  const till = formatMemberDate(data.membership.expiryDate) || "Pending";
+  const pillW = Math.round(status.length * 15 + 70);
 
-  const photo = images.photo
-    ? `<clipPath id="backPhoto"><rect x="104" y="318" width="248" height="300" rx="22"/></clipPath>
-       <image href="${escapeXml(images.photo)}" x="104" y="318" width="248" height="300" preserveAspectRatio="xMidYMid slice" clip-path="url(#backPhoto)"/>`
-    : `<rect x="104" y="318" width="248" height="300" rx="22" fill="#1b1e23"/>
-       <text x="228" y="496" text-anchor="middle" font-family="${FONT}" font-size="84" font-weight="600" fill="url(#champagne)">${escapeXml(cardInitials(name))}</text>`;
+  const statusBadge = `
+  <rect x="${1502 - pillW}" y="96" width="${pillW}" height="58" rx="29" fill="${pill.fill}"/>
+  <circle cx="${1502 - pillW + 30}" cy="125" r="8" fill="${pill.text}"/>
+  <text x="${1502 - pillW + 48}" y="134" font-family="${FONT}" font-size="25" font-weight="700" fill="${pill.text}">${escapeXml(status)}</text>`;
+
+  const photo = images?.photo
+    ? `<clipPath id="frontPhoto"><rect x="84" y="310" width="270" height="330" rx="24"/></clipPath>
+       <image href="${escapeXml(images.photo)}" x="84" y="310" width="270" height="330" preserveAspectRatio="xMidYMid slice" clip-path="url(#frontPhoto)"/>`
+    : `<rect x="84" y="310" width="270" height="330" rx="24" fill="#e0f2fe"/>
+       <text x="219" y="505" text-anchor="middle" font-family="${FONT}" font-size="96" font-weight="700" fill="${AQUA}">${escapeXml(cardInitials(name))}</text>`;
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${CARD_WIDTH} ${CARD_HEIGHT}" width="${CARD_WIDTH}" height="${CARD_HEIGHT}" role="img" aria-label="Baroda Swim Front membership card for ${escapeXml(name)}">
+  <defs>${sharedDefs("front")}</defs>
+  ${cardFrame("front", images?.pool, "MEMBERSHIP CARD", statusBadge)}
+
+  ${photo}
+  <rect x="84" y="310" width="270" height="330" rx="24" fill="none" stroke="${AQUA}" stroke-width="5"/>
+
+  <text x="410" y="366" font-family="${FONT}" font-size="${fitSize(name, 680, 56, 34, 0.56)}" font-weight="800" fill="${INK}">${escapeXml(name)}</text>
+  <text x="412" y="414" font-family="${FONT}" font-size="${fitSize(plan, 680, 28, 20, 0.52)}" font-weight="600" fill="${AQUA}">${escapeXml(plan)}</text>
+
+  ${label(412, 490, "MEMBER NO.")}${value(412, 532, memberNo)}
+  ${label(780, 490, "POOL TIME")}${value(780, 532, batch, 330)}
+  ${label(412, 600, "VALID FROM")}${value(412, 642, from)}
+  ${label(780, 600, "VALID TILL")}${value(780, 642, till, 330)}
+
+  ${images?.qr ? `<rect x="1178" y="300" width="324" height="324" rx="22" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+  <image href="${escapeXml(images.qr)}" x="1200" y="322" width="280" height="280"/>
+  ${label(1340, 666, "SCAN AT RECEPTION", "middle")}` : ""}
+
+  <line x1="84" y1="780" x2="1502" y2="780" stroke="#e2e8f0" stroke-width="2"/>
+  <text x="84" y="846" font-family="${FONT}" font-size="24" fill="${MUTED}">Show this card at reception on every visit. Valid only for the member named above.</text>
+
+  <text x="84" y="967" font-family="${FONT}" font-size="26" font-weight="700" letter-spacing="4" fill="#ffffff">SWIM FOR LIFE · VADODARA</text>
+  <text x="1502" y="967" text-anchor="end" font-family="${FONT}" font-size="24" font-weight="600" fill="#ecfeff">${escapeXml(ACADEMY_CONTACT.phoneDisplay)}</text>
+</svg>`;
+}
+
+const CARD_RULES = [
+  "Show this card at reception before entering the pool.",
+  "Swimwear and a silicone swim cap are compulsory.",
+  "Shower before entering the water.",
+  "Follow the instructions of the coach and lifeguard.",
+  "This card is personal and cannot be transferred."
+];
+
+/** Back of the card: pool rules and how to reach the academy. */
+export function buildMembershipCardBackSvg(data: MemberDashboardData, images: CardImages): string {
+  const memberNo = data.member.membershipNo || "Pending";
+  const rules = CARD_RULES.map((rule, i) => `
+    <circle cx="100" cy="${384 + i * 62}" r="7" fill="${AQUA}"/>
+    <text x="124" y="${393 + i * 62}" font-family="${FONT}" font-size="27" fill="${INK}">${escapeXml(rule)}</text>`).join("");
+  const addressLines = ["Aark International School,", "Vasna–Bhayli Main Rd,", "Vadodara, Gujarat 391101"];
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${CARD_WIDTH} ${CARD_HEIGHT}" width="${CARD_WIDTH}" height="${CARD_HEIGHT}" role="img" aria-label="Back of the membership card">
   <defs>${sharedDefs("back")}</defs>
-  ${cardBody("back", images.pool, "", 0.55)}
+  ${cardFrame("back", images.pool, "MEMBER INFORMATION", `<text x="1502" y="134" text-anchor="end" font-family="${FONT}" font-size="30" font-weight="700" fill="#ffffff">${escapeXml(memberNo)}</text>`)}
 
-  ${photo}
-  <rect x="98" y="312" width="260" height="312" rx="27" fill="none" stroke="url(#champagne)" stroke-width="2.5"/>
+  ${label(84, 334, "POOL RULES")}
+  ${rules}
 
-  <text x="420" y="350" font-family="${FONT}" font-size="${fitSize(name, 640, 40, 28, 0.56)}" font-weight="600" fill="#ece6d8">${escapeXml(name)}</text>
-  <text x="420" y="394" font-family="${FONT}" font-size="24" font-weight="500" fill="url(#champagne)">${escapeXml(plan)}</text>
-  ${label(420, 470, "MEMBER NO")}${value(420, 510, memberNo)}
-  ${label(420, 572, "POOL TIME")}${value(420, 612, batch)}
-  ${label(420, 674, "VALID")}${value(420, 714, `${from} – ${thru}`, 28)}
+  <line x1="1060" y1="310" x2="1060" y2="840" stroke="#e2e8f0" stroke-width="2"/>
+  ${label(1110, 334, "CONTACT")}
+  <text x="1110" y="384" font-family="${FONT}" font-size="30" font-weight="700" fill="${INK}">${escapeXml(ACADEMY_CONTACT.phoneDisplay)}</text>
+  ${addressLines.map((line, i) => `<text x="1110" y="${440 + i * 38}" font-family="${FONT}" font-size="24" fill="${MUTED}">${escapeXml(line)}</text>`).join("")}
+  ${label(1110, 616, "HOURS")}
+  <text x="1110" y="660" font-family="${FONT}" font-size="24" fill="${INK}">Mon–Sat · 6–9 AM, 4–8 PM</text>
+  <text x="1110" y="698" font-family="${FONT}" font-size="24" fill="${MUTED}">Closed on Sunday</text>
 
-  ${images.qr ? `<rect x="1170" y="300" width="316" height="316" rx="26" fill="#f7f3ea"/>
-  <rect x="1170" y="300" width="316" height="316" rx="26" fill="none" stroke="url(#champagne)" stroke-width="2.5"/>
-  <image href="${escapeXml(images.qr)}" x="1196" y="326" width="264" height="264"/>
-  <text x="1328" y="662" text-anchor="middle" font-family="${FONT}" font-size="17" font-weight="600" letter-spacing="5" fill="#b9cbe0">SCAN AT RECEPTION</text>` : ""}
-
-  <line x1="104" y1="830" x2="1482" y2="830" stroke="url(#champagne)" stroke-opacity="0.35" stroke-width="1.5"/>
-  <text x="104" y="884" font-family="${FONT}" font-size="19" fill="#a9bdd4">This card is personal and non-transferable. If found, please return it to Baroda Swim Front, Vadodara.</text>
-  <image href="${BARODA_SWIM_FRONT_LOGO_DATA_URI}" x="1418" y="852" width="64" height="64" preserveAspectRatio="xMidYMid slice" clip-path="url(#backCrestSmall)"/>
-  <rect x="1418" y="852" width="64" height="64" rx="16" fill="none" stroke="url(#champagne)" stroke-width="1.5"/>
+  <text x="84" y="967" font-family="${FONT}" font-size="22" font-weight="600" fill="#ffffff">If found, please return this card to Baroda Swim Front, Vadodara.</text>
 </svg>`;
 }
 
