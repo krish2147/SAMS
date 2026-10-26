@@ -11,6 +11,7 @@ import { MemberSecurityPage } from "../member-dashboard/MemberSecurityPage";
 import { MemberSupportPage } from "../member-dashboard/MemberSupportPage";
 import { MemberNotificationsPage } from "../member-dashboard/MemberNotificationsPage";
 import { MemberNotificationPopup } from "../member-dashboard/MemberNotificationPopup";
+import { MemberSocialPopup, resetSocialPrompt, useSocialPrompt } from "../member-dashboard/MemberSocialPopup";
 import { useMemberNotifications } from "../member-dashboard/useMemberNotifications";
 import { useRememberedState } from "../utils/useRememberedState";
 
@@ -25,9 +26,12 @@ export function MemberDashboardShell({ userName, avatar, onLogout }: MemberDashb
   const activeSection: MemberSection = isMemberSection(rememberedSection) ? rememberedSection : "overview";
   const [membershipStatus, setMembershipStatus] = useState<string>();
   const notices = useMemberNotifications();
+  // Invitation to follow the academy, once per sign-in; the message pop-up waits until it closes.
+  const social = useSocialPrompt();
+  const handleLogout = onLogout ? () => { resetSocialPrompt(); onLogout(); } : undefined;
   // "Later" hides the pop-up until the next visit or until another new message arrives.
   const [laterIds, setLaterIds] = useState<number[]>([]);
-  const popupMessage = activeSection === "notifications" ? null : notices.unread.find((m) => !laterIds.includes(m.id)) || null;
+  const popupMessage = activeSection === "notifications" || social.open ? null : notices.unread.find((m) => !laterIds.includes(m.id)) || null;
   // The member's own registration photo, so the top bar shows them rather than a cartoon avatar.
   const [photoUrl, setPhotoUrl] = useState<string>();
   const currentSection = useMemo(() => findMemberNavigationItem(activeSection), [activeSection]);
@@ -49,8 +53,8 @@ export function MemberDashboardShell({ userName, avatar, onLogout }: MemberDashb
   }, []);
 
   return (
-    <MemberLayout activeSection={activeSection} unreadCount={notices.unreadCount} userName={userName} avatar={photoUrl || avatar} membershipStatus={membershipStatus} onSelect={setActiveSection} onLogout={onLogout} showSectionIntro={!(["overview", "membership", "payments", "batch", "calendar", "profile", "security", "notifications", "support"] as MemberSection[]).includes(activeSection)}>
-      {activeSection === "overview" ? <MemberOverview sessionName={userName} onNavigate={setActiveSection} /> : activeSection === "membership" ? <MyMembershipPage onNavigate={setActiveSection} /> : activeSection === "payments" ? <PaymentsPage /> : activeSection === "batch" ? <MyBatchPage onNavigate={setActiveSection} /> : activeSection === "calendar" ? <MemberCalendarPage /> : activeSection === "profile" ? <MemberProfilePage /> : activeSection === "security" ? <MemberSecurityPage onLogout={onLogout} /> : activeSection === "support" ? <MemberSupportPage onNavigate={setActiveSection} /> : activeSection === "notifications" ? <MemberNotificationsPage messages={notices.messages} loading={notices.loading} error={notices.error} onRetry={() => void notices.refresh()} onMarkRead={notices.markRead} /> : <section aria-labelledby="member-content-title" className="max-w-2xl rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+    <MemberLayout activeSection={activeSection} unreadCount={notices.unreadCount} userName={userName} avatar={photoUrl || avatar} membershipStatus={membershipStatus} onSelect={setActiveSection} onLogout={handleLogout} showSectionIntro={!(["overview", "membership", "payments", "batch", "calendar", "profile", "security", "notifications", "support"] as MemberSection[]).includes(activeSection)}>
+      {activeSection === "overview" ? <MemberOverview sessionName={userName} onNavigate={setActiveSection} /> : activeSection === "membership" ? <MyMembershipPage onNavigate={setActiveSection} /> : activeSection === "payments" ? <PaymentsPage /> : activeSection === "batch" ? <MyBatchPage onNavigate={setActiveSection} /> : activeSection === "calendar" ? <MemberCalendarPage /> : activeSection === "profile" ? <MemberProfilePage /> : activeSection === "security" ? <MemberSecurityPage onLogout={handleLogout} /> : activeSection === "support" ? <MemberSupportPage onNavigate={setActiveSection} /> : activeSection === "notifications" ? <MemberNotificationsPage messages={notices.messages} loading={notices.loading} error={notices.error} onRetry={() => void notices.refresh()} onMarkRead={notices.markRead} /> : <section aria-labelledby="member-content-title" className="max-w-2xl rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
         <h2 id="member-content-title" className="sr-only">{currentSection.label}</h2>
         <div className="flex min-h-[200px] items-center justify-center px-6 py-8">
           <div className="max-w-sm text-center">
@@ -62,6 +66,7 @@ export function MemberDashboardShell({ userName, avatar, onLogout }: MemberDashb
           </div>
         </div>
       </section>}
+      <MemberSocialPopup open={social.open} onClose={social.close} />
       <MemberNotificationPopup
         message={popupMessage}
         moreCount={Math.max(0, notices.unread.filter((m) => !laterIds.includes(m.id)).length - 1)}

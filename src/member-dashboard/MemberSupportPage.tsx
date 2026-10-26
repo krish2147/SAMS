@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { ChevronDown, Clock, MapPin, Navigation, Phone } from "lucide-react";
+import { ChevronDown, Clock, Facebook, Instagram, MapPin, Navigation, Phone } from "lucide-react";
+import { ACADEMY_SOCIAL } from "./MemberSocialPopup";
 import { SettingsGroup, SettingsRow, SettingsTitle } from "../components/SettingsList";
 import type { MemberSection } from "./member-navigation";
 
@@ -13,6 +14,8 @@ export const ACADEMY_CONTACT = {
   phoneTel: "+919313241071",
   address: "Aark International School, beside Vasna–Bhayli Main Rd, behind Adventura, near Priya Cinema, Vadodara, Gujarat 391101",
   mapsUrl: "https://maps.app.goo.gl/RpAvS2juSqnszx9Q6",
+  // Google Maps embed of the academy's listing (no API key needed).
+  mapEmbedUrl: "https://www.google.com/maps/embed?origin=mfe&pb=!1m3!2m1!1sBaroda+Swim+Front,+Aark+International+School,+Vadodara!6i16",
   // Monday = 1 … Sunday = 0. Times are 24-hour, India time.
   sessions: [["06:00", "09:00"], ["16:00", "20:00"]] as Array<[string, string]>,
   closedDays: [0]
@@ -120,12 +123,38 @@ export function MemberSupportPage({ onNavigate }: { onNavigate: (section: Member
         </div>
       </section>
 
+      {/* Map */}
+      <section aria-label="Academy location" className="mb-4 overflow-hidden rounded-3xl border border-slate-200 bg-white">
+        <iframe
+          title="Baroda Swim Front on Google Maps"
+          src={ACADEMY_CONTACT.mapEmbedUrl}
+          className="block h-64 w-full border-0 sm:h-72"
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+          allowFullScreen
+        />
+        <a href={ACADEMY_CONTACT.mapsUrl} target="_blank" rel="noreferrer" className="flex min-h-12 items-center gap-3 px-4 py-3 hover:bg-slate-50">
+          <MapPin className="h-5 w-5 shrink-0 text-cyan-700" />
+          <span className="min-w-0 flex-1 text-sm text-slate-600">Aark International School, Vasna–Bhayli Main Rd, Vadodara</span>
+          <span className="shrink-0 text-sm font-semibold text-cyan-700">Open in Maps</span>
+        </a>
+      </section>
+
       <SettingsGroup heading="Contact">
         <a href={`tel:${ACADEMY_CONTACT.phoneTel}`} className="block hover:bg-slate-50">
           <SettingsRow icon={Phone} title={ACADEMY_CONTACT.phoneDisplay} subtitle="Academy phone" />
         </a>
         <a href={ACADEMY_CONTACT.mapsUrl} target="_blank" rel="noreferrer" className="block hover:bg-slate-50">
           <SettingsRow icon={MapPin} title="Academy address" subtitle={ACADEMY_CONTACT.address} />
+        </a>
+      </SettingsGroup>
+
+      <SettingsGroup heading="Follow us">
+        <a href={ACADEMY_SOCIAL.instagramUrl} target="_blank" rel="noreferrer" className="block hover:bg-slate-50">
+          <SettingsRow icon={Instagram} title="Instagram" subtitle={`Join us on Instagram, ${ACADEMY_SOCIAL.instagramHandle}`} />
+        </a>
+        <a href={ACADEMY_SOCIAL.facebookUrl} target="_blank" rel="noreferrer" className="block hover:bg-slate-50">
+          <SettingsRow icon={Facebook} title="Facebook" subtitle="Join us on Facebook, Baroda Swim Front" />
         </a>
       </SettingsGroup>
 
