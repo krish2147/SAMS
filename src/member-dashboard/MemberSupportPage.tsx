@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { ChevronDown, Clock, Facebook, Instagram, MapPin, Navigation, Phone } from "lucide-react";
+import { ChevronDown, Clock, Facebook, Instagram, MapPin, Phone } from "lucide-react";
 import { ACADEMY_SOCIAL } from "./MemberSocialPopup";
 import { SettingsGroup, SettingsRow, SettingsTitle } from "../components/SettingsList";
 import type { MemberSection } from "./member-navigation";
@@ -55,7 +55,7 @@ export function openStatus(now = new Date()): { open: boolean; text: string } {
 const FAQS: Array<{ q: string; a: string; go?: { label: string; section: MemberSection } }> = [
   {
     q: "How do I renew my membership?",
-    a: "From 30 days before your membership ends, tap Renew now on My Membership to pay online. You can also pay in cash at the reception. You get a reminder a week before and on the last day, and your new dates appear on My Membership as soon as the payment is recorded.",
+    a: "From 30 days before your membership ends, tap Renew now on My Membership to pay online. You can also pay in cash at the reception. You get a reminder 3 days before and on the last day, and your new dates appear on My Membership as soon as the payment is recorded.",
     go: { label: "Open My Membership", section: "membership" }
   },
   {
@@ -113,14 +113,9 @@ export function MemberSupportPage({ onNavigate }: { onNavigate: (section: Member
           <span className={`h-2 w-2 rounded-full ${status.open ? "bg-emerald-500" : "bg-slate-400"}`} />
           {status.text}
         </p>
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <a href={`tel:${ACADEMY_CONTACT.phoneTel}`} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 text-[15px] font-semibold text-white hover:bg-slate-800">
-            <Phone className="h-5 w-5" />Call
-          </a>
-          <a href={ACADEMY_CONTACT.mapsUrl} target="_blank" rel="noreferrer" className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-[15px] font-semibold text-slate-900 hover:bg-slate-50">
-            <Navigation className="h-5 w-5" />Directions
-          </a>
-        </div>
+        <a href={`tel:${ACADEMY_CONTACT.phoneTel}`} className="mt-4 flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 text-[15px] font-semibold text-white hover:bg-slate-800">
+          <Phone className="h-5 w-5" />Call the academy
+        </a>
       </section>
 
       {/* Map */}

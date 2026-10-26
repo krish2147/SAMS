@@ -1,7 +1,10 @@
 import React from "react";
 import { CheckCircle2, Clock3 } from "lucide-react";
 import { formatMemberDate, getMembershipDisplayStatus, type MemberDashboardData } from "./member-overview-data";
-import { RENEWAL_BANNER_DAYS, RENEWAL_OPENS_DAYS_BEFORE, RenewNowButton, renewalState } from "./MemberRenewal";
+import { RENEWAL_BANNER_DAYS, RenewNowButton, renewalState } from "./MemberRenewal";
+
+// Matches the first stage of the server's renewal reminders (renewal-reminder.service.ts).
+const RENEWAL_REMINDER_DAYS_BEFORE = 3;
 
 export function RenewalPanel({ data }: { data: MemberDashboardData }) {
   const { membership } = data;
@@ -19,7 +22,7 @@ export function RenewalPanel({ data }: { data: MemberDashboardData }) {
   if (status === "Active") {
     title = "Your membership is active.";
     message = expiry ? `Your current membership remains active through ${expiry}.` : "Your membership is currently active.";
-    if (expiry && !renewal.canRenew) message += ` Online renewal opens ${RENEWAL_OPENS_DAYS_BEFORE} days before it ends.`;
+    if (expiry) message += ` We'll send you a renewal reminder ${RENEWAL_REMINDER_DAYS_BEFORE} days before it ends.`;
     tone = "bg-emerald-50 text-emerald-700";
   } else if (status === "Expiring Soon") {
     title = daysLeft === 0 ? "Your membership ends today." : daysLeft === 1 ? "Your membership ends tomorrow." : `Your membership ends in ${daysLeft} days.`;

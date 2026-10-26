@@ -210,10 +210,10 @@ export async function sendPaymentInvoiceWhatsApp(params: {
 }
 
 /**
- * Sends the "renewal_reminder" WhatsApp template a week before, and on the last day of, a
+ * Sends the "renewal_reminder" WhatsApp template 3 days before, and on the last day of, a
  * membership. The template is in docs/msg91/renewal_reminder.json (import it in MSG91 under
  * WhatsApp -> Templates -> Import). Body variables:
- * {{1}} name, {{2}} membership number, {{3}} "in 7 days" / "tomorrow" / "today",
+ * {{1}} name, {{2}} membership number, {{3}} "in 3 days" / "tomorrow" / "today",
  * {{4}} end date, {{5}} batch.
  */
 export async function sendRenewalReminderWhatsApp(params: {

@@ -3,12 +3,13 @@ import assert from "node:assert/strict";
 import { batchWithTiming, daysLeftText, dueReminderStage, indiaToday } from "./renewal-reminder.service";
 import { replaceTemplateVariables, DEFAULT_TEMPLATES } from "./communication.service";
 
-test("a reminder is due a week before and on the last day, once per stage", () => {
+test("a reminder is due 3 days before and on the last day, once per stage", () => {
   const today = "2026-10-19";
   assert.equal(dueReminderStage("2026-11-05", today), null); // 17 days left
-  assert.equal(dueReminderStage("2026-10-27", today), null); // 8 days left
-  assert.deepEqual(dueReminderStage("2026-10-26", today), { stage: "week", daysLeft: 7 });
-  assert.deepEqual(dueReminderStage("2026-10-21", today), { stage: "week", daysLeft: 2 });
+  assert.equal(dueReminderStage("2026-10-26", today), null); // 7 days left
+  assert.equal(dueReminderStage("2026-10-23", today), null); // 4 days left
+  assert.deepEqual(dueReminderStage("2026-10-22", today), { stage: "3-days", daysLeft: 3 });
+  assert.deepEqual(dueReminderStage("2026-10-21", today), { stage: "3-days", daysLeft: 2 });
   assert.deepEqual(dueReminderStage("2026-10-20", today), { stage: "last-day", daysLeft: 1 });
   assert.deepEqual(dueReminderStage("2026-10-19", today), { stage: "last-day", daysLeft: 0 });
   assert.equal(dueReminderStage("2026-10-18", today), null); // already ended
