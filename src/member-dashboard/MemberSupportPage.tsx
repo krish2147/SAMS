@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { ChevronDown, Clock, MapPin, Navigation, Phone } from "lucide-react";
+import { ChevronDown, Clock, Facebook, Instagram, MapPin, Navigation, Phone } from "lucide-react";
+import { ACADEMY_SOCIAL } from "./MemberSocialPopup";
 import { SettingsGroup, SettingsRow, SettingsTitle } from "../components/SettingsList";
 import type { MemberSection } from "./member-navigation";
 
@@ -145,6 +146,15 @@ export function MemberSupportPage({ onNavigate }: { onNavigate: (section: Member
         </a>
         <a href={ACADEMY_CONTACT.mapsUrl} target="_blank" rel="noreferrer" className="block hover:bg-slate-50">
           <SettingsRow icon={MapPin} title="Academy address" subtitle={ACADEMY_CONTACT.address} />
+        </a>
+      </SettingsGroup>
+
+      <SettingsGroup heading="Follow us">
+        <a href={ACADEMY_SOCIAL.instagramUrl} target="_blank" rel="noreferrer" className="block hover:bg-slate-50">
+          <SettingsRow icon={Instagram} title="Instagram" subtitle={`Join us on Instagram, ${ACADEMY_SOCIAL.instagramHandle}`} />
+        </a>
+        <a href={ACADEMY_SOCIAL.facebookUrl} target="_blank" rel="noreferrer" className="block hover:bg-slate-50">
+          <SettingsRow icon={Facebook} title="Facebook" subtitle="Join us on Facebook, Baroda Swim Front" />
         </a>
       </SettingsGroup>
 
