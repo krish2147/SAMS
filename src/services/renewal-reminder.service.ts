@@ -4,7 +4,7 @@ import { sendRenewalReminderWhatsApp } from "./whatsapp.service";
 import { calendarDaysBetween, formatDateOnlyForWhatsApp, toDateOnlyString } from "../utils/membership-date";
 
 // Renewal reminders: each active member gets a WhatsApp/SMS/email message (the "renewal_reminder"
-// template) and an in-app notification a week before their membership ends, and again on the last
+// template) and an in-app notification 3 days before their membership ends, and again on the last
 // day. Each reminder is sent once per membership period: the member_renewal_reminders row is
 // claimed before sending, so a restart or a second server never sends it twice. Messages go out
 // only between 9 AM and 7 PM India time.
@@ -12,7 +12,7 @@ import { calendarDaysBetween, formatDateOnlyForWhatsApp, toDateOnlyString } from
 export const REMINDER_STAGES = [
   // A stage covers a window of days left, so a reminder missed while the server was down still goes
   // out the next day instead of being skipped.
-  { key: "week", from: 2, to: 7 },
+  { key: "3-days", from: 2, to: 3 },
   { key: "last-day", from: 0, to: 1 },
 ] as const;
 
@@ -43,7 +43,7 @@ export function batchWithTiming(name?: string | null, start?: string | null, end
   return `${batch} (${String(start).trim()} - ${String(end).trim()})`;
 }
 
-/** "in 7 days" / "tomorrow" / "today", for "your membership ends …". */
+/** "in 3 days" / "tomorrow" / "today", for "your membership ends …". */
 export function daysLeftText(daysLeft: number) {
   if (daysLeft <= 0) return "today";
   if (daysLeft === 1) return "tomorrow";
@@ -78,7 +78,7 @@ export async function sendDueRenewalReminders(now = new Date()): Promise<number>
      FROM members m
      LEFT JOIN batches b ON m.selected_batch_id = b.id
      WHERE m.membership_status = 'Active'
-       AND m.membership_end_date BETWEEN ? AND DATE_ADD(?, INTERVAL 7 DAY)`,
+       AND m.membership_end_date BETWEEN ? AND DATE_ADD(?, INTERVAL 3 DAY)`,
     [today, today]
   );
 
