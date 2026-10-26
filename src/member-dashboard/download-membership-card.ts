@@ -258,7 +258,7 @@ async function svgToImage(svg: string) {
   }
 }
 
-/** Saves both sides, front beside back, on a soft studio background. */
+/** Saves both sides, front above back, on a soft studio background. */
 export async function downloadMembershipCardPng(data: MemberDashboardData) {
   const images = await prepareCardImages(data);
   const [front, back] = await Promise.all([
@@ -267,8 +267,8 @@ export async function downloadMembershipCardPng(data: MemberDashboardData) {
   ]);
   const M = 80, GAP = 70;
   const canvas = document.createElement("canvas");
-  canvas.width = CARD_WIDTH * 2 + GAP + M * 2;
-  canvas.height = CARD_HEIGHT + M * 2;
+  canvas.width = CARD_WIDTH + M * 2;
+  canvas.height = CARD_HEIGHT * 2 + GAP + M * 2;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas is unavailable");
   const bg = ctx.createLinearGradient(0, 0, 0, canvas.height);
@@ -276,12 +276,12 @@ export async function downloadMembershipCardPng(data: MemberDashboardData) {
   bg.addColorStop(1, "#e6e1d6");
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  for (const [img, x] of [[front, M], [back, M + CARD_WIDTH + GAP]] as const) {
+  for (const [img, y] of [[front, M], [back, M + CARD_HEIGHT + GAP]] as const) {
     ctx.save();
     ctx.shadowColor = "rgba(0,0,0,0.35)";
     ctx.shadowBlur = 50;
     ctx.shadowOffsetY = 24;
-    ctx.drawImage(img, x, M, CARD_WIDTH, CARD_HEIGHT);
+    ctx.drawImage(img, M, y, CARD_WIDTH, CARD_HEIGHT);
     ctx.restore();
   }
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
