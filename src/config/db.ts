@@ -220,6 +220,11 @@ const statements = cleanedSql
       "ALTER TABLE members ADD COLUMN membership_end_date DATE NULL",
       "ALTER TABLE members ADD COLUMN next_renewal_date DATE NULL",
       "ALTER TABLE members ADD COLUMN last_payment_id INT UNSIGNED NULL",
+      // Paused memberships (medical leave, travel): the end date moves back by the paused days on resume.
+      "ALTER TABLE members ADD COLUMN paused_on DATE NULL",
+      "ALTER TABLE members ADD COLUMN pause_until DATE NULL",
+      // Coaches' notes about a swimmer, kept apart from remarks (which hold the rejection reason).
+      "ALTER TABLE members ADD COLUMN coach_notes TEXT NULL",
       "ALTER TABLE otp_login_challenges ADD COLUMN otp_hash CHAR(64) NULL",
       "ALTER TABLE user_sessions ADD COLUMN remember_me TINYINT(1) NOT NULL DEFAULT 0",
       // Plan selection codes. Databases created before the rate card existed lack them, and

@@ -16,6 +16,31 @@ const MEMBER_SELECT = `SELECT m.*, p.name as plan_name, p.duration_months as pla
    LEFT JOIN batches b ON m.selected_batch_id = b.id`;
 
 // Robust helper to get the authenticated member from the session
+/** The member's batch and plan category, to show only events and holidays meant for them. */
+async function memberAudience(pool: any, member: any) {
+  let category = "";
+  if (member.membership_plan_id) {
+    const [plans]: any = await pool.query("SELECT plan_category FROM membership_plans WHERE id = ? LIMIT 1", [member.membership_plan_id]);
+    category = String(plans?.[0]?.plan_category || "");
+  }
+  return { batchId: member.selected_batch_id ? String(member.selected_batch_id) : "", category };
+}
+
+function idList(value: unknown): string[] {
+  if (!value) return [];
+  try { const parsed = JSON.parse(String(value)); return Array.isArray(parsed) ? parsed.map(String) : []; } catch { return []; }
+}
+
+/** Calendar entries can target all members, selected batches or selected plan categories. */
+function isForMember(row: any, audience: { batchId: string; category: string }) {
+  if (row.applicable_to === "Selected Batches") return Boolean(audience.batchId) && idList(row.applicable_batch_ids).includes(audience.batchId);
+  if (row.applicable_to === "Selected Categories") {
+    const categories = idList(row.applicable_plan_categories);
+    return Boolean(audience.category) && (categories.includes(audience.category) || (audience.category.startsWith("Family") && categories.includes("Family")));
+  }
+  return true;
+}
+
 async function getAuthenticatedMember(req: any): Promise<any> {
   if (!req.user || (req.user.role !== "member" && req.user.role !== "parent")) {
     return null;
@@ -253,11 +278,23 @@ router.get("/member/batch", requireAuth(["member", "parent"]), async (req: any, 
 // 3. GET /api/member/events
 router.get("/member/events", requireAuth(["member", "parent"]), async (req: any, res: Response, next) => {
   try {
+    const member = await getAuthenticatedMember(req);
+    if (!member) return res.status(404).json({ error: "Authenticated member record not found" });
     const pool = await getDbPool();
-    const [events]: any = await pool.query(
-      "SELECT * FROM events ORDER BY event_date ASC LIMIT 10"
+    const [rows]: any = await pool.query(
+      "SELECT * FROM events WHERE event_date >= CURDATE() AND (status IS NULL OR status = 'Published') ORDER BY event_date ASC, start_time ASC LIMIT 30"
     );
-    res.json(events || []);
+    const audience = await memberAudience(pool, member);
+    res.json((rows || []).filter((row: any) => isForMember(row, audience)).slice(0, 10).map((row: any) => ({
+      title: row.title,
+      description: row.description || null,
+      eventDate: toDateOnlyString(row.event_date),
+      startTime: row.start_time || null,
+      endTime: row.end_time || null,
+      location: row.location || null,
+      eventType: row.event_type || null,
+      registrationRequired: Boolean(Number(row.registration_required || 0))
+    })));
   } catch (err) {
     next(err);
   }
@@ -266,11 +303,20 @@ router.get("/member/events", requireAuth(["member", "parent"]), async (req: any,
 // 4. GET /api/member/holidays
 router.get("/member/holidays", requireAuth(["member", "parent"]), async (req: any, res: Response, next) => {
   try {
+    const member = await getAuthenticatedMember(req);
+    if (!member) return res.status(404).json({ error: "Authenticated member record not found" });
     const pool = await getDbPool();
-    const [holidays]: any = await pool.query(
-      "SELECT * FROM holidays ORDER BY holiday_date ASC LIMIT 15"
+    const [rows]: any = await pool.query(
+      "SELECT * FROM holidays WHERE COALESCE(end_date, holiday_date) >= CURDATE() AND (status IS NULL OR status = 'Active') ORDER BY holiday_date ASC LIMIT 40"
     );
-    res.json(holidays || []);
+    const audience = await memberAudience(pool, member);
+    res.json((rows || []).filter((row: any) => isForMember(row, audience)).slice(0, 15).map((row: any) => ({
+      name: row.name,
+      description: row.announcement_message || row.description || null,
+      startDate: toDateOnlyString(row.holiday_date),
+      endDate: toDateOnlyString(row.end_date || row.holiday_date),
+      facilityClosed: row.facility_closed === undefined || row.facility_closed === null ? true : Boolean(Number(row.facility_closed))
+    })));
   } catch (err) {
     next(err);
   }

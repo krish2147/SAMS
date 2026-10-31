@@ -9,6 +9,7 @@ import paymentRoutes from "./payment.routes";
 import communicationRoutes from "./communication.routes";
 import analyticsRoutes from "./analytics.routes";
 import staffNotificationRoutes from "./staff-notifications.routes";
+import guestRoutes from "./guest.routes";
 
 const router = Router();
 
@@ -23,6 +24,7 @@ router.use(paymentRoutes);
 router.use(communicationRoutes);
 router.use(analyticsRoutes);
 router.use(staffNotificationRoutes);
+router.use(guestRoutes);
 
 // Catch-all 404 for unhandled API endpoints to prevent falling through to Vite index.html
 router.use("*", (req, res) => {

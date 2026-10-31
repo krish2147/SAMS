@@ -31,12 +31,16 @@ router.post("/members/reject", requireAuth(["admin", "super_admin", "staff", "re
 router.post("/members/cash-payment", requireAuth(["admin", "super_admin", "staff", "receptionist"]), memberController.recordCashPayment);
 router.post("/members/pay", requireAuth(["admin", "super_admin", "staff", "receptionist"]), memberController.pay);
 router.post("/members/delete-batch", requireAuth(["admin", "super_admin", "staff", "receptionist"]), memberController.deleteBatch);
-router.delete("/members/:membershipNo", requireAuth(["admin", "super_admin", "staff", "receptionist"]), memberController.delete);
+router.delete("/members/:membershipNo", requireAuth(["admin", "super_admin"]), memberController.delete);
 
 // SAMS Advanced Actions
 router.post("/members/assign-batch/:membershipNo", requireAuth(["admin", "super_admin"]), memberController.assignBatch);
 router.post("/members/change-membership/:membershipNo", requireAuth(["admin", "super_admin"]), memberController.changeMembership);
-router.post("/members/change-batch/:membershipNo", requireAuth(["admin", "super_admin"]), memberController.changeBatch);
+router.post("/members/change-batch/:membershipNo", requireAuth(["admin", "super_admin", "staff", "receptionist"]), memberController.changeBatch);
+router.post("/members/:membershipNo/pause", requireAuth(["admin", "super_admin", "staff", "receptionist"]), memberController.pause);
+router.post("/members/:membershipNo/resume", requireAuth(["admin", "super_admin", "staff", "receptionist"]), memberController.resume);
+router.put("/members/:membershipNo/details", requireAuth(["admin", "super_admin", "staff", "receptionist"]), memberController.updateDetails);
+router.put("/members/:membershipNo/coach-notes", requireAuth(["admin", "super_admin", "coach", "staff", "receptionist"]), memberController.updateCoachNotes);
 router.post("/members/suspend/:membershipNo", requireAuth(["admin", "super_admin"]), memberController.suspend);
 router.post("/members/activate/:membershipNo", requireAuth(["admin", "super_admin"]), memberController.activate);
 router.post("/members/deactivate/:membershipNo", requireAuth(["admin", "super_admin"]), memberController.deactivate);
