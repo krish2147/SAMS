@@ -12,9 +12,8 @@ import {
 import { formatCurrency } from "../utils/formatter";
 
 import { AcademyId, Coach } from "../types";
-import { swimCoaches, cricketCoaches } from "../data";
 import { HomeTab } from "./HomeTab";
-import { BatchesTab } from "./BatchesTab";
+import { BatchManagementTab } from "./BatchManagementTab";
 import { RenewalsTab } from "./RenewalsTab";
 import { MembersTab } from "./MembersTab";
 import { ReportsTab } from "./ReportsTab";
@@ -36,7 +35,6 @@ import { useRememberedState } from "../utils/useRememberedState";
 import { useStaffNotifications } from "../utils/useStaffNotifications";
 import { NotificationCountBadge } from "./NotificationCountBadge";
 import { PasswordInput } from "./PasswordInput";
-import { CHARACTER_AVATARS } from "../utils/avatars";
 import { mobileDigits } from "../utils/phone";
 
 
@@ -172,10 +170,6 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
   
   // Coaches Registry
   const [coachesList, setCoachesList] = useState<Coach[]>([]);
-  const [newCoachName, setNewCoachName] = useState("");
-  const [newCoachSpecialty, setNewCoachSpecialty] = useState("");
-  const [newCoachBio, setNewCoachBio] = useState("");
-  const [coachAlert, setCoachAlert] = useState(false);
 
   // Members Directory state
   const [members, setMembers] = useState<any[]>([]);
@@ -235,15 +229,6 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
   });
   const [settingsSaveSuccess, setSettingsSaveSuccess] = useState(false);
 
-  // Batches state
-  const [batches, setBatches] = useState<any[]>([
-    { id: "b1", name: "Morning Batch A", timing: "06:00 AM - 07:00 AM", days: "MWF", level: "Beginner", capacity: 25, coach: "Sanjay" },
-    { id: "b2", name: "Morning Batch B", timing: "07:00 AM - 08:00 AM", days: "MWF", level: "Intermediate", capacity: 20, coach: "Sanjay" },
-    { id: "b3", name: "Morning Batch C", timing: "08:00 AM - 09:00 AM", days: "TTS", level: "Advanced", capacity: 15, coach: "Hetvi" },
-    { id: "b4", name: "Evening Batch A", timing: "04:00 PM - 05:00 PM", days: "MWF", level: "Beginner", capacity: 25, coach: "Hetvi" },
-    { id: "b5", name: "Evening Batch B", timing: "05:00 PM - 06:00 PM", days: "TTS", level: "Intermediate", capacity: 20, coach: "Sanjay" },
-    { id: "b6", name: "Evening Batch C", timing: "06:00 PM - 07:00 PM", days: "TTS", level: "Elite Squad", capacity: 12, coach: "Hetvi" }
-  ]);
   const [selectedBatchIdForAttendance, setSelectedBatchIdForAttendance] = useState("b2");
   const [attendanceBatchDate, setAttendanceBatchDate] = useState(new Date().toISOString().split("T")[0]);
   const [attendanceSaveAlert, setAttendanceSaveAlert] = useState<string | null>(null);
@@ -394,14 +379,18 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
 
   // Initializers
   useEffect(() => {
-    // 1. Coaches
-    if (isSwim) {
-      setCoachesList([
-        { id: "c1", name: "Sanjay", specialty: "Elite Freestyle & Butterfly", rating: 4.9, image: CHARACTER_AVATARS[5], bio: "Senior Coach with 10+ years experience training competitive swimmers." },
-        { id: "c2", name: "Hetvi", specialty: "Stroke Correction & Kids Squad", rating: 4.8, image: CHARACTER_AVATARS[6], bio: "Junior Development Specialist. Passionate about building strong foundations." }
-      ]);
-    } else {
-      setCoachesList(cricketCoaches);
+    // 1. Coaches: the academy's real coach accounts (Settings > Staff), not sample profiles.
+    {
+      const token = getSessionToken();
+      fetch("/api/staff", { headers: token ? { "x-session-token": token } : {} })
+        .then(res => (res.ok ? res.json() : []))
+        .then((staff: any[]) => {
+          if (!Array.isArray(staff)) return;
+          setCoachesList(staff
+            .filter(u => u.role === "coach" && (!u.academyId || u.academyId === academyId))
+            .map(u => ({ id: String(u.id), name: u.name || "Coach", specialty: "Coach", rating: 0, image: "", bio: "" })));
+        })
+        .catch(() => setCoachesList([]));
     }
     
     // Function to load/refresh members from backend REST API
@@ -477,33 +466,6 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
       })
       .catch(err => console.error("Failed to refresh members on tab switch", err));
   }, [activeTab, academyId]);
-
-  // Add Coach Handler
-  const handleAddCoach = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCoachName.trim() || !newCoachSpecialty.trim()) return;
-
-    const newCoach: Coach = {
-      id: `c_added_${Date.now()}`,
-      name: newCoachName.trim(),
-      specialty: newCoachSpecialty.trim(),
-      rating: 5.0,
-      image: CHARACTER_AVATARS[0],
-      bio: newCoachBio.trim() || "Elite specialized athletic masterclass coach."
-    };
-
-    setCoachesList([...coachesList, newCoach]);
-    setNewCoachName("");
-    setNewCoachSpecialty("");
-    setNewCoachBio("");
-    setCoachAlert(true);
-    setTimeout(() => setCoachAlert(false), 3000);
-  };
-
-  // Remove Coach Handler
-  const handleRemoveCoach = (id: string) => {
-    setCoachesList(coachesList.filter(c => c.id !== id));
-  };
 
   // Registration approvals and rejections action handlers
   const handleApproveRegistration = async (membershipNo: string) => {
@@ -1578,11 +1540,11 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
 
         {/* TAB: BATCH MANAGEMENT */}
         {activeTab === "batches" && (
-          <BatchesTab
+          <BatchManagementTab
             isSwim={isSwim}
+            getSessionToken={getSessionToken}
             members={members}
-            batches={batches}
-            onNavigate={setActiveTab}
+            canManage={normalizedRole === "admin"}
           />
         )}
 
@@ -1897,6 +1859,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
         isOpen={isClosingReportModalOpen}
         onClose={() => setIsClosingReportModalOpen(false)}
         members={members}
+        getSessionToken={getSessionToken}
         showRevenue={normalizedRole === "admin"}
       />
 

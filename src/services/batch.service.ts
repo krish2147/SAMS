@@ -1,7 +1,29 @@
 import { BatchRepository } from "../repositories/batch.repository";
+import { validateBatchInput } from "../utils/batch-operations";
+
+/** A batch as Batch Management shows it: times, capacity and live active-member count. */
+export function toOperationalBatch(row: any) {
+  const capacity = Number(row.capacity || 0);
+  const activeMemberCount = Number(row.active_member_count || 0);
+  return {
+    id: Number(row.id),
+    batchName: String(row.batch_name),
+    startTime: String(row.start_time),
+    endTime: String(row.end_time),
+    capacity,
+    status: row.status === "CLOSED" ? "CLOSED" : "OPEN",
+    activeMemberCount,
+    availableSeats: Math.max(0, capacity - activeMemberCount)
+  };
+}
 
 export class BatchService {
-  private batchRepository = new BatchRepository();
+  constructor(private batchRepository: any = new BatchRepository()) {}
+
+  async getOperationalBatches(academyId: string) {
+    const rows = await this.batchRepository.getOperationalByAcademy(academyId);
+    return (rows || []).map(toOperationalBatch);
+  }
 
   async getAllBatches(): Promise<any[]> {
     return this.batchRepository.getAll();
@@ -11,37 +33,16 @@ export class BatchService {
     return this.batchRepository.getById(id);
   }
 
-  async createBatch(batchData: any): Promise<any> {
-    if (!batchData.batch_name || !batchData.batch_name.trim()) {
-      throw new Error("Batch name is required");
-    }
-    if (!batchData.start_time || !batchData.start_time.trim()) {
-      throw new Error("Start time is required");
-    }
-    if (!batchData.end_time || !batchData.end_time.trim()) {
-      throw new Error("End time is required");
-    }
-    if (!batchData.capacity || isNaN(Number(batchData.capacity))) {
-      throw new Error("Batch capacity must be a valid number");
-    }
-    
-    return this.batchRepository.create(batchData);
+  /** Creates a batch for the signed-in user's academy; ownership and member counts are never taken from the request. */
+  async createBatch(academyId: string, payload: any) {
+    return this.batchRepository.createOperational(academyId, validateBatchInput(payload));
   }
 
-  async updateBatch(id: number | string, batchData: any): Promise<any> {
-    const existing = await this.batchRepository.getById(id);
-    if (!existing) {
-      throw new Error("Training batch not found");
-    }
-    
-    return this.batchRepository.update(id, batchData);
+  async updateBatch(id: number | string, academyId: string, payload: any) {
+    return this.batchRepository.updateOperational(Number(id), academyId, validateBatchInput(payload));
   }
 
-  async deleteBatch(id: number | string): Promise<boolean> {
-    const existing = await this.batchRepository.getById(id);
-    if (!existing) {
-      throw new Error("Training batch not found");
-    }
-    return this.batchRepository.delete(id);
+  async deleteBatch(id: number | string, academyId: string) {
+    return this.batchRepository.deleteOperational(Number(id), academyId);
   }
 }

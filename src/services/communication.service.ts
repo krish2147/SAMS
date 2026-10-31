@@ -644,45 +644,54 @@ function upgradeLegacyTemplate(original: CommunicationTemplate): CommunicationTe
 }
 
 // 6. BULK ANNOUNCEMENT SERVICE
+/** Who can receive a bulk announcement, as offered in Communication Center. */
+export const BULK_AUDIENCES = ["active", "all", "expiring", "ended", "pending_payment", "staff", "coaches"] as const;
+
+/** Member columns used for announcement recipients. */
+const MEMBER_RECIPIENT = "SELECT id, fullName AS memberName, mobileNo, email FROM members";
+const ACADEMY_MEMBERS = "(academyId = ? OR academyId IS NULL)";
+
+/** The SQL and parameters for an audience, or null if the audience is unknown. */
+export function bulkAudienceQuery(targetGroup: string, academyId: string): { sql: string; params: any[] } | null {
+  const batch = targetGroup.match(/^batch:(\d+)$/);
+  if (batch) {
+    return { sql: `${MEMBER_RECIPIENT} WHERE ${ACADEMY_MEMBERS} AND selected_batch_id = ? AND membership_status = 'Active'`, params: [academyId, Number(batch[1])] };
+  }
+  switch (targetGroup) {
+    case "active":
+      return { sql: `${MEMBER_RECIPIENT} WHERE ${ACADEMY_MEMBERS} AND membership_status = 'Active'`, params: [academyId] };
+    case "all":
+      return { sql: `${MEMBER_RECIPIENT} WHERE ${ACADEMY_MEMBERS} AND (registration_status IS NULL OR registration_status <> 'Rejected')`, params: [academyId] };
+    case "expiring":
+      return { sql: `${MEMBER_RECIPIENT} WHERE ${ACADEMY_MEMBERS} AND membership_status = 'Active' AND membership_end_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)`, params: [academyId] };
+    case "ended":
+      return { sql: `${MEMBER_RECIPIENT} WHERE ${ACADEMY_MEMBERS} AND membership_end_date < CURDATE() AND registration_status = 'Approved'`, params: [academyId] };
+    case "pending_payment":
+      return { sql: `${MEMBER_RECIPIENT} WHERE ${ACADEMY_MEMBERS} AND registration_status = 'Approved' AND payment_status = 'Pending'`, params: [academyId] };
+    case "staff":
+      return { sql: "SELECT id, name AS memberName, phone_number AS mobileNo, email FROM users WHERE role IN ('admin', 'staff', 'receptionist') AND (academy_id = ? OR academy_id IS NULL)", params: [academyId] };
+    case "coaches":
+      return { sql: "SELECT id, name AS memberName, phone_number AS mobileNo, email FROM users WHERE role = 'coach' AND (academy_id = ? OR academy_id IS NULL)", params: [academyId] };
+    default:
+      return null;
+  }
+}
+
 export async function sendBulkAnnouncement(
-  targetGroup: string, // 'all' | 'swim' | 'cricket' | 'staff' | 'coaches' | 'expiring' | 'pending_payment'
+  targetGroup: string, // one of BULK_AUDIENCES, or "batch:<id>"
   subject: string,
   messageText: string,
-  sentByAdmin: string = "System Admin"
+  sentByAdmin: string = "System Admin",
+  academyId: string = "swim"
 ) {
+  const query = bulkAudienceQuery(targetGroup, academyId);
+  if (!query) throw Object.assign(new Error("Choose who should receive this announcement."), { status: 400 });
   const pool = await getDbPool();
-  let recipients: any[] = [];
-
-  try {
-    if (targetGroup === "all") {
-      const [m]: any = await pool.query("SELECT id, fullName as memberName, mobileNo, email FROM members");
-      recipients = m || [];
-    } else if (targetGroup === "swim") {
-      const [m]: any = await pool.query("SELECT id, fullName as memberName, mobileNo, email FROM members WHERE academyId = 'swim' OR academyId IS NULL");
-      recipients = m || [];
-    } else if (targetGroup === "cricket") {
-      const [m]: any = await pool.query("SELECT id, fullName as memberName, mobileNo, email FROM members WHERE academyId = 'cricket'");
-      recipients = m || [];
-    } else if (targetGroup === "staff" || targetGroup === "coaches") {
-      const roleFilter = targetGroup === "coaches" ? "coach" : "staff";
-      const [u]: any = await pool.query("SELECT id, name as memberName, mobileNo, email FROM users WHERE role = ?", [roleFilter]);
-      recipients = u || [];
-    } else if (targetGroup === "expiring") {
-      const [m]: any = await pool.query("SELECT id, fullName as memberName, mobileNo, email FROM members WHERE membershipStatus = 'Expiring' OR DATEDIFF(membershipExpiry, NOW()) BETWEEN 0 AND 7");
-      recipients = m || [];
-    } else if (targetGroup === "pending_payment") {
-      const [m]: any = await pool.query("SELECT id, fullName as memberName, mobileNo, email FROM members WHERE paymentStatus = 'Pending'");
-      recipients = m || [];
-    }
-  } catch (err) {
-    console.error("Error querying bulk announcement targets:", err);
-  }
-
+  const [rows]: any = await pool.query(query.sql, query.params);
+  // Only people with a phone number or email can be reached; nobody else is ever substituted.
+  const recipients: any[] = (rows || []).filter((r: any) => r.mobileNo || r.email);
   if (recipients.length === 0) {
-    // Return sample target log if database has no records
-    recipients = [
-      { id: 1, memberName: "All Academy Swimmers", mobileNo: "9876543210", email: "swimmers@barodaswimfront.in" }
-    ];
+    throw Object.assign(new Error("Nobody in this group has a phone number or email yet, so nothing was sent."), { status: 400 });
   }
 
   const logs: CommunicationLog[] = [];

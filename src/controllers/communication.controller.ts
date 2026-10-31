@@ -57,10 +57,11 @@ export async function handleSendBulk(req: Request, res: Response): Promise<void>
       return;
     }
     const sentByAdmin = (req as any).user?.name || "System Admin";
-    const result = await sendBulkAnnouncement(targetGroup, subject || "Baroda Swim Front Announcement", messageText, sentByAdmin);
+    const academyId = (req as any).user?.academyId || "swim";
+    const result = await sendBulkAnnouncement(targetGroup, subject || "Baroda Swim Front Announcement", messageText, sentByAdmin, academyId);
     res.json(result);
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message || "Bulk announcement failed." });
+    res.status(err?.status === 400 ? 400 : 500).json({ success: false, error: err.message || "Bulk announcement failed." });
   }
 }
 

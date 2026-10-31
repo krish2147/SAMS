@@ -1,5 +1,17 @@
 import { Request, Response, NextFunction } from "express";
 import { BatchService } from "../services/batch.service";
+import { BatchOperationError } from "../utils/batch-operations";
+
+/** The academy comes from the signed-in session, never from the request body. */
+const academyOf = (req: Request) => String((req as any).user?.academyId || "swim");
+
+function sendBatchError(res: Response, err: unknown) {
+  if (err instanceof BatchOperationError) {
+    return res.status(err.status).json({ success: false, code: err.code, error: err.message });
+  }
+  console.error("Batch operation failed:", err);
+  return res.status(500).json({ success: false, error: "The batch could not be saved. Please try again." });
+}
 
 export class BatchController {
   private batchService = new BatchService();
@@ -25,30 +37,39 @@ export class BatchController {
     }
   };
 
-  create = async (req: Request, res: Response, next: NextFunction) => {
+  getOperational = async (req: Request, res: Response) => {
     try {
-      const newBatch = await this.batchService.createBatch(req.body);
-      res.status(201).json({ success: true, batch: newBatch });
-    } catch (err: any) {
-      res.status(400).json({ error: err.message });
+      const batches = await this.batchService.getOperationalBatches(academyOf(req));
+      res.json({ success: true, batches });
+    } catch (err) {
+      sendBatchError(res, err);
     }
   };
 
-  update = async (req: Request, res: Response, next: NextFunction) => {
+  create = async (req: Request, res: Response) => {
     try {
-      const updatedBatch = await this.batchService.updateBatch(req.params.id, req.body);
-      res.json({ success: true, batch: updatedBatch });
-    } catch (err: any) {
-      res.status(400).json({ error: err.message });
+      const batch = await this.batchService.createBatch(academyOf(req), req.body);
+      res.status(201).json({ success: true, batch });
+    } catch (err) {
+      sendBatchError(res, err);
     }
   };
 
-  delete = async (req: Request, res: Response, next: NextFunction) => {
+  update = async (req: Request, res: Response) => {
     try {
-      await this.batchService.deleteBatch(req.params.id);
-      res.json({ success: true, message: "Batch deleted successfully" });
-    } catch (err: any) {
-      res.status(400).json({ error: err.message });
+      const batch = await this.batchService.updateBatch(req.params.id, academyOf(req), req.body);
+      res.json({ success: true, batch });
+    } catch (err) {
+      sendBatchError(res, err);
+    }
+  };
+
+  delete = async (req: Request, res: Response) => {
+    try {
+      await this.batchService.deleteBatch(req.params.id, academyOf(req));
+      res.json({ success: true, message: "Batch deleted." });
+    } catch (err) {
+      sendBatchError(res, err);
     }
   };
 }

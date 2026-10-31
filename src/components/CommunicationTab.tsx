@@ -96,7 +96,15 @@ export const CommunicationTab: React.FC = () => {
   const [selectedLogDetail, setSelectedLogDetail] = useState<CommunicationLog | null>(null);
 
   // Bulk Announcement Form
-  const [bulkTarget, setBulkTarget] = useState<string>("all");
+  const [bulkTarget, setBulkTarget] = useState<string>("active");
+  // Batches for the "one batch" audience.
+  const [bulkBatches, setBulkBatches] = useState<Array<{ id: number; batch_name: string; start_time: string; end_time: string }>>([]);
+  useEffect(() => {
+    fetch("/api/batches")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((rows) => { if (Array.isArray(rows)) setBulkBatches(rows.filter((b: any) => !b.academy_id || b.academy_id === "swim")); })
+      .catch(() => setBulkBatches([]));
+  }, []);
   const [bulkSubject, setBulkSubject] = useState<string>("Important Announcement - Baroda Swim Front");
   const [bulkMessage, setBulkMessage] = useState<string>("");
   const [bulkSending, setBulkSending] = useState<boolean>(false);
@@ -658,13 +666,22 @@ export const CommunicationTab: React.FC = () => {
                   onChange={(e) => setBulkTarget(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-800 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-sky-500"
                 >
-                  <option value="all">All Registered Members (Swim + Cricket)</option>
-                  <option value="swim">Baroda Swim Front Members Only</option>
-                  <option value="cricket">Baroda Cricket Academy Members Only</option>
-                  <option value="staff">Academy Staff & Receptionist Team</option>
-                  <option value="coaches">Coaches & Instructors</option>
-                  <option value="expiring">Members Expiring Within 7 Days</option>
-                  <option value="pending_payment">Members with Pending Payments</option>
+                  <optgroup label="Members">
+                    <option value="active">All active members</option>
+                    <option value="all">Everyone registered (not rejected)</option>
+                    <option value="expiring">Membership ending in the next 7 days</option>
+                    <option value="ended">Membership ended</option>
+                    <option value="pending_payment">Approved, payment not made yet</option>
+                  </optgroup>
+                  {bulkBatches.length > 0 && (
+                    <optgroup label="One batch (active members)">
+                      {bulkBatches.map((b) => <option key={b.id} value={`batch:${b.id}`}>{b.batch_name} ({b.start_time} – {b.end_time})</option>)}
+                    </optgroup>
+                  )}
+                  <optgroup label="Team">
+                    <option value="staff">Staff and reception</option>
+                    <option value="coaches">Coaches</option>
+                  </optgroup>
                 </select>
               </div>
 
