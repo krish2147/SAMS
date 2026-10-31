@@ -7,7 +7,7 @@ import {
   Plus, Trash2, CheckCircle, ShieldCheck, Database, RefreshCw,
   Search, Filter, ChevronRight, X, AlertTriangle, Eye, UserPlus, 
   Calendar, Check, CircleAlert, Activity, LayoutDashboard, Sliders, ClipboardCheck, Clock,
-  LogOut, Menu, Bell, MessageSquare, BarChart3, FileText
+  LogOut, Menu, Bell, MessageSquare, BarChart3, FileText, Ticket
 } from "lucide-react";
 import { formatCurrency } from "../utils/formatter";
 
@@ -16,6 +16,7 @@ import { HomeTab } from "./HomeTab";
 import { BatchManagementTab } from "./BatchManagementTab";
 import { RenewalsTab } from "./RenewalsTab";
 import { MembersTab } from "./MembersTab";
+import { GuestsTab } from "./GuestsTab";
 import { ReportsTab } from "./ReportsTab";
 import { ActivityTab } from "./ActivityTab";
 import { PaymentsTab } from "./PaymentsTab";
@@ -73,7 +74,7 @@ interface AdminDashboardProps {
 // Which dashboard pages each staff role gets. Same layout and theme for everyone; only the pages differ.
 type StaffViewRole = "admin" | "staff" | "coach";
 const ROLE_TABS: Record<Exclude<StaffViewRole, "admin">, string[]> = {
-  staff: ["home", "members", "registrations", "register", "renewals", "batches", "calendar", "events", "holidays", "communication", "activity", "settings"],
+  staff: ["home", "members", "registrations", "register", "renewals", "guests", "batches", "calendar", "events", "holidays", "communication", "activity", "settings"],
   coach: ["home", "members", "batches", "calendar", "events", "holidays", "activity", "settings"]
 };
 function staffViewRole(role: unknown): StaffViewRole {
@@ -736,6 +737,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
     { id: "activity", label: "Recent Activity", icon: Activity },
     { id: "batches", label: "Batch Management", icon: Clock },
     { id: "renewals", label: "Membership Renewals", icon: RefreshCw, hideForCoach: true },
+    { id: "guests", label: "Guest Swims", icon: Ticket, hideForCoach: true },
     { id: "revenue", label: "Payments", icon: IndianRupee, adminOnly: true },
     { id: "communication", label: "Communication Center", icon: MessageSquare, hideForCoach: true },
     { id: "calendar", label: "Calendar", icon: Calendar },
@@ -751,7 +753,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
   // Phone menu: the everyday pages first, then the rest grouped like the office thinks of them.
   const MENU_GROUPS: { heading?: string; ids: string[] }[] = [
     { ids: ["home", "members", "registrations", "revenue", "calendar"] },
-    { heading: "Manage", ids: ["register", "batches", "renewals", "staff", "communication"] },
+    { heading: "Manage", ids: ["register", "batches", "renewals", "guests", "staff", "communication"] },
     { heading: "Insights", ids: ["analytics", "reports", "activity"] },
     { heading: "Account", ids: ["settings"] }
   ];
@@ -1546,6 +1548,11 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
             members={members}
             canManage={normalizedRole === "admin"}
           />
+        )}
+
+        {/* TAB: GUEST SWIMS */}
+        {activeTab === "guests" && (
+          <GuestsTab getSessionToken={getSessionToken} showTotals={normalizedRole === "admin"} />
         )}
 
         {/* TAB: MEMBERSHIP RENEWALS */}

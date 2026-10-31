@@ -37,7 +37,7 @@ export interface MemberPayment {
   refundDate?: string | null;
 }
 
-export type MembershipDisplayStatus = "Active" | "Expiring Soon" | "Expired" | "Pending";
+export type MembershipDisplayStatus = "Active" | "Expiring Soon" | "Expired" | "Pending" | "Paused";
 export const EXPIRING_SOON_DAYS = 4;
 
 function parseDateOnly(value?: string | null) {
@@ -75,6 +75,8 @@ export function formatBatchTime(value?: string | null) {
 export function getMembershipDisplayStatus(status?: string | null, expiryDate?: string | null, daysRemaining?: number | null): MembershipDisplayStatus {
   const normalized = status?.trim().toLowerCase();
   if (normalized === "expired" || (expiryDate && typeof daysRemaining === "number" && daysRemaining < 0)) return "Expired";
+  // The academy pauses a membership (medical leave, travel) by suspending it.
+  if (normalized === "suspended") return "Paused";
   if (normalized !== "active") return "Pending";
   if (typeof daysRemaining === "number" && daysRemaining <= EXPIRING_SOON_DAYS) return "Expiring Soon";
   return "Active";

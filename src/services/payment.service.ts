@@ -1,3 +1,4 @@
+import { guestVisitsAsTransactions } from "./guest.service";
 import Razorpay from "razorpay";
 import crypto from "crypto";
 import { getDbPool, isMockDatabase } from "../config/db";
@@ -246,6 +247,10 @@ export class PaymentService {
         refundTxnId: t.refund_txn_id || null
       };
     });
+
+    // Guest swims paid at the counter are part of the day's money too.
+    transactions = [...transactions, ...(await guestVisitsAsTransactions())]
+      .sort((a: any, b: any) => new Date(b.paymentDate || b.createdAt).getTime() - new Date(a.paymentDate || a.createdAt).getTime());
 
     // 2. Compute Overall Summary Statistics
     let totalRevenue = 0;
