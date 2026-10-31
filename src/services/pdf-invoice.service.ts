@@ -11,7 +11,7 @@ import { BSF_SIGNATURE_DATA_URI } from "../assets/baroda-swim-front-signature";
 export const ACADEMY_GSTIN = (process.env.INVOICE_GSTIN || "24ABBFB0936E2Z0").trim();
 
 /** Name printed under the signature on member invoices. */
-export const INVOICE_SIGNATORY_NAME = "Sanjay Kumar";
+export const INVOICE_SIGNATORY_NAME = "Ritvik";
 
 export interface InvoiceData {
   paymentId: number;
