@@ -38,6 +38,8 @@ export class MemberRepository {
       signatureDataUrl: row.signatureDataUrl,
       photoUrl: row.photoUrl,
       registrationDate: row.registrationDate,
+      // When the registration was created (a timestamp), for "registered today" counts.
+      createdAt: row.created_at || null,
       amountPaid: row.amountPaid ? Number(row.amountPaid) : 0,
       paymentMethod: row.paymentMethod,
       paymentDate: row.paymentDate,

@@ -1,189 +1,176 @@
-import React, { useState } from "react";
-import { X, Download, FileText, Printer, CheckCircle2, DollarSign, Users, Calendar, Clock, AlertCircle } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { Download, LoaderCircle, Printer, X } from "lucide-react";
+
+// End-of-day summary for the front desk and admins: the day's payments (cash and online, with
+// amounts for admins only), new registrations, renewals and what is still waiting. Payments come
+// from the payments ledger (/api/admin/payments); every date is counted in India time.
 
 interface DailyClosingReportModalProps {
   isOpen: boolean;
   onClose: () => void;
   members: any[];
-  paymentsList?: any[];
-  renewalsList?: any[];
+  getSessionToken?: () => string;
   /** Money totals are for admins; reception and coaches get the report without them. */
   showRevenue?: boolean;
 }
 
-export function DailyClosingReportModal({
-  isOpen,
-  onClose,
-  members = [],
-  paymentsList = [],
-  renewalsList = [],
-  showRevenue = true
-}: DailyClosingReportModalProps) {
-  const [reportDate, setReportDate] = useState<string>(new Date().toISOString().split("T")[0]);
-  const [downloadSuccess, setDownloadSuccess] = useState<string | null>(null);
+const indiaDate = (value?: string | number | Date | null) => {
+  if (!value) return "";
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? "" : new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(d);
+};
+const rupees = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
+const longDate = (ymd: string) => {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+};
+const addDays = (ymd: string, days: number) => {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d + days));
+  return t.toISOString().slice(0, 10);
+};
 
-  if (!isOpen) return null;
+export function DailyClosingReportModal({ isOpen, onClose, members = [], getSessionToken, showRevenue = true }: DailyClosingReportModalProps) {
+  const [reportDate, setReportDate] = useState(() => indiaDate(new Date()));
+  const [payments, setPayments] = useState<any[] | null>(null);
+  const [paymentsError, setPaymentsError] = useState(false);
 
-  // Compute daily numbers for reportDate
-  const todayMembers = members.filter(m => m.created_at && m.created_at.startsWith(reportDate));
-  const todayPayments = paymentsList.filter(p => p.date && p.date.startsWith(reportDate));
-  
-  const totalRevenue = todayPayments.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
-  const pendingApprovalsCount = members.filter(m => m.registration_status === "Pending").length;
-  const pendingPaymentsCount = members.filter(m => m.registration_status === "Approved" && m.payment_status === "Pending").length;
-  const renewalsCount = renewalsList.filter(r => r.due_date && r.due_date.startsWith(reportDate)).length;
+  useEffect(() => {
+    if (!isOpen) return;
+    setReportDate(indiaDate(new Date()));
+    let cancelled = false;
+    setPayments(null); setPaymentsError(false);
+    const token = getSessionToken?.() || "";
+    fetch("/api/admin/payments", { credentials: "same-origin", headers: token ? { "x-session-token": token } : {} })
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
+      .then((data) => { if (!cancelled) setPayments(Array.isArray(data?.transactions) ? data.transactions : []); })
+      .catch(() => { if (!cancelled) { setPayments([]); setPaymentsError(true); } });
+    return () => { cancelled = true; };
+  }, [isOpen]);
 
-  const handleExportCsv = () => {
-    const csvRows = [
-      ["BARODA SWIM FRONT - DAILY CLOSING REPORT"],
-      ["Report Date", reportDate],
-      ["Generated At", new Date().toLocaleString()],
-      [""],
-      ["Metric", "Value"],
-      ...(showRevenue ? [["Total Revenue Collected (₹)", totalRevenue]] : []),
-      ["New Registrations Today", todayMembers.length],
-      ["Pending Approvals", pendingApprovalsCount],
-      ["Pending Payments", pendingPaymentsCount],
-      ["Renewals Due", renewalsCount],
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isOpen, onClose]);
+
+  const report = useMemo(() => {
+    const paid = (payments || []).filter((p) => p.status === "Paid" && indiaDate(p.paymentDate || p.createdAt) === reportDate);
+    const isCash = (p: any) => String(p.paymentMethod || "").toLowerCase() === "cash";
+    const sum = (list: any[]) => list.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+    const cash = paid.filter(isCash);
+    const online = paid.filter((p) => !isCash(p));
+    const weekEnd = addDays(reportDate, 7);
+    return {
+      paid,
+      total: sum(paid), cashTotal: sum(cash), onlineTotal: sum(online), cashCount: cash.length, onlineCount: online.length,
+      renewals: paid.filter((p) => p.paymentType === "Renewal").length,
+      registered: members.filter((m) => indiaDate(m.createdAt) === reportDate).length,
+      awaitingApproval: members.filter((m) => !["Approved", "Rejected"].includes(m.registration_status || m.status)).length,
+      awaitingPayment: members.filter((m) => (m.registration_status || m.status) === "Approved" && !m.endDate).length,
+      endingSoon: members.filter((m) => m.endDate && m.endDate >= reportDate && m.endDate <= weekEnd).length
+    };
+  }, [payments, members, reportDate]);
+
+  const exportCsv = () => {
+    const rows: Array<Array<string | number>> = [
+      ["Baroda Swim Front - Daily closing report"], ["Date", reportDate], [""], ["Item", "Value"],
+      ...(showRevenue ? [["Total collected (Rs)", report.total], ["Cash (Rs)", report.cashTotal], ["Online (Rs)", report.onlineTotal]] : []),
+      ["Payments recorded", report.paid.length], ["Renewals", report.renewals], ["New registrations", report.registered],
+      ["Awaiting approval", report.awaitingApproval], ["Awaiting payment", report.awaitingPayment], ["Memberships ending in 7 days", report.endingSoon]
     ];
-
-    const csvContent = "data:text/csv;charset=utf-8," + csvRows.map(e => e.join(",")).join("\n");
-    const encodedUri = encodeURI(csvContent);
+    if (showRevenue && report.paid.length) {
+      rows.push([""], ["Member", "Membership no.", "Type", "Method", "Amount (Rs)", "Invoice"]);
+      report.paid.forEach((p) => rows.push([p.memberName, p.membershipNo, p.paymentType, p.paymentMethod, p.amount, p.invoiceNo]));
+    }
+    const csv = rows.map((r) => r.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `BSF-Daily-Closing-Report-${reportDate}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    setDownloadSuccess("CSV Report exported successfully!");
-    setTimeout(() => setDownloadSuccess(null), 3000);
+    link.href = url; link.download = `BSF-closing-report-${reportDate}.csv`;
+    document.body.appendChild(link); link.click(); link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
-  const handleExportExcel = () => {
-    handleExportCsv(); // Using clean CSV compatible with Excel
-    setDownloadSuccess("Excel-compatible CSV exported successfully!");
-    setTimeout(() => setDownloadSuccess(null), 3000);
-  };
-
-  const handlePrintPdf = () => {
-    window.print();
-  };
+  const loading = payments === null;
+  const stat = (label: string, value: React.ReactNode, hint?: string) => (
+    <div className="rounded-2xl border border-ink-100 p-4">
+      <p className="text-xs font-medium text-ink-500">{label}</p>
+      <p className="mt-1 text-2xl font-bold text-ink-950 tabular-nums">{value}</p>
+      {hint && <p className="mt-0.5 text-xs text-ink-500">{hint}</p>}
+    </div>
+  );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md font-sans">
-      <div className="relative w-full max-w-2xl bg-white border border-slate-100 rounded-3xl shadow-2xl text-slate-800 overflow-hidden flex flex-col max-h-[90vh]">
-        {/* Header */}
-        <div className="p-6 bg-slate-900 text-white flex justify-between items-center print:bg-white print:text-slate-900">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-sky-500 text-white font-black text-lg">
-              BSF
-            </div>
-            <div>
-              <h3 className="text-lg font-black tracking-tight">Baroda Swim Front Daily Closing Report</h3>
-              <p className="text-xs text-slate-300 font-medium">Today's collections and registrations</p>
-            </div>
-          </div>
-
-          <button
-            onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer print:hidden"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Date Selector & Action Toolbar */}
-        <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-4 print:hidden">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-slate-500" />
-            <span className="text-xs font-bold text-slate-600">Select Date:</span>
-            <input
-              type="date"
-              value={reportDate}
-              onChange={(e) => setReportDate(e.target.value)}
-              className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-sky-500"
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handlePrintPdf}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold transition-all cursor-pointer"
-            >
-              <Printer className="w-3.5 h-3.5" /> PDF / Print
-            </button>
-            <button
-              onClick={handleExportCsv}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all cursor-pointer"
-            >
-              <Download className="w-3.5 h-3.5" /> CSV
-            </button>
-            <button
-              onClick={handleExportExcel}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold transition-all cursor-pointer"
-            >
-              <FileText className="w-3.5 h-3.5" /> Excel
-            </button>
-          </div>
-        </div>
-
-        {downloadSuccess && (
-          <div className="px-6 py-2 bg-emerald-50 text-emerald-700 border-b border-emerald-100 text-xs font-bold flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            <span>{downloadSuccess}</span>
-          </div>
-        )}
-
-        {/* Report Body */}
-        <div className="p-6 overflow-y-auto space-y-6">
-          {/* Executive Metrics Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {showRevenue && (
-              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-100">
-                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block">Total Revenue</span>
-                <span className="text-2xl font-black text-slate-900 block mt-1">₹{totalRevenue.toLocaleString("en-IN")}</span>
-                <span className="text-[10px] text-slate-500 block mt-0.5">Collected today</span>
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label="Daily closing report">
+          <motion.button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-ink-950/50 print:hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} />
+          <motion.div className="relative flex max-h-[92dvh] w-full max-w-2xl flex-col rounded-t-3xl bg-white text-left shadow-2xl sm:rounded-3xl"
+            initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }} transition={{ type: "spring", stiffness: 260, damping: 26 }}>
+            <div className="flex items-start justify-between gap-4 border-b border-ink-100 p-6 pb-5">
+              <div>
+                <p className="text-sm font-medium text-ink-500">Daily closing report</p>
+                <h3 className="mt-0.5 text-xl font-bold text-ink-950">{longDate(reportDate)}</h3>
               </div>
-            )}
-
-            <div className="p-4 rounded-2xl bg-indigo-50 border border-indigo-100">
-              <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider block">New Members</span>
-              <span className="text-2xl font-black text-slate-900 block mt-1">{todayMembers.length}</span>
-              <span className="text-[10px] text-slate-500 block mt-0.5">Registered today</span>
+              <button type="button" onClick={onClose} aria-label="Close" className="rounded-xl p-2 text-ink-400 hover:bg-ink-50 hover:text-ink-700 cursor-pointer print:hidden"><X className="h-5 w-5" /></button>
             </div>
 
-            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-100">
-              <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider block">Pending Approvals</span>
-              <span className="text-2xl font-black text-slate-900 block mt-1">{pendingApprovalsCount}</span>
-              <span className="text-[10px] text-slate-500 block mt-0.5">Awaiting verification</span>
+            <div className="flex flex-wrap items-center gap-2 border-b border-ink-100 px-6 py-3 print:hidden">
+              <label className="flex items-center gap-2 text-sm text-ink-600">Date
+                <input type="date" value={reportDate} max={indiaDate(new Date())} onChange={(e) => e.target.value && setReportDate(e.target.value)}
+                  className="min-h-10 rounded-xl border border-ink-200 px-3 text-sm text-ink-900 outline-none focus:border-aqua-400" />
+              </label>
+              <span className="flex-1" />
+              <button type="button" onClick={() => window.print()} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-ink-200 px-3 text-sm font-semibold text-ink-700 hover:bg-ink-50 cursor-pointer"><Printer className="h-4 w-4" />Print</button>
+              <button type="button" onClick={exportCsv} disabled={loading} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-ink-950 px-3 text-sm font-semibold text-white hover:bg-ink-800 disabled:opacity-60 cursor-pointer"><Download className="h-4 w-4" />Download CSV</button>
             </div>
 
-            <div className="p-4 rounded-2xl bg-rose-50 border border-rose-100">
-              <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider block">Pending Payments</span>
-              <span className="text-2xl font-black text-slate-900 block mt-1">{pendingPaymentsCount}</span>
-              <span className="text-[10px] text-slate-500 block mt-0.5">Approved but unpaid</span>
+            <div className="flex-1 space-y-5 overflow-y-auto p-6">
+              {loading ? (
+                <div className="flex items-center justify-center gap-2 py-10 text-sm text-ink-500"><LoaderCircle className="h-5 w-5 animate-spin" />Loading the day's payments…</div>
+              ) : (
+                <>
+                  {paymentsError && showRevenue && <p role="alert" className="rounded-xl bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800">Payments couldn't be loaded, so payment figures are missing.</p>}
+                  {showRevenue && (
+                    <section className="rounded-2xl bg-ink-950 p-5 text-white">
+                      <p className="text-sm text-white/70">Collected</p>
+                      <p className="mt-1 text-3xl font-bold tabular-nums">{rupees(report.total)}</p>
+                      <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                        <div><p className="text-white/60">Cash</p><p className="font-semibold tabular-nums">{rupees(report.cashTotal)} <span className="font-normal text-white/60">· {report.cashCount}</span></p></div>
+                        <div><p className="text-white/60">Online</p><p className="font-semibold tabular-nums">{rupees(report.onlineTotal)} <span className="font-normal text-white/60">· {report.onlineCount}</span></p></div>
+                      </div>
+                    </section>
+                  )}
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    {/* Coaches can't read the payments ledger, so payment counts are left out for them. */}
+                    {!paymentsError && stat("Payments", report.paid.length, "Recorded this day")}
+                    {!paymentsError && stat("Renewals", report.renewals, "Paid this day")}
+                    {stat("New registrations", report.registered, "Signed up this day")}
+                    {stat("Awaiting approval", report.awaitingApproval, "Right now")}
+                    {stat("Awaiting payment", report.awaitingPayment, "Approved, not paid")}
+                    {stat("Ending soon", report.endingSoon, "Within 7 days")}
+                  </div>
+                  {showRevenue && report.paid.length > 0 && (
+                    <section>
+                      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-400">Payments</h4>
+                      <ul className="divide-y divide-ink-100 rounded-2xl border border-ink-100">
+                        {report.paid.map((p) => (
+                          <li key={p.id} className="flex items-center gap-3 px-4 py-3 text-sm">
+                            <span className="min-w-0 flex-1"><span className="block truncate font-semibold text-ink-950">{p.memberName}</span><span className="block truncate text-xs text-ink-500">{p.paymentType} · {p.paymentMethod}{p.invoiceNo ? ` · ${p.invoiceNo}` : ""}</span></span>
+                            <span className="shrink-0 font-semibold tabular-nums text-ink-950">{rupees(Number(p.amount) || 0)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  )}
+                </>
+              )}
             </div>
-
-            <div className="p-4 rounded-2xl bg-purple-50 border border-purple-100">
-              <span className="text-[10px] font-bold text-purple-600 uppercase tracking-wider block">Renewals Due</span>
-              <span className="text-2xl font-black text-slate-900 block mt-1">{renewalsCount}</span>
-              <span className="text-[10px] text-slate-500 block mt-0.5">Expiring or due</span>
-            </div>
-          </div>
+          </motion.div>
         </div>
-
-        {/* Footer */}
-        <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-between items-center text-xs text-slate-500">
-          <span>Baroda Swim Front Operations Desk</span>
-          <button
-            onClick={onClose}
-            className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold cursor-pointer print:hidden"
-          >
-            Close Report
-          </button>
-        </div>
-      </div>
-    </div>
+      )}
+    </AnimatePresence>
   );
 }
