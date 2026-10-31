@@ -272,7 +272,7 @@ Txn ID: ${data.razorpayPaymentId || "N/A"}`;
     }
 
     try {
-      doc.addImage(BSF_SIGNATURE_DATA_URI, "PNG", RIGHT - 42, signY - 4, 42, 25, undefined, "FAST");
+      doc.addImage(BSF_SIGNATURE_DATA_URI, "PNG", RIGHT - 40, signY - 3, 40, 24, undefined, "FAST");
     } catch (_) {}
     doc.setDrawColor(...RULE);
     doc.setLineWidth(0.2);
