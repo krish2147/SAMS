@@ -32,6 +32,9 @@ export function RenewalPanel({ data }: { data: MemberDashboardData }) {
     title = expiry ? `Your membership expired on ${expiry}.` : "Your membership has expired.";
     message = "Renew online now, or at the reception, to start swimming again.";
     tone = "bg-slate-100 text-slate-700";
+  } else if (status === "Paused") {
+    title = "Your membership is paused.";
+    message = "The academy has paused your membership. When it resumes, your end date moves back by the paused days. Questions? Call the reception.";
   } else if (membership.status) {
     title = "Renewal is not available yet.";
     message = "Your current membership is pending. Renewal details will appear after activation.";

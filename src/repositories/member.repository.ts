@@ -54,6 +54,9 @@ export class MemberRepository {
       // Membership period, for renewals and expiry lists (YYYY-MM-DD).
       startDate: toDateOnlyString(row.membership_start_date),
       endDate: toDateOnlyString(row.membership_end_date),
+      pausedOn: toDateOnlyString(row.paused_on),
+      pauseUntil: toDateOnlyString(row.pause_until),
+      coachNotes: row.coach_notes || "",
       login_enabled: Boolean(row.login_enabled),
       // Mapped legacy compatibility fields
       status: row.registration_status,
@@ -239,7 +242,11 @@ export class MemberRepository {
       payment_status: "payment_status",
       membership_status: "membership_status",
       login_enabled: "login_enabled",
-      remarks: "remarks"
+      remarks: "remarks",
+      membership_end_date: "membership_end_date",
+      paused_on: "paused_on",
+      pause_until: "pause_until",
+      coach_notes: "coach_notes"
     };
 
     for (const [key, colName] of Object.entries(fieldMap)) {

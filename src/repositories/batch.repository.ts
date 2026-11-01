@@ -61,23 +61,12 @@ export class BatchRepository {
 
   async findByNameOrTime(queryStr: string): Promise<any | null> {
     const pool = await this.getPool();
-    // Trim query to handle matches
-    const cleanQuery = queryStr.trim();
-    
-    // Attempt exact match on batch_name
-    let [rows]: any = await pool.query("SELECT * FROM batches WHERE batch_name = ? LIMIT 1", [cleanQuery]);
-    if (rows && rows.length > 0) return this.mapRowToBatch(rows[0]);
-
-    // Attempt fuzzy match on batch_name or timing
-    [rows] = await pool.query(
-      "SELECT * FROM batches WHERE batch_name LIKE ? OR start_time LIKE ? OR ? LIKE CONCAT('%', start_time, '%') LIMIT 1",
-      [`%${cleanQuery}%`, `%${cleanQuery}%`, cleanQuery]
-    );
-    if (rows && rows.length > 0) return this.mapRowToBatch(rows[0]);
-
-    // No match means no batch. This used to return the first batch in the table, which put every
-    // online applicant whose chosen time did not match a batch name into Morning Batch 1.
-    return null;
+    const name = String(queryStr || "").trim();
+    if (!name) return null;
+    // Exact batch name only. A partial match could put an applicant into the wrong batch, so an
+    // unknown or ambiguous name finds no batch and registration asks them to choose again.
+    const [rows]: any = await pool.query("SELECT * FROM batches WHERE batch_name = ? LIMIT 2", [name]);
+    return rows?.length === 1 ? this.mapRowToBatch(rows[0]) : null;
   }
 
   async updateStrengthAndStatus(batchId: number | string): Promise<void> {

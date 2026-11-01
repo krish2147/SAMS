@@ -147,6 +147,14 @@ export function startRenewalReminderWorker(): void {
   if (process.env.NODE_ENV === "test") return;
   const run = async () => {
     try {
+      // Paused memberships whose return date has come are resumed first (end date moves back).
+      const { MemberService } = await import("./member.service");
+      const resumed = await new MemberService().resumeDuePauses();
+      if (resumed) console.log(`[RenewalReminder] Resumed ${resumed} paused membership(s).`);
+    } catch (err) {
+      console.error("[RenewalReminder] Auto-resume error:", err);
+    }
+    try {
       const sent = await sendDueRenewalReminders();
       if (sent) console.log(`[RenewalReminder] Sent ${sent} renewal reminder(s).`);
     } catch (err) {

@@ -248,10 +248,14 @@ Txn ID: ${data.razorpayPaymentId || "N/A"}`;
     const planLines = doc.splitTextToSize(String(data.planName || "-"), 46) as string[];
     planLines.slice(0, 2).forEach((line, i) => value(line, M + 26, refY + i * 5));
 
+    const isGuest = String(data.paymentType || "").toLowerCase().startsWith("guest");
     const terms = doc.splitTextToSize(
-      "This invoice confirms payment received against the membership stated above. Membership is " +
-      "non-transferable. Please retain this document for your records and present your member QR pass " +
-      "at the reception gate.",
+      isGuest
+        ? "This invoice confirms payment received for a guest swim on the date shown. It is valid for " +
+          "that visit only and is not a membership."
+        : "This invoice confirms payment received against the membership stated above. Membership is " +
+          "non-transferable. Please retain this document for your records and present your member QR pass " +
+          "at the reception gate.",
       70
     ) as string[];
     doc.setFont("helvetica", "normal");

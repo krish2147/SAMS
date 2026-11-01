@@ -12,6 +12,7 @@ const statusStyles = {
   "Expiring Soon": "border-amber-200/80 bg-amber-50 text-amber-700",
   Expired: "border-slate-300 bg-slate-100 text-slate-700",
   Pending: "border-sky-200/80 bg-sky-50 text-sky-700",
+  Paused: "border-slate-300 bg-slate-100 text-slate-700",
 };
 
 export function MembershipOverviewCard({ data, onNavigate }: MembershipOverviewCardProps) {

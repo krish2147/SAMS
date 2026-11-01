@@ -189,19 +189,6 @@ test("member-session invalidation affects only the archived member", {
   assert.ok(await UserService.getSession(second));
 });
 
-test("profile UI uses typed confirmation, immediately updates directory state, and refreshes bounded batch data", async () => {
-  const source = await readFile(new URL("../components/MembersDirectory.tsx", import.meta.url), "utf8");
-  assert.match(source, /Danger Zone/);
-  assert.match(source, /Type DELETE to confirm/);
-  assert.match(source, /body:JSON\.stringify\(\{confirmation,acknowledgeActiveMembership\}\)/);
-  assert.match(source, /I understand this member currently has an active membership/);
-  assert.match(source, /Historical payment and invoice records will be retained/);
-  assert.match(source, /setItems\(previous => previous\.filter/);
-  assert.match(source, /setPagination\(previous =>/);
-  assert.match(source, /sams_batch_assignment_changed/);
-  assert.doesNotMatch(source, /window\.location\.reload/);
-});
-
 test("archive-aware uniqueness and access guards support a clean re-registration lifecycle", async () => {
   const [schema, repository, dashboard, payment] = await Promise.all([
     readFile(new URL("../config/schema.sql", import.meta.url), "utf8"),

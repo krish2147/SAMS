@@ -253,7 +253,9 @@ export function PaymentsTab({ getSessionToken, userRole = "admin", username = "A
   const handleDownloadInvoice = async (tx: PaymentReceiptData) => {
     try {
       const token = getSessionToken();
-      const res = await fetch(`/api/admin/payments/${tx.id}/invoice?download=true`, {
+      // Guest swims (negative ids) have their own invoice route.
+      const invoiceUrl = Number(tx.id) < 0 ? `/api/guests/${-Number(tx.id)}/invoice?download=true` : `/api/admin/payments/${tx.id}/invoice?download=true`;
+      const res = await fetch(invoiceUrl, {
         headers: token ? { "x-session-token": token } : {}
       });
       if (!res.ok) throw new Error("Invoice could not be downloaded.");

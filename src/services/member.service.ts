@@ -6,6 +6,10 @@ import { ActivityService } from "./activity.service";
 import { sendEventNotification } from "./communication.service";
 import { resolveRegistrationPlan } from "../utils/membership-plan-catalog";
 import { normalizeIndianMobile } from "../utils/phone";
+import { addCalendarDays, calendarDaysBetween } from "../utils/membership-date";
+import { indiaToday } from "./renewal-reminder.service";
+
+const memberError = (message: string, status = 400) => Object.assign(new Error(message), { status });
 
 
 /** "Yes" / "No" only when the member actually answered; otherwise null (not recorded). */
@@ -502,7 +506,7 @@ export class MemberService {
     return true;
   }
 
-  async assignBatch(membershipNo: string, batchId: number | string): Promise<any> {
+  async assignBatch(membershipNo: string, batchId: number | string, actor = "Admin"): Promise<any> {
     const batch = await this.batchRepository.getById(batchId);
     if (!batch) {
       throw new Error("Selected training batch not found");
@@ -524,7 +528,7 @@ export class MemberService {
     await this.batchRepository.updateStrengthAndStatus(batchId);
 
     if (updated) {
-      await ActivityService.logActivity(updated.fullName, `Training Batch Changed to ${batch.batch_name}`, "Success", "Admin");
+      await ActivityService.logActivity(updated.fullName, `Training Batch Changed to ${batch.batch_name}`, "Success", actor);
       
       sendEventNotification("batch_changed", {
         id: updated.id,
@@ -533,7 +537,7 @@ export class MemberService {
         email: updated.email
       }, {
         membershipNo: updated.membershipNo,
-        batch: `${batch.batch_name} (${batch.time_slot})`
+        batch: /\d/.test(batch.batch_name) && /AM|PM/i.test(batch.batch_name) ? batch.batch_name : `${batch.batch_name} (${batch.start_time} - ${batch.end_time})`
       }).catch(err => console.error("Batch change comm error:", err));
     }
 
@@ -551,8 +555,110 @@ export class MemberService {
     });
   }
 
-  async changeBatch(membershipNo: string, batchId: number | string): Promise<any> {
-    return this.assignBatch(membershipNo, batchId);
+  async changeBatch(membershipNo: string, batchId: number | string, actor = "Admin"): Promise<any> {
+    const member = await this.memberRepository.getByMembershipNo(membershipNo);
+    if (!member) throw memberError("Member not found.", 404);
+    if (Number(member.selected_batch_id) === Number(batchId)) throw memberError("The member is already in this batch.");
+    return this.assignBatch(membershipNo, batchId, actor);
+  }
+
+  /**
+   * Pauses an active membership (medical leave, travel). The member keeps their batch seat; when the
+   * pause ends, the end date moves back by the number of paused days. pauseUntil, if given, is the
+   * day they come back; the renewal worker resumes them automatically on that day.
+   */
+  async pauseMembership(membershipNo: string, pauseUntil: string | null, actor = "Admin"): Promise<any> {
+    const member = await this.memberRepository.getByMembershipNo(membershipNo);
+    if (!member) throw memberError("Member not found.", 404);
+    if (member.membership_status !== "Active" || !member.endDate) throw memberError("Only an active membership can be paused.");
+    const today = indiaToday();
+    if (pauseUntil && (!/^\d{4}-\d{2}-\d{2}$/.test(pauseUntil) || pauseUntil <= today)) throw memberError("The return date must be after today.");
+    const updated = await this.memberRepository.update(membershipNo, { membership_status: "Suspended", paused_on: today, pause_until: pauseUntil || null });
+    if (member.selected_batch_id) await this.batchRepository.updateStrengthAndStatus(member.selected_batch_id);
+    await ActivityService.logActivity(member.fullName, `Membership paused${pauseUntil ? ` until ${pauseUntil}` : ""}`, "Paused", actor);
+    return updated;
+  }
+
+  /** Ends a pause: the membership is active again and its end date moves back by the paused days. */
+  async resumeMembership(membershipNo: string, actor = "Admin"): Promise<any> {
+    const member = await this.memberRepository.getByMembershipNo(membershipNo);
+    if (!member) throw memberError("Member not found.", 404);
+    if (member.membership_status !== "Suspended" || !member.pausedOn) throw memberError("This membership is not paused.");
+    const today = indiaToday();
+    const pausedDays = Math.max(0, calendarDaysBetween(member.pausedOn, today));
+    const newEnd = member.endDate ? addCalendarDays(member.endDate, pausedDays) : null;
+    const updated = await this.memberRepository.update(membershipNo, {
+      membership_status: "Active",
+      paused_on: null,
+      pause_until: null,
+      ...(newEnd ? { membership_end_date: newEnd } : {})
+    });
+    if (member.selected_batch_id) await this.batchRepository.updateStrengthAndStatus(member.selected_batch_id);
+    await ActivityService.logActivity(member.fullName, `Membership resumed after ${pausedDays} day${pausedDays === 1 ? "" : "s"}${newEnd ? `; now ends ${newEnd}` : ""}`, "Resumed", actor);
+    return { ...updated, pausedDays };
+  }
+
+  /** Resumes paused memberships whose return date has arrived. Returns how many were resumed. */
+  async resumeDuePauses(): Promise<number> {
+    const pool = await getDbPool();
+    const [rows]: any = await pool.query(
+      "SELECT membershipNo FROM members WHERE membership_status = 'Suspended' AND paused_on IS NOT NULL AND pause_until IS NOT NULL AND pause_until <= ?",
+      [indiaToday()]
+    );
+    let resumed = 0;
+    for (const row of rows || []) {
+      try { await this.resumeMembership(row.membershipNo, "Automatic"); resumed += 1; } catch (err) { console.error("Auto-resume failed:", row.membershipNo, err); }
+    }
+    return resumed;
+  }
+
+  /** Staff edits of a member's contact, emergency and health details. Only these fields can change. */
+  async updateMemberDetails(membershipNo: string, input: any, actor = "Admin"): Promise<any> {
+    const member = await this.memberRepository.getByMembershipNo(membershipNo);
+    if (!member) throw memberError("Member not found.", 404);
+    const text = (value: unknown, max = 200) => String(value ?? "").trim().replace(/\s+/g, " ").slice(0, max);
+    const changes: Record<string, any> = {};
+    if (input.fullName !== undefined) {
+      const name = text(input.fullName, 100);
+      if (name.length < 2) throw memberError("Enter the member's full name.");
+      changes.fullName = name;
+    }
+    if (input.mobileNo !== undefined) changes.mobileNo = normalizeIndianMobile(input.mobileNo).national;
+    if (input.email !== undefined) {
+      const email = text(input.email, 150);
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw memberError("Enter a valid email address.");
+      changes.email = email || null;
+    }
+    if (input.addressLine1 !== undefined) changes.addressLine1 = text(input.addressLine1, 255);
+    if (input.city !== undefined) changes.city = text(input.city, 100);
+    if (input.pincode !== undefined) {
+      const pin = text(input.pincode, 10);
+      if (pin && !/^\d{6}$/.test(pin)) throw memberError("Enter a 6-digit PIN code.");
+      changes.pincode = pin;
+    }
+    if (input.emergencyName !== undefined) changes.emergencyName = text(input.emergencyName, 100);
+    if (input.emergencyRelation !== undefined) changes.emergencyRelation = text(input.emergencyRelation, 50);
+    if (input.emergencyPhone !== undefined) {
+      const phone = normalizeIndianMobile(input.emergencyPhone).national;
+      changes.emergencyPhone = phone;
+      changes.emergencyMobile = phone;
+    }
+    if (input.bloodGroup !== undefined) changes.bloodGroup = text(input.bloodGroup, 10) || null;
+    if (input.medicalDetails !== undefined) {
+      const details = text(input.medicalDetails, 500);
+      changes.medicalDetails = details;
+      changes.hasMedicalCondition = details ? "Yes" : "No";
+    }
+    if (Object.keys(changes).length === 0) return member;
+    const updated = await this.memberRepository.update(membershipNo, changes);
+    await ActivityService.logActivity(member.fullName, "Member details updated", "Updated", actor);
+    return updated;
+  }
+
+  async updateCoachNotes(membershipNo: string, notes: unknown): Promise<any> {
+    const member = await this.memberRepository.getByMembershipNo(membershipNo);
+    if (!member) throw memberError("Member not found.", 404);
+    return this.memberRepository.update(membershipNo, { coach_notes: String(notes ?? "").trim().slice(0, 2000) });
   }
 
   async suspendMember(membershipNo: string): Promise<any> {

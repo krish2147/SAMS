@@ -5,6 +5,9 @@ import { sendPaymentReminder } from "../services/whatsapp.service";
 import { getDbPool } from "../config/db";
 import { persistUploadedFile } from "../services/object-storage.service";
 
+/** Name of the signed-in staff member, for the activity log. */
+const actorOf = (req: Request) => String((req as any).user?.name || "Admin");
+
 export class MemberController {
   private memberService = new MemberService();
 
@@ -351,10 +354,46 @@ export class MemberController {
       if (!batchId) {
         return res.status(400).json({ error: "Batch ID is required" });
       }
-      const updated = await this.memberService.changeBatch(membershipNo, batchId);
+      const updated = await this.memberService.changeBatch(membershipNo, batchId, actorOf(req));
       res.json({ success: true, member: updated });
     } catch (err: any) {
-      res.status(400).json({ error: err.message });
+      res.status(err?.status || 400).json({ error: err.message });
+    }
+  };
+
+  pause = async (req: Request, res: Response) => {
+    try {
+      const updated = await this.memberService.pauseMembership(req.params.membershipNo, req.body?.pauseUntil || null, actorOf(req));
+      res.json({ success: true, member: updated });
+    } catch (err: any) {
+      res.status(err?.status || 400).json({ error: err.message });
+    }
+  };
+
+  resume = async (req: Request, res: Response) => {
+    try {
+      const updated = await this.memberService.resumeMembership(req.params.membershipNo, actorOf(req));
+      res.json({ success: true, member: updated, pausedDays: updated.pausedDays });
+    } catch (err: any) {
+      res.status(err?.status || 400).json({ error: err.message });
+    }
+  };
+
+  updateDetails = async (req: Request, res: Response) => {
+    try {
+      const updated = await this.memberService.updateMemberDetails(req.params.membershipNo, req.body || {}, actorOf(req));
+      res.json({ success: true, member: updated });
+    } catch (err: any) {
+      res.status(err?.status || 400).json({ error: err.message });
+    }
+  };
+
+  updateCoachNotes = async (req: Request, res: Response) => {
+    try {
+      const updated = await this.memberService.updateCoachNotes(req.params.membershipNo, req.body?.notes);
+      res.json({ success: true, member: updated });
+    } catch (err: any) {
+      res.status(err?.status || 400).json({ error: err.message });
     }
   };
 
