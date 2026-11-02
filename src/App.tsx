@@ -6,7 +6,6 @@ import {
 } from "lucide-react";
 import { AcademyId, UserSession } from "./types";
 import { Navbar } from "./components/Navbar";
-import { AcademySelector } from "./components/AcademySelector";
 import { AcademyExplore } from "./components/AcademyExplore";
 import { LoginModal } from "./components/LoginModal";
 import { RegisterPage } from "./components/RegisterPage";
@@ -23,7 +22,8 @@ import { LogoutConfirmDialog } from "./components/LogoutConfirmDialog";
 
 export default function App() {
   // Global States
-  const [selectedAcademyId, setSelectedAcademyId] = useState<AcademyId | null>(null);
+  // SAMS serves one academy, Baroda Swim Front, so the site opens straight on it.
+  const [selectedAcademyId, setSelectedAcademyId] = useState<AcademyId | null>("swim");
   const [userSession, setUserSession] = useState<UserSession | null>(null);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isRegisterPageActive, setIsRegisterPageActive] = useRememberedState("app.register", false);
@@ -36,7 +36,7 @@ export default function App() {
     const savedAcademy = localStorage.getItem("sams_academy");
     const savedSessionStr = sessionStore.get();
     
-    if (savedAcademy) setSelectedAcademyId(savedAcademy as AcademyId);
+    if (savedAcademy !== "swim") localStorage.setItem("sams_academy", "swim");
     if (!savedSessionStr) {
       // No login survives (browser was closed without "Keep me logged in", or data was cleared),
       // so drop any profile copies left behind by the last person.
@@ -94,16 +94,11 @@ export default function App() {
     }
   }, []);
 
-  const handleSelectAcademy = (id: AcademyId | null) => {
-    setSelectedAcademyId(id);
+  // Only one academy: "choosing" it just returns to the home page.
+  const handleSelectAcademy = (_id: AcademyId | null) => {
+    setSelectedAcademyId("swim");
     setIsRegisterPageActive(false);
-    if (id) {
-      localStorage.setItem("sams_academy", id);
-    } else {
-      localStorage.removeItem("sams_academy");
-      // Logging out of session if they switch back to main gateway to prevent confusion
-      handleLogout();
-    }
+    localStorage.setItem("sams_academy", "swim");
   };
 
   const handleLoginSuccess = (session: UserSession) => {
@@ -223,18 +218,7 @@ export default function App() {
 
       {/* 2. Main Orchestrator */}
       <AnimatePresence mode="wait">
-        {!selectedAcademyId ? (
-          /* CINEMATIC LANDING GATEWAY: SELECT ACADEMY */
-          <motion.div
-            key="selector"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            <AcademySelector onSelectAcademy={handleSelectAcademy} />
-          </motion.div>
-        ) : isRegisterPageActive ? (
+        {isRegisterPageActive ? (
           /* DEDICATED FULL-PAGE REGISTRATION FORM */
           <motion.div
             key={`register-${selectedAcademyId}`}
@@ -398,19 +382,6 @@ export default function App() {
       <InstallAppPrompt />
       <LogoutConfirmDialog open={isLogoutConfirmOpen} onCancel={() => setIsLogoutConfirmOpen(false)} onConfirm={handleLogout} />
 
-      {/* 4. Luxury Credit Footer for selected academy pages */}
-      {selectedAcademyId && !isFullScreenDashboard && !isRegisterPageActive && (
-        <footer className={`mt-10 border-t py-8 px-4 md:px-8 relative z-10 ${
-          isSwim 
-            ? "bg-white border-slate-100 text-slate-500" 
-            : "bg-emerald-950/20 border-emerald-900/40 text-emerald-300/40"
-        }`}>
-          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4 text-xs font-mono tracking-wider">
-            <span>SAMS v4.1</span>
-            <span>© {new Date().getFullYear()} SAMS. All rights reserved.</span>
-          </div>
-        </footer>
-      )}
 
     </div>
   );

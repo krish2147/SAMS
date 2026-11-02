@@ -1,449 +1,158 @@
-import React, { useState, useEffect } from "react";
-import { 
-  ArrowLeft, LogIn, UserPlus, HelpCircle, X, Play, Pause, 
-  BookOpen, Phone, Mail, MapPin, Clock, ChevronRight, CheckCircle2 
-} from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { ArrowRight, Clock, Facebook, Instagram, LogIn, MapPin, Navigation, Phone, UserPlus, Users, Waves } from "lucide-react";
 import { AcademyId } from "../types";
-import { motion } from "motion/react";
 import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-logo";
+import { ACADEMY_CONTACT } from "../member-dashboard/MemberSupportPage";
+import { ACADEMY_SOCIAL } from "../member-dashboard/MemberSocialPopup";
+
+// The public home page of Baroda Swim Front: what the academy offers, when the pool is open, what
+// it costs, where it is, and the two actions that matter (register, sign in). Prices come from the
+// live rate card (/api/membership-plans), so they always match what registration charges.
 
 interface AcademyExploreProps {
   academyId: AcademyId;
   onOpenLogin: () => void;
   onOpenRegister?: () => void;
-  onSelectAcademy: (id: AcademyId | null) => void;
+  onSelectAcademy?: (id: AcademyId | null) => void;
 }
 
-type HelpTab = "video" | "guide" | "contact";
+const PLAN_INFO: Array<{ category: string; name: string; text: string; icon: typeof Waves }> = [
+  { category: "Learners", name: "Learners with coaching", text: "Learn to swim with stroke drills and a coach guiding you.", icon: Waves },
+  { category: "Learners_Self", name: "Learners without coaching", text: "Practise at your own pace in your batch.", icon: Waves },
+  { category: "General", name: "General", text: "Lane swimming for fitness and regular practice.", icon: Waves },
+  { category: "Family", name: "Family", text: "Pool access for 2 adults with 1 or 2 children, 6 days a week.", icon: Users }
+];
 
-export function AcademyExplore({ 
-  academyId, 
-  onOpenLogin, 
-  onOpenRegister, 
-  onSelectAcademy 
-}: AcademyExploreProps) {
-  const isSwim = academyId === "swim";
+const rupees = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
+const to12h = (t: string) => { const [h, m] = t.split(":").map(Number); return `${h % 12 || 12}${m ? `:${String(m).padStart(2, "0")}` : ""} ${h >= 12 ? "PM" : "AM"}`; };
 
-  // Help Modal States
-  const [isHelpOpen, setIsHelpOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<HelpTab>("video");
-  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
-  const [videoProgress, setVideoProgress] = useState(12);
-
-  // Simulated Video playback progress
+export function AcademyExplore({ onOpenLogin, onOpenRegister }: AcademyExploreProps) {
+  // Lowest one-month price per plan family, from the rate card.
+  const [fromPrice, setFromPrice] = useState<Record<string, number>>({});
   useEffect(() => {
-    let interval: any = null;
-    if (isVideoPlaying) {
-      interval = setInterval(() => {
-        setVideoProgress((prev) => {
-          if (prev >= 100) {
-            setIsVideoPlaying(false);
-            return 0;
-          }
-          return prev + 1;
-        });
-      }, 300);
-    } else {
-      clearInterval(interval);
-    }
-    return () => clearInterval(interval);
-  }, [isVideoPlaying]);
+    fetch("/api/membership-plans")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((plans: any[]) => {
+        if (!Array.isArray(plans)) return;
+        const out: Record<string, number> = {};
+        for (const p of plans) {
+          if (Number(p.is_active ?? 1) === 0 || p.duration_code !== "1_month") continue;
+          const family = String(p.plan_category || "").startsWith("Family") ? "Family" : String(p.plan_category || "");
+          const fee = Number(p.renewal_fee || 0);
+          if (fee > 0 && (!out[family] || fee < out[family])) out[family] = fee;
+        }
+        setFromPrice(out);
+      })
+      .catch(() => setFromPrice({}));
+  }, []);
 
-  const togglePlayVideo = () => {
-    setIsVideoPlaying(!isVideoPlaying);
-  };
+  const [morning, evening] = ACADEMY_CONTACT.sessions;
 
   return (
-    <div className="min-h-screen w-full flex flex-col justify-between pt-24 pb-6 px-6 md:pt-28 md:pb-12 md:px-12 relative isolate text-white transition-colors duration-500 font-sans">
-      {/* Atmospheric photo backdrop, same world as the login/registration screens */}
-      <div
-        className="absolute inset-0 bg-cover bg-center -z-10"
-        style={{
-          backgroundImage: `url(${isSwim
-            ? "https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&q=80&w=1600"
-            : "https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&q=80&w=1600"})`
-        }}
-      />
-      <div className="absolute inset-0 -z-10 bg-slate-950/70" />
-      <div className={`absolute top-[-10%] left-1/2 -translate-x-1/2 -z-10 w-[720px] h-[720px] rounded-full blur-[130px] pointer-events-none ${
-        isSwim ? "bg-sky-300/25" : "bg-amber-300/20"
-      }`} />
-
-      {/* Header with Back Button */}
-      <header className="max-w-xl w-full mx-auto flex items-center justify-start pt-2 pb-1">
-        <button
-          id="btn-explore-back"
-          onClick={() => onSelectAcademy(null)}
-          className="group flex items-center gap-2 px-4 py-2 rounded-full border border-white/20 bg-white/10 backdrop-blur-md text-white text-xs font-semibold cursor-pointer transition-all duration-200 hover:bg-white/20"
-        >
-          <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
-          <span>Back to Sports Selection</span>
-        </button>
-      </header>
-
-      {/* Main Welcome Content */}
-      <main className="flex-1 flex items-center justify-center py-2">
-        <div className="max-w-xl w-full p-8 md:p-10 text-center space-y-8">
-
-          {/* Friendly Icon / Badge */}
-          <div className="flex justify-center">
-            {isSwim ? (
-              <img src={BARODA_SWIM_FRONT_LOGO_DATA_URI} alt="Baroda Swim Front" className="h-24 w-24 rounded-3xl object-cover shadow-2xl ring-1 ring-white/25" />
-            ) : (
-              <div className="h-16 w-16 rounded-2xl flex items-center justify-center text-3xl bg-white/10 backdrop-blur-md border border-white/20 shadow-lg">🏏</div>
-            )}
-          </div>
-
-          {/* Heading */}
-          <div className="space-y-3">
-            <span className={`text-[10px] font-mono tracking-widest uppercase drop-shadow-md ${
-              isSwim ? "text-sky-300" : "text-amber-300"
-            }`}>
-              {isSwim ? "Swimming Academy" : "Cricket Academy"}
-            </span>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]">
-              {isSwim ? "Welcome to Baroda Swim Front" : "Welcome to Elite Cricket Academy"}
-            </h1>
-          </div>
-
-          {/* Short, Human-Friendly Description */}
-          <p className="text-sm sm:text-base leading-relaxed font-light text-white/85 drop-shadow-[0_1px_6px_rgba(0,0,0,0.6)]">
-            {isSwim
-              ? "Welcome to our friendly swimming pool community! Whether you want to learn to swim, enjoy open lap swim slots, or sign up your kids for private lessons, we are here to support you with clean facilities and friendly coaches."
-              : "Welcome to our professional cricket training arena! Whether you want to practice your batting on our quality turf pitches, book a slot with our bowling machines, or get coaching for your child, our gates are open for players of all ages."
-            }
+    <div className="w-full bg-canvas text-ink-900">
+      {/* Hero */}
+      <section className="relative isolate overflow-hidden bg-ink-950 px-5 pb-14 pt-28 text-white sm:pt-32">
+        <div className="absolute inset-0 -z-10 bg-cover bg-center opacity-55" style={{ backgroundImage: "url(https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&q=80&w=1600)" }} />
+        <div className="absolute inset-0 -z-10 bg-gradient-to-b from-ink-950/50 via-ink-950/60 to-ink-950" />
+        <div className="mx-auto max-w-3xl text-center">
+          <img src={BARODA_SWIM_FRONT_LOGO_DATA_URI} alt="Baroda Swim Front" className="mx-auto h-20 w-20 rounded-3xl object-cover shadow-2xl ring-1 ring-white/25" />
+          <p className="mt-6 text-sm font-semibold uppercase tracking-[0.2em] text-aqua-300">Swimming academy · Vadodara</p>
+          <h1 className="mt-3 font-display text-[34px] font-bold leading-tight tracking-[-0.02em] sm:text-5xl">Learn to swim at Baroda Swim Front</h1>
+          <p className="mx-auto mt-4 max-w-xl text-[15px] leading-7 text-white/80 sm:text-base">
+            Coached learning for beginners and improving swimmers, and lane swimming for fitness. Morning and evening batches, Monday to Saturday, at Aark International School.
           </p>
-
-          {/* Login & Register Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 pt-2">
-            <button
-              id="btn-explore-login"
-              onClick={onOpenLogin}
-              className={`flex-1 py-4 px-6 rounded-2xl text-xs uppercase tracking-wider font-extrabold flex items-center justify-center gap-2 cursor-pointer shadow-lg transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] ${
-                isSwim
-                  ? "bg-white text-slate-900 hover:bg-sky-50"
-                  : "bg-amber-400 text-slate-950 hover:bg-amber-300"
-              }`}
-            >
-              <LogIn className="h-4 w-4" />
-              <span>Sign In / Login</span>
+          <div className="mx-auto mt-8 flex max-w-md flex-col gap-3 sm:flex-row">
+            <button id="btn-explore-register" type="button" onClick={onOpenRegister} className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-white text-[15px] font-semibold text-ink-950 hover:bg-ink-50 cursor-pointer">
+              <UserPlus className="h-5 w-5" /> Register now
             </button>
-
-            <button
-              id="btn-explore-register"
-              onClick={onOpenRegister}
-              className="flex-1 py-4 px-6 rounded-2xl text-xs uppercase tracking-wider font-extrabold flex items-center justify-center gap-2 cursor-pointer shadow-sm border border-white/40 bg-white/10 backdrop-blur-md text-white transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] hover:bg-white/20"
-            >
-              <UserPlus className="h-4 w-4" />
-              <span>Register New Member</span>
+            <button id="btn-explore-login" type="button" onClick={onOpenLogin} className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-2xl border border-white/30 bg-white/10 text-[15px] font-semibold text-white backdrop-blur hover:bg-white/20 cursor-pointer">
+              <LogIn className="h-5 w-5" /> Member sign in
             </button>
           </div>
-
+          <dl className="mx-auto mt-10 grid max-w-2xl grid-cols-3 gap-2 text-left sm:gap-4">
+            {[
+              ["Morning", morning ? `${to12h(morning[0])} – ${to12h(morning[1])}` : "—"],
+              ["Evening", evening ? `${to12h(evening[0])} – ${to12h(evening[1])}` : "—"],
+              ["Days", "Mon – Sat"]
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-2xl border border-white/15 bg-white/5 px-3 py-3 backdrop-blur sm:px-4">
+                <dt className="text-xs text-white/60">{label}</dt>
+                <dd className="mt-0.5 text-sm font-semibold sm:text-base">{value}</dd>
+              </div>
+            ))}
+          </dl>
         </div>
-      </main>
+      </section>
 
-      {/* Need Help Section */}
-      <div className="flex justify-center mt-4 mb-2">
-        <motion.button
-          id="btn-need-help"
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.97 }}
-          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          onClick={() => {
-            setIsHelpOpen(true);
-            setActiveTab("video");
-          }}
-          className="group flex items-center gap-2 px-5 py-2.5 rounded-full border border-white/30 bg-white/10 backdrop-blur-md text-white text-xs font-semibold tracking-wide cursor-pointer shadow-sm transition-all duration-300 hover:bg-white/20"
-        >
-          <HelpCircle className="h-4 w-4 text-sky-400 animate-pulse" />
-          <span>Need Help?</span>
-        </motion.button>
-      </div>
+      {/* Plans */}
+      <section className="mx-auto max-w-5xl px-5 py-14" aria-labelledby="plans-title">
+        <h2 id="plans-title" className="font-display text-2xl font-bold tracking-[-0.02em] text-ink-950 sm:text-3xl">Memberships</h2>
+        <p className="mt-2 max-w-2xl text-[15px] text-ink-600">Choose 3 or 6 days a week, from 1 month to a year. Longer plans cost less per month. A one-time registration fee applies.</p>
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {PLAN_INFO.map((p) => (
+            <article key={p.category} className="flex flex-col rounded-2xl border border-ink-100 bg-white p-5 shadow-card">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-aqua-400/10 text-aqua-600"><p.icon className="h-5 w-5" /></span>
+              <h3 className="mt-4 text-base font-bold text-ink-950">{p.name}</h3>
+              <p className="mt-1 flex-1 text-sm leading-6 text-ink-600">{p.text}</p>
+              {fromPrice[p.category] && <p className="mt-4 text-sm text-ink-500">from <span className="text-lg font-bold text-ink-950">{rupees(fromPrice[p.category])}</span> / month</p>}
+            </article>
+          ))}
+        </div>
+        <button type="button" onClick={onOpenRegister} className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-xl bg-ink-950 px-5 text-sm font-semibold text-white hover:bg-ink-800 cursor-pointer">
+          See all plans and register <ArrowRight className="h-4 w-4" />
+        </button>
+      </section>
 
-      {/* Footer */}
-      <footer className="max-w-4xl w-full mx-auto py-6 border-t border-current/5 text-center">
-        <p className="text-[10px] font-mono opacity-40">
-          © {new Date().getFullYear()} {isSwim ? "Baroda Swim Front" : "The Cricket Academy"}. All rights reserved.
-        </p>
+      {/* How joining works */}
+      <section className="border-y border-ink-100 bg-white" aria-labelledby="how-title">
+        <div className="mx-auto max-w-5xl px-5 py-14">
+          <h2 id="how-title" className="font-display text-2xl font-bold tracking-[-0.02em] text-ink-950 sm:text-3xl">How joining works</h2>
+          <ol className="mt-6 grid gap-4 sm:grid-cols-3">
+            {[
+              ["Register online", "Pick your plan and pool time, and fill in your details. It takes about 3 minutes."],
+              ["The academy approves", "Staff check your details and send a secure payment link on WhatsApp."],
+              ["Pay and swim", "Pay online or at the reception. Your membership starts and the invoice arrives on WhatsApp."]
+            ].map(([title, text], i) => (
+              <li key={title} className="rounded-2xl border border-ink-100 p-5">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-ink-950 text-sm font-bold text-white">{i + 1}</span>
+                <h3 className="mt-3 text-base font-bold text-ink-950">{title}</h3>
+                <p className="mt-1 text-sm leading-6 text-ink-600">{text}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      {/* Visit */}
+      <section className="mx-auto max-w-5xl px-5 py-14" aria-labelledby="visit-title">
+        <h2 id="visit-title" className="font-display text-2xl font-bold tracking-[-0.02em] text-ink-950 sm:text-3xl">Visit us</h2>
+        <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+          <div className="overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-card">
+            <iframe title="Baroda Swim Front on Google Maps" src={ACADEMY_CONTACT.mapEmbedUrl} className="block h-72 w-full border-0" loading="lazy" referrerPolicy="no-referrer-when-downgrade" allowFullScreen />
+          </div>
+          <div className="space-y-4 rounded-2xl border border-ink-100 bg-white p-5 shadow-card">
+            <p className="flex gap-3 text-sm leading-6 text-ink-700"><MapPin className="mt-0.5 h-5 w-5 shrink-0 text-aqua-600" />{ACADEMY_CONTACT.address}</p>
+            <p className="flex gap-3 text-sm leading-6 text-ink-700"><Clock className="mt-0.5 h-5 w-5 shrink-0 text-aqua-600" />Monday to Saturday{morning ? `, ${to12h(morning[0])} – ${to12h(morning[1])}` : ""}{evening ? ` and ${to12h(evening[0])} – ${to12h(evening[1])}` : ""}. Closed on Sunday.</p>
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <a href={`tel:${ACADEMY_CONTACT.phoneTel}`} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-ink-950 text-sm font-semibold text-white hover:bg-ink-800"><Phone className="h-4 w-4" />Call</a>
+              <a href={ACADEMY_CONTACT.mapsUrl} target="_blank" rel="noreferrer" className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-ink-200 text-sm font-semibold text-ink-800 hover:bg-ink-50"><Navigation className="h-4 w-4" />Directions</a>
+            </div>
+            <div className="border-t border-ink-100 pt-4">
+              <p className="text-sm font-semibold text-ink-900">Follow us</p>
+              <div className="mt-2 flex gap-2">
+                <a href={ACADEMY_SOCIAL.instagramUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-ink-200 px-3 text-sm font-semibold text-ink-800 hover:bg-ink-50"><Instagram className="h-4 w-4" />{ACADEMY_SOCIAL.instagramHandle}</a>
+                <a href={ACADEMY_SOCIAL.facebookUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-ink-200 px-3 text-sm font-semibold text-ink-800 hover:bg-ink-50"><Facebook className="h-4 w-4" />Facebook</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer className="border-t border-ink-100 bg-white px-5 py-8 text-center text-sm text-ink-500">
+        <p className="font-semibold text-ink-800">Baroda Swim Front</p>
+        <p className="mt-1">{ACADEMY_CONTACT.phoneDisplay} · Vadodara, Gujarat</p>
+        <p className="mt-3 text-xs">© {new Date().getFullYear()} Baroda Swim Front. All rights reserved.</p>
       </footer>
-
-      {/* Interactive Support Modal */}
-      {isHelpOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
-          <div 
-            className={`w-full max-w-2xl rounded-3xl overflow-hidden border shadow-2xl flex flex-col md:flex-row h-[500px] max-h-[90vh] animate-in zoom-in-95 duration-300 ${
-              isSwim 
-                ? "bg-white border-slate-200 text-slate-800" 
-                : "bg-emerald-950 border-emerald-900 text-emerald-50"
-            }`}
-          >
-            {/* Left Sidebar - Help Navigation */}
-            <div className={`w-full md:w-1/3 p-6 flex flex-col justify-between border-b md:border-b-0 md:border-r ${
-              isSwim ? "bg-slate-50 border-slate-100" : "bg-[#052214] border-emerald-900"
-            }`}>
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-sm font-extrabold uppercase tracking-widest text-slate-400 font-mono">
-                    Support Desk
-                  </h3>
-                  <p className={`text-xl font-extrabold mt-1 ${isSwim ? "text-slate-800" : "text-amber-400"}`}>
-                    How can we help?
-                  </p>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <button
-                    onClick={() => setActiveTab("video")}
-                    className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-all cursor-pointer ${
-                      activeTab === "video"
-                        ? isSwim 
-                          ? "bg-slate-900 text-white" 
-                          : "bg-amber-400 text-slate-950"
-                        : "opacity-60 hover:opacity-100"
-                    }`}
-                  >
-                    <Play className="h-4 w-4" />
-                    <span>Watch Demo Video</span>
-                  </button>
-
-                  <button
-                    onClick={() => setActiveTab("guide")}
-                    className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-all cursor-pointer ${
-                      activeTab === "guide"
-                        ? isSwim 
-                          ? "bg-slate-900 text-white" 
-                          : "bg-amber-400 text-slate-950"
-                        : "opacity-60 hover:opacity-100"
-                    }`}
-                  >
-                    <BookOpen className="h-4 w-4" />
-                    <span>Registration Guide</span>
-                  </button>
-
-                  <button
-                    onClick={() => setActiveTab("contact")}
-                    className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-all cursor-pointer ${
-                      activeTab === "contact"
-                        ? isSwim 
-                          ? "bg-slate-900 text-white" 
-                          : "bg-amber-400 text-slate-950"
-                        : "opacity-60 hover:opacity-100"
-                    }`}
-                  >
-                    <Phone className="h-4 w-4" />
-                    <span>Contact Details</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Close Button Inside Left (Desktop) */}
-              <button
-                onClick={() => {
-                  setIsHelpOpen(false);
-                  setIsVideoPlaying(false);
-                }}
-                className={`hidden md:block w-full py-2.5 rounded-xl border text-xs font-bold text-center cursor-pointer transition-colors ${
-                  isSwim 
-                    ? "border-slate-200 text-slate-600 hover:bg-slate-100" 
-                    : "border-emerald-800 text-emerald-200 hover:bg-emerald-900/60"
-                }`}
-              >
-                Close Support
-              </button>
-            </div>
-
-            {/* Right Pane - Dynamic Interactive Content */}
-            <div className="flex-1 p-6 flex flex-col justify-between overflow-y-auto">
-              <div className="flex justify-between items-center pb-4 border-b border-current/5">
-                <h4 className="text-sm font-bold tracking-tight uppercase opacity-80">
-                  {activeTab === "video" && "Video Walkthrough"}
-                  {activeTab === "guide" && "Step-by-Step Guide"}
-                  {activeTab === "contact" && "Get in Touch"}
-                </h4>
-                <button
-                  onClick={() => {
-                    setIsHelpOpen(false);
-                    setIsVideoPlaying(false);
-                  }}
-                  className="p-1 rounded-full hover:bg-current/5 transition-colors cursor-pointer md:hidden"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div className="flex-1 py-4 flex flex-col justify-center">
-                
-                {/* 1. Watch Demo Video Tab */}
-                {activeTab === "video" && (
-                  <div className="space-y-4">
-                    <p className={`text-xs ${isSwim ? "text-slate-500" : "text-emerald-200/80"}`}>
-                      Watch this short 1-minute walkthrough to understand how to register, select member roles, and log into your dashboard.
-                    </p>
-                    
-                    {/* Beautiful Simulated Video Player */}
-                    <div className="relative aspect-video rounded-2xl overflow-hidden bg-slate-900 border border-current/10 shadow-inner flex flex-col justify-between p-4 group">
-                      
-                      {/* Animated water visual when not playing, active player when playing */}
-                      <div className="absolute inset-0 flex items-center justify-center opacity-30 pointer-events-none overflow-hidden">
-                        <div className={`w-full h-full bg-gradient-to-tr from-sky-500/20 to-indigo-500/15 ${isVideoPlaying ? "animate-pulse" : ""}`} />
-                        {isVideoPlaying && (
-                          <div className="absolute inset-0 flex flex-col justify-center gap-2 items-center">
-                            <span className="w-48 h-1 bg-sky-500/20 rounded-full overflow-hidden">
-                              <span className="block h-full bg-sky-400 animate-[pulse_1.5s_infinite]" style={{ width: `${videoProgress}%` }}></span>
-                            </span>
-                            <span className="text-[10px] font-mono tracking-widest text-sky-400 animate-pulse">PLAYING VIDEO</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Video Title Indicator */}
-                      <div className="relative z-10 flex justify-between items-center">
-                        <span className="text-[10px] font-mono bg-black/40 text-slate-300 px-2 py-1 rounded-md backdrop-blur-sm">
-                          Academy tour video
-                        </span>
-                        <span className="text-[10px] font-mono text-slate-300">
-                          {isVideoPlaying ? `00:${videoProgress < 10 ? `0${videoProgress}` : videoProgress}` : "00:12"} / 01:40
-                        </span>
-                      </div>
-
-                      {/* Playback Controls Overlay */}
-                      <div className="relative z-10 flex justify-center items-center">
-                        <button
-                          onClick={togglePlayVideo}
-                          className={`h-12 w-12 rounded-full flex items-center justify-center cursor-pointer transition-all ${
-                            isVideoPlaying 
-                              ? "bg-white text-slate-900 scale-95" 
-                              : "bg-sky-500 text-white hover:scale-105 hover:bg-sky-400 shadow-lg shadow-sky-500/30"
-                          }`}
-                        >
-                          {isVideoPlaying ? (
-                            <Pause className="h-5 w-5 fill-current" />
-                          ) : (
-                            <Play className="h-5 w-5 fill-current ml-0.5" />
-                          )}
-                        </button>
-                      </div>
-
-                      {/* Progress Bar scrubber */}
-                      <div className="relative z-10 space-y-1.5">
-                        <div className="h-1 w-full bg-white/20 rounded-full overflow-hidden cursor-pointer">
-                          <div 
-                            className="h-full bg-sky-400 transition-all duration-300"
-                            style={{ width: `${videoProgress}%` }}
-                          />
-                        </div>
-                        <div className="flex justify-between text-[9px] font-mono text-slate-400">
-                          <span>{isVideoPlaying ? "Streaming online" : "Click to view demo"}</span>
-                          <span>Auto Quality: 1080p</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* 2. Registration Guide Tab */}
-                {activeTab === "guide" && (
-                  <div className="space-y-3.5">
-                    {[
-                      { step: "1", title: "Click Register Button", desc: "Select 'Register New Member' on the landing screen." },
-                      { step: "2", title: "Choose Your Account Type", desc: "Choose your role: Parent (to manage children), Individual Member, or Coach." },
-                      { step: "3", title: "Fill Details", desc: "Input your full name, unique email address, password, and active phone contact." },
-                      { step: "4", title: "Unlock Member Dashboard", desc: "Instantly sign in, view programs, schedule slot times, and make payments." },
-                    ].map((item, index) => (
-                      <div key={index} className="flex gap-3.5 items-start">
-                        <div className="h-6 w-6 rounded-full bg-sky-500/10 text-sky-500 font-mono text-xs font-bold flex items-center justify-center shrink-0 border border-sky-500/20 mt-0.5">
-                          {item.step}
-                        </div>
-                        <div className="space-y-0.5">
-                          <h5 className="text-xs font-bold tracking-wide">{item.title}</h5>
-                          <p className={`text-[11px] leading-relaxed ${isSwim ? "text-slate-500" : "text-emerald-100/70"}`}>
-                            {item.desc}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* 3. Contact Information Tab */}
-                {activeTab === "contact" && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className={`p-4 rounded-2xl border flex items-start gap-3 ${
-                      isSwim ? "bg-slate-50 border-slate-100" : "bg-emerald-900/10 border-emerald-800/30"
-                    }`}>
-                      <Phone className="h-5 w-5 text-sky-500 shrink-0 mt-0.5" />
-                      <div className="space-y-1">
-                        <span className="text-[10px] font-mono uppercase opacity-50 block">Call support</span>
-                        <a href="tel:+912657946376" className="text-xs font-bold hover:underline block text-sky-500">
-                          +91 (265) 794-6376
-                        </a>
-                        <span className="text-[9px] opacity-40 block">Toll-free across India</span>
-                      </div>
-                    </div>
-
-                    <div className={`p-4 rounded-2xl border flex items-start gap-3 ${
-                      isSwim ? "bg-slate-50 border-slate-100" : "bg-emerald-900/10 border-emerald-800/30"
-                    }`}>
-                      <Mail className="h-5 w-5 text-indigo-500 shrink-0 mt-0.5" />
-                      <div className="space-y-1">
-                        <span className="text-[10px] font-mono uppercase opacity-50 block">Write to Us</span>
-                        <a href="mailto:support@barodaswimfront.com" className="text-xs font-bold hover:underline block text-indigo-500 truncate">
-                          support@swimfront.com
-                        </a>
-                        <span className="text-[9px] opacity-40 block">Fast response within 2 hrs</span>
-                      </div>
-                    </div>
-
-                    <div className={`p-4 rounded-2xl border flex items-start gap-3 sm:col-span-2 ${
-                      isSwim ? "bg-slate-50 border-slate-100" : "bg-emerald-900/10 border-emerald-800/30"
-                    }`}>
-                      <MapPin className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
-                      <div className="space-y-1">
-                        <span className="text-[10px] font-mono uppercase opacity-50 block">Academy Campus</span>
-                        <span className="text-xs font-semibold block">
-                          12, Swim Front Olympic Arena, Alkapuri Road, Vadodara, Gujarat 390007
-                        </span>
-                        <span className="text-[9px] opacity-40 block">Drop in for in-person tours</span>
-                      </div>
-                    </div>
-
-                    <div className={`p-4 rounded-2xl border flex items-start gap-3 sm:col-span-2 ${
-                      isSwim ? "bg-slate-50 border-slate-100" : "bg-emerald-900/10 border-emerald-800/30"
-                    }`}>
-                      <Clock className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
-                      <div className="space-y-1">
-                        <span className="text-[10px] font-mono uppercase opacity-50 block">Opening Hours</span>
-                        <span className="text-xs font-semibold block">
-                          Monday to Saturday: 6:00 AM — 9:00 PM | Sunday: Closed
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-              </div>
-
-              {/* Close Button at bottom on mobile */}
-              <button
-                onClick={() => {
-                  setIsHelpOpen(false);
-                  setIsVideoPlaying(false);
-                }}
-                className={`md:hidden w-full mt-4 py-3 rounded-xl text-xs font-extrabold text-center uppercase cursor-pointer ${
-                  isSwim 
-                    ? "bg-slate-100 text-slate-800 hover:bg-slate-200" 
-                    : "bg-emerald-900 text-emerald-100 hover:bg-emerald-850"
-                }`}
-              >
-                Close Support
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 }

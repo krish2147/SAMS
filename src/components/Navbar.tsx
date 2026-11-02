@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { SAMSLogo } from "./Branding";
-import { Menu, X, Sparkles, LogOut, User, Users, ArrowLeft, ArrowLeftRight, ChevronRight } from "lucide-react";
+import { Menu, X, LogOut, User } from "lucide-react";
 import { AcademyId, UserSession } from "../types";
 import { motion } from "motion/react";
 import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-logo";
@@ -131,7 +131,11 @@ export function Navbar({
               <LogOut className="h-4 w-4" />
             </button>
           </div>
-        ) : null}
+        ) : (
+          <button type="button" onClick={onOpenLogin} className="rounded-xl border border-current/30 px-4 py-2 text-sm font-semibold hover:bg-current/10 cursor-pointer">
+            Member sign in
+          </button>
+        )}
       </div>
 
       {/* Mobile Menu Icon */}
@@ -139,7 +143,12 @@ export function Navbar({
         {userSession && (
           <span className="text-xs font-medium truncate max-w-[100px]">{userSession.name}</span>
         )}
-        {!userSession && isRegisterPageActive ? null : (
+        {!userSession ? (isRegisterPageActive ? null : (
+          <button type="button" onClick={onOpenLogin}
+            className="rounded-xl border border-current/30 px-3.5 py-2 text-sm font-semibold hover:bg-current/10 cursor-pointer">
+            Sign in
+          </button>
+        )) : (
           <button
             id="btn-nav-mobile-toggle"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -182,29 +191,6 @@ export function Navbar({
             </div>
           ) : null}
 
-          {selectedAcademyId && (
-            <button
-              id="btn-nav-mobile-reset"
-              onClick={() => {
-                onSelectAcademy(null);
-                setMobileMenuOpen(false);
-              }}
-              className={`flex w-full min-h-[64px] items-center gap-3.5 rounded-xl px-3 py-2.5 text-left transition-colors cursor-pointer ${
-                selectedAcademyId === "swim" ? "hover:bg-slate-50 active:bg-slate-100" : "hover:bg-emerald-900/40"
-              }`}
-            >
-              <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
-                selectedAcademyId === "swim" ? "bg-sky-50 text-sky-600" : "bg-emerald-900/60 text-amber-300"
-              }`}>
-                <ArrowLeftRight className="h-5 w-5" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[15px] font-semibold">Switch academy</span>
-                <span className="block text-xs opacity-60">Choose a different academy</span>
-              </span>
-              <ChevronRight className="h-5 w-5 shrink-0 opacity-40" />
-            </button>
-          )}
         </div>
       )}
     </nav>
