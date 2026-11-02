@@ -75,9 +75,9 @@ export function AcademyExplore({ onOpenLogin, onOpenRegister }: AcademyExplorePr
               ["Evening", evening ? `${to12h(evening[0])} – ${to12h(evening[1])}` : "—"],
               ["Days", "Mon – Sat"]
             ].map(([label, value]) => (
-              <div key={label} className="rounded-2xl border border-white/15 bg-white/5 px-3 py-3 backdrop-blur sm:px-4">
+              <div key={label} className="min-w-0 rounded-2xl border border-white/15 bg-white/5 px-2.5 py-3 backdrop-blur sm:px-4">
                 <dt className="text-xs text-white/60">{label}</dt>
-                <dd className="mt-0.5 text-sm font-semibold sm:text-base">{value}</dd>
+                <dd className="mt-0.5 whitespace-nowrap text-[13px] font-semibold tracking-[-0.01em] sm:text-base">{value}</dd>
               </div>
             ))}
           </dl>
