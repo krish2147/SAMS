@@ -1009,6 +1009,8 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                   settings={settings}
                   userRole={accessRole(activeUser.role)}
                   userName={activeUser.name}
+                  getSessionToken={getSessionToken}
+                  onSendPaymentLink={handleSendWhatsAppPaymentLink}
                   onNavigate={setActiveTab}
                   onOpenAddMember={() => { setActiveTab("register"); setSelectedMember(null); }}
                 />
