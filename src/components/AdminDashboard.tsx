@@ -1612,7 +1612,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
 
         {/* TAB: SAMS UNIFIED CALENDAR / EVENTS / HOLIDAYS */}
         {(activeTab === "calendar" || activeTab === "events" || activeTab === "holidays") && (
-          <CalendarTab isSwim={isSwim} userRole={accessRole(activeUser.role)} />
+          <CalendarTab isSwim={isSwim} userRole={accessRole(activeUser.role)} getSessionToken={getSessionToken} />
         )}
 
         {/* TAB: SYSTEM SETTINGS */}

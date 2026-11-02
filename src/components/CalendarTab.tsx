@@ -1,643 +1,286 @@
-import React, { useState, useEffect } from "react";
-import { 
-  Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Trash2, 
-  Edit3, MapPin, Clock, Info, Check, Filter, Trash, Sparkles
-} from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { AlertCircle, CalendarDays, ChevronLeft, ChevronRight, LoaderCircle, Plus, Trash2, X } from "lucide-react";
+import { FESTIVALS } from "../member-dashboard/festivals";
 
-interface CalendarItem {
-  id: string;
-  title: string;
-  date: string; // YYYY-MM-DD
-  type: "Competition" | "Holiday" | "Maintenance" | "Workshop" | "Specialized Training";
-  timing: string;
-  venue: string;
-  desc: string;
-}
-
-const PRESET_ITEMS: CalendarItem[] = [
-  { 
-    id: "e1", 
-    title: "Baroda Summer Swim Festival", 
-    date: "2026-08-10", 
-    type: "Competition", 
-    timing: "09:00 AM - 05:00 PM", 
-    venue: "Main Olympic Pool", 
-    desc: "District-level championship for age groups 10-18." 
-  },
-  { 
-    id: "e2", 
-    title: "Water Safety & Lifesaving Seminar", 
-    date: "2026-07-28", 
-    type: "Workshop", 
-    timing: "10:00 AM - 01:00 PM", 
-    venue: "Shallow Training Pool", 
-    desc: "Essential drowning prevention and basic lifesaver techniques." 
-  },
-  { 
-    id: "e3", 
-    title: "Junior Stroke Correction Camp", 
-    date: "2026-09-05", 
-    type: "Specialized Training", 
-    timing: "04:00 PM - 06:00 PM", 
-    venue: "Lanes 1 to 4", 
-    desc: "Targeted feedback on breaststroke and butterfly techniques." 
-  },
-  { 
-    id: "h1", 
-    title: "Olympic Pool Deep-Cleaning", 
-    date: "2026-07-20", 
-    type: "Maintenance", 
-    timing: "Full Day", 
-    venue: "Main Olympic Pool", 
-    desc: "All training batches suspended for standard deep cleaning & pH level adjustments." 
-  },
-  { 
-    id: "h2", 
-    title: "Independence Day Holiday", 
-    date: "2026-08-15", 
-    type: "Holiday", 
-    timing: "Full Day", 
-    venue: "Entire Club Facility", 
-    desc: "National holiday. Academy closed." 
-  },
-  { 
-    id: "h3", 
-    title: "Ganesh Chaturthi Closure", 
-    date: "2026-09-14", 
-    type: "Holiday", 
-    timing: "Full Day", 
-    venue: "Entire Club Facility", 
-    desc: "Academy closed for festival." 
-  }
-];
+// The academy calendar, shared with members: events and pool closures are stored on the server
+// (/api/admin/calendar), so what an admin adds here is what members see in their app. Admins add,
+// edit, cancel and delete; reception and coaches view. Festivals are shown for reference only.
 
 interface CalendarTabProps {
-  isSwim: boolean;
-  userRole?: string; // "admin" | "super_admin" | "coach" | "member" | "staff"
+  isSwim?: boolean;
+  userRole?: string;
+  getSessionToken?: () => string;
 }
 
-export function CalendarTab({ isSwim, userRole = "admin" }: CalendarTabProps) {
-  const isAdmin = userRole === "admin" || userRole === "super_admin";
+type Kind = "event" | "closure";
+interface Item {
+  kind: Kind; id: number; title: string; date: string; endDate: string; startTime?: string; endTime?: string;
+  location?: string; description?: string; status: string; applicableTo: string; batchIds: string[]; raw: any;
+}
 
-  // States
-  const [items, setItems] = useState<CalendarItem[]>([]);
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 6, 1)); // Start on July 2026 (6 is index of July)
-  const [selectedDate, setSelectedDate] = useState<string>("2026-07-20");
-  const [filterType, setFilterType] = useState<string>("All");
+const ymd = (v: any) => {
+  if (!v) return "";
+  if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0, 10);
+  const d = new Date(v); return isNaN(d.getTime()) ? "" : new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(d);
+};
+const ids = (v: any): string[] => { try { const p = JSON.parse(String(v || "[]")); return Array.isArray(p) ? p.map(String) : []; } catch { return []; } };
+const time12 = (t?: string) => { const m = String(t || "").match(/^(\d{1,2}):(\d{2})/); if (!m) return ""; const h = Number(m[1]); return `${h % 12 || 12}:${m[2]} ${h >= 12 ? "PM" : "AM"}`; };
+const niceDate = (d: string) => { const [y, m, dd] = d.split("-").map(Number); return new Date(y, m - 1, dd).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" }); };
+const todayIndia = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
 
-  // Form States (for creating/editing)
-  const [showFormModal, setShowFormModal] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [formTitle, setFormTitle] = useState("");
-  const [formType, setFormType] = useState<CalendarItem["type"]>("Competition");
-  const [formDate, setFormDate] = useState("");
-  const [formTiming, setFormTiming] = useState("");
-  const [formVenue, setFormVenue] = useState("");
-  const [formDesc, setFormDesc] = useState("");
+function toItems(data: any): Item[] {
+  const events = (data?.events || []).map((e: any): Item => ({
+    kind: "event", id: Number(e.id), title: e.title, date: ymd(e.event_date), endDate: ymd(e.event_date), startTime: e.start_time, endTime: e.end_time,
+    location: e.location || "", description: e.description || "", status: e.status || "Published", applicableTo: e.applicable_to || "All Members", batchIds: ids(e.applicable_batch_ids), raw: e
+  }));
+  const closures = (data?.holidays || []).map((h: any): Item => ({
+    kind: "closure", id: Number(h.id), title: h.name, date: ymd(h.holiday_date), endDate: ymd(h.end_date || h.holiday_date),
+    description: h.announcement_message || h.description || "", status: h.status || "Active", applicableTo: h.applicable_to || "All Members", batchIds: ids(h.applicable_batch_ids), raw: h
+  }));
+  return [...events, ...closures].filter((i) => i.date).sort((a, b) => a.date.localeCompare(b.date));
+}
 
-  const [alertMsg, setAlertMsg] = useState<string | null>(null);
+export function CalendarTab({ userRole = "admin", getSessionToken }: CalendarTabProps) {
+  const canEdit = userRole === "admin" || userRole === "super_admin";
+  const [items, setItems] = useState<Item[] | null>(null);
+  const [error, setError] = useState("");
+  const [month, setMonth] = useState(() => { const t = todayIndia(); return t.slice(0, 7); });
+  const [selectedDay, setSelectedDay] = useState("");
+  const [form, setForm] = useState<null | { kind: Kind; item?: Item }>(null);
+  const [batches, setBatches] = useState<any[]>([]);
+  const today = todayIndia();
 
-  // Load items
-  useEffect(() => {
-    const saved = localStorage.getItem("sams_calendar_items");
-    if (saved) {
-      try {
-        setItems(JSON.parse(saved));
-      } catch (e) {
-        setItems(PRESET_ITEMS);
-      }
-    } else {
-      setItems(PRESET_ITEMS);
-      localStorage.setItem("sams_calendar_items", JSON.stringify(PRESET_ITEMS));
-    }
-  }, []);
+  const headers = useCallback((json = false): Record<string, string> => {
+    const token = getSessionToken?.() || "";
+    return { ...(json ? { "Content-Type": "application/json" } : {}), ...(token ? { "x-session-token": token } : {}) };
+  }, [getSessionToken]);
 
-  const saveItems = (newItems: CalendarItem[]) => {
-    setItems(newItems);
-    localStorage.setItem("sams_calendar_items", JSON.stringify(newItems));
-  };
+  const load = useCallback(async () => {
+    setError("");
+    try {
+      const res = await fetch("/api/admin/calendar?limit=200", { credentials: "same-origin", headers: headers() });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "The calendar could not be loaded.");
+      setItems(toItems(data));
+    } catch (e: any) { setItems([]); setError(e.message || "The calendar could not be loaded."); }
+  }, [headers]);
+  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { fetch("/api/batches").then((r) => (r.ok ? r.json() : [])).then((b) => setBatches(Array.isArray(b) ? b : [])).catch(() => setBatches([])); }, []);
 
-  // Date utilities
-  const currentYear = currentDate.getFullYear();
-  const currentMonth = currentDate.getMonth();
+  // Month grid
+  const [y, m] = month.split("-").map(Number);
+  const first = new Date(y, m - 1, 1);
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const cells = [...Array(first.getDay()).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => `${month}-${String(i + 1).padStart(2, "0")}`)];
+  const shiftMonth = (delta: number) => { const d = new Date(y, m - 1 + delta, 1); setMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`); setSelectedDay(""); };
 
-  const monthNames = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ];
-
-  const getDaysInMonth = (year: number, month: number) => {
-    return new Date(year, month + 1, 0).getDate();
-  };
-
-  const getFirstDayOfMonth = (year: number, month: number) => {
-    return new Date(year, month, 1).getDay();
-  };
-
-  const handlePrevMonth = () => {
-    setCurrentDate(new Date(currentYear, currentMonth - 1, 1));
-  };
-
-  const handleNextMonth = () => {
-    setCurrentDate(new Date(currentYear, currentMonth + 1, 1));
-  };
-
-  // Form submit (Add or Edit)
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formTitle || !formDate) return;
-
-    if (editingId) {
-      // Edit
-      const updated = items.map(item => {
-        if (item.id === editingId) {
-          return {
-            ...item,
-            title: formTitle,
-            type: formType,
-            date: formDate,
-            timing: formTiming || "10:00 AM - 12:00 PM",
-            venue: formVenue || "Main Pool",
-            desc: formDesc
-          };
-        }
-        return item;
-      });
-      saveItems(updated);
-      setAlertMsg("Calendar item updated successfully!");
-    } else {
-      // Add
-      const newItem: CalendarItem = {
-        id: "c_" + Date.now(),
-        title: formTitle,
-        type: formType,
-        date: formDate,
-        timing: formTiming || "10:00 AM - 12:00 PM",
-        venue: formVenue || "Main Pool",
-        desc: formDesc
-      };
-      saveItems([...items, newItem]);
-      setSelectedDate(formDate); // Focus on newly added date
-      setAlertMsg("New calendar item scheduled!");
-    }
-
-    // Reset
-    setShowFormModal(false);
-    setEditingId(null);
-    setFormTitle("");
-    setFormTiming("");
-    setFormVenue("");
-    setFormDesc("");
-    setTimeout(() => setAlertMsg(null), 3000);
-  };
-
-  // Delete
-  const handleDeleteItem = (id: string) => {
-    if (!confirm("Are you sure you want to delete this calendar item?")) return;
-    const filtered = items.filter(i => i.id !== id);
-    saveItems(filtered);
-    setAlertMsg("Calendar item removed.");
-    setTimeout(() => setAlertMsg(null), 3000);
-  };
-
-  // Start edit
-  const handleStartEdit = (item: CalendarItem) => {
-    setEditingId(item.id);
-    setFormTitle(item.title);
-    setFormType(item.type);
-    setFormDate(item.date);
-    setFormTiming(item.timing);
-    setFormVenue(item.venue);
-    setFormDesc(item.desc);
-    setShowFormModal(true);
-  };
-
-  // Open add modal for a specific day
-  const handleOpenAddForDay = (dateStr: string) => {
-    setEditingId(null);
-    setFormTitle("");
-    setFormType("Competition");
-    setFormDate(dateStr);
-    setFormTiming("10:00 AM - 12:00 PM");
-    setFormVenue(isSwim ? "Main Olympic Pool" : "Main Turf Pitch");
-    setFormDesc("");
-    setShowFormModal(true);
-  };
-
-  // Calculations
-  const daysInMonth = getDaysInMonth(currentYear, currentMonth);
-  const firstDayIndex = getFirstDayOfMonth(currentYear, currentMonth);
-
-  // Generate blank spots for starting days of previous month
-  const calendarCells = [];
-  for (let i = 0; i < firstDayIndex; i++) {
-    calendarCells.push(null);
-  }
-  for (let d = 1; d <= daysInMonth; d++) {
-    calendarCells.push(d);
-  }
-
-  // Filter items matching filterType
-  const filteredItems = items.filter(item => {
-    if (filterType === "All") return true;
-    return item.type === filterType;
-  });
-
-  // Items on selected day
-  const selectedDayItems = items.filter(item => item.date === selectedDate);
-
-  // Type styling helpers
-  const getTypeColor = (type: CalendarItem["type"]) => {
-    switch (type) {
-      case "Competition": return "bg-red-500 text-white";
-      case "Holiday": return "bg-amber-500 text-slate-950";
-      case "Maintenance": return "bg-slate-700 text-white";
-      case "Workshop": return "bg-sky-500 text-white";
-      case "Specialized Training": return "bg-indigo-500 text-white";
-      default: return "bg-slate-400 text-white";
-    }
-  };
-
-  const getTypeDotColor = (type: CalendarItem["type"]) => {
-    switch (type) {
-      case "Competition": return "bg-red-500";
-      case "Holiday": return "bg-amber-400";
-      case "Maintenance": return "bg-slate-500";
-      case "Workshop": return "bg-sky-500";
-      case "Specialized Training": return "bg-indigo-500";
-      default: return "bg-slate-400";
-    }
-  };
-
-  // Styling
-  const bgCard = isSwim ? "bg-white border-slate-100 shadow-sm text-slate-800" : "bg-emerald-950/40 border-emerald-900/40 text-emerald-100";
-  const bgSubCard = isSwim ? "bg-slate-50 border border-slate-100" : "bg-emerald-900/10 border border-emerald-900/30";
-  const buttonPrimary = isSwim ? "bg-sky-500 hover:bg-sky-600 text-white" : "bg-amber-400 hover:bg-amber-500 text-slate-950";
+  const live = (items || []).filter((i) => i.status !== "Cancelled" && i.status !== "Draft");
+  const on = (day: string, list: Item[]) => list.filter((i) => i.date <= day && day <= i.endDate);
+  const festivalsOn = (day: string) => FESTIVALS.filter((f) => f.date <= day && day <= (f.endDate || f.date));
+  const monthItems = useMemo(() => (items || []).filter((i) => i.date.slice(0, 7) <= month && i.endDate.slice(0, 7) >= month), [items, month]);
+  const listed = selectedDay ? (items || []).filter((i) => i.date <= selectedDay && selectedDay <= i.endDate) : monthItems;
+  const monthName = first.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-300 text-left">
-      
-      {/* Title block */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="space-y-6 text-left">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-mono tracking-widest text-slate-400 uppercase">Calendar</span>
-            <Sparkles className="h-4 w-4 text-sky-500" />
+          <h2 className="font-display text-2xl font-bold tracking-[-0.02em] text-ink-950">Calendar</h2>
+          <p className="mt-1 text-sm text-ink-600">Events and pool closures. Members see these in their app.{canEdit ? "" : " Only admins can add or change them."}</p>
+        </div>
+        {canEdit && (
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setForm({ kind: "closure" })} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-ink-200 bg-white px-4 text-sm font-semibold text-ink-800 hover:bg-ink-50 cursor-pointer"><Plus className="h-4 w-4" />Pool closure</button>
+            <button type="button" onClick={() => setForm({ kind: "event" })} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-ink-950 px-4 text-sm font-semibold text-white hover:bg-ink-800 cursor-pointer"><Plus className="h-4 w-4" />Event</button>
           </div>
-          <h3 className="text-2xl font-extrabold mt-1 tracking-tight text-slate-900 dark:text-white">
-            Events & Holidays
-          </h3>
-          <p className="text-xs opacity-65 mt-0.5 max-w-2xl">
-            Track competitions, deep cleaning maintenance windows, public holidays, and specialized workshops. 
-            {isAdmin ? " Admins can add and edit entries." : " You can view entries here."}
-          </p>
-        </div>
-
-        {isAdmin && (
-          <button
-            onClick={() => {
-              setEditingId(null);
-              setFormTitle("");
-              setFormType("Competition");
-              setFormDate(`${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-01`);
-              setFormTiming("10:00 AM - 12:00 PM");
-              setFormVenue(isSwim ? "Main Olympic Pool" : "Main Turf Pitch");
-              setFormDesc("");
-              setShowFormModal(true);
-            }}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer transition-all ${buttonPrimary}`}
-          >
-            <Plus className="h-4 w-4" />
-            <span>Schedule New Event</span>
-          </button>
         )}
-      </div>
+      </header>
 
-      {alertMsg && (
-        <div className="p-4 rounded-xl bg-sky-500/10 border border-sky-500/20 text-xs text-sky-400 flex items-center gap-2 font-semibold">
-          <Check className="h-4 w-4 text-emerald-500" />
-          <span>{alertMsg}</span>
-        </div>
-      )}
+      {error && <p role="alert" className="flex items-center gap-2 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700"><AlertCircle className="h-4 w-4" />{error}</p>}
 
-      {/* FILTER DRAWER */}
-      <div className={`p-4 rounded-3xl border ${bgCard} flex flex-wrap items-center justify-between gap-4`}>
-        <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-sky-500" />
-          <span className="text-xs font-mono uppercase tracking-wider opacity-60">Filter Event Types:</span>
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {["All", "Competition", "Holiday", "Maintenance", "Workshop", "Specialized Training"].map((type) => (
-            <button
-              key={type}
-              onClick={() => setFilterType(type)}
-              className={`px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold cursor-pointer transition-all ${
-                filterType === type 
-                  ? isSwim ? "bg-sky-500 text-white" : "bg-amber-400 text-slate-950"
-                  : "bg-current/5 hover:bg-current/10"
-              }`}
-            >
-              {type.toUpperCase()}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        
-        {/* LEFT COLUMN: THE REAL CALENDAR GRID */}
-        <div className={`lg:col-span-8 p-6 md:p-8 rounded-3xl border ${bgCard} space-y-6`}>
-          
-          {/* Grid Header Controls */}
-          <div className="flex justify-between items-center">
-            <h4 className="text-base font-extrabold flex items-center gap-2">
-              <CalendarIcon className="h-5 w-5 text-sky-500" />
-              <span>{monthNames[currentMonth]} {currentYear}</span>
-            </h4>
-            <div className="flex gap-1 bg-current/5 p-1 rounded-xl">
-              <button
-                onClick={handlePrevMonth}
-                className="p-2 rounded-lg hover:bg-current/10 transition-colors cursor-pointer"
-                title="Previous Month"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <button
-                onClick={handleNextMonth}
-                className="p-2 rounded-lg hover:bg-current/10 transition-colors cursor-pointer"
-                title="Next Month"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+        <section className="rounded-2xl border border-ink-100 bg-white p-4 shadow-card sm:p-5">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold text-ink-950">{monthName}</h3>
+            <div className="flex gap-1.5">
+              <button type="button" onClick={() => { setMonth(today.slice(0, 7)); setSelectedDay(""); }} className="min-h-10 rounded-xl border border-ink-200 px-3 text-sm font-semibold text-ink-700 hover:bg-ink-50 cursor-pointer">Today</button>
+              <button type="button" aria-label="Previous month" onClick={() => shiftMonth(-1)} className="flex h-10 w-10 items-center justify-center rounded-xl border border-ink-200 hover:bg-ink-50 cursor-pointer"><ChevronLeft className="h-4 w-4" /></button>
+              <button type="button" aria-label="Next month" onClick={() => shiftMonth(1)} className="flex h-10 w-10 items-center justify-center rounded-xl border border-ink-200 hover:bg-ink-50 cursor-pointer"><ChevronRight className="h-4 w-4" /></button>
             </div>
           </div>
-
-          {/* Weekday Labels */}
-          <div className="grid grid-cols-7 gap-2 text-center text-[10px] font-mono font-extrabold opacity-60 uppercase tracking-widest border-b border-current/10 pb-2">
-            <div>Sun</div>
-            <div>Mon</div>
-            <div>Tue</div>
-            <div>Wed</div>
-            <div>Thu</div>
-            <div>Fri</div>
-            <div>Sat</div>
-          </div>
-
-          {/* Days Grid */}
-          <div className="grid grid-cols-7 gap-2">
-            {calendarCells.map((day, idx) => {
-              if (day === null) {
-                return <div key={`empty-${idx}`} className="aspect-square opacity-0" />;
-              }
-
-              // Compute YYYY-MM-DD
-              const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-              const isSelected = selectedDate === dateStr;
-
-              // Find items matching this day
-              const dayItems = filteredItems.filter(item => item.date === dateStr);
-
+          <div className="mt-4 grid grid-cols-7 gap-1 text-center text-xs font-semibold text-ink-400">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => <span key={d}>{d}</span>)}</div>
+          <div className="mt-1 grid grid-cols-7 gap-1">
+            {cells.map((day, i) => {
+              if (!day) return <span key={`b${i}`} />;
+              const closed = on(day, live.filter((x) => x.kind === "closure")).length > 0;
+              const ev = on(day, live.filter((x) => x.kind === "event")).length > 0;
+              const fest = festivalsOn(day).length > 0;
+              const sel = selectedDay === day;
               return (
-                <div
-                  key={`day-${day}`}
-                  onClick={() => setSelectedDate(dateStr)}
-                  className={`aspect-square p-2 rounded-2xl border transition-all cursor-pointer text-left flex flex-col justify-between relative group ${
-                    isSelected
-                      ? isSwim
-                        ? "border-sky-500 bg-sky-500/10 shadow-sm font-bold ring-1 ring-sky-400"
-                        : "border-amber-400 bg-amber-400/10 shadow-sm font-bold ring-1 ring-amber-400"
-                      : "bg-current/5 border-current/5 hover:border-current/20"
-                  }`}
-                >
-                  {/* Day Number */}
-                  <span className="text-xs">{day}</span>
-
-                  {/* Colored indicator dots for events */}
-                  <div className="flex flex-wrap gap-1 mt-1 max-h-[16px] overflow-hidden">
-                    {dayItems.map((item) => (
-                      <span
-                        key={item.id}
-                        className={`h-1.5 w-1.5 rounded-full ${getTypeDotColor(item.type)}`}
-                        title={item.title}
-                      />
-                    ))}
-                  </div>
-
-                  {/* Add hover shortcut for admin */}
-                  {isAdmin && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleOpenAddForDay(dateStr);
-                      }}
-                      className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 bg-sky-500 text-white p-0.5 rounded-md hover:bg-sky-600 transition-opacity cursor-pointer hidden sm:block"
-                      title="Quick Schedule"
-                    >
-                      <Plus className="h-3 w-3" />
-                    </button>
-                  )}
-                </div>
+                <button key={day} type="button" onClick={() => setSelectedDay(sel ? "" : day)} aria-pressed={sel}
+                  className={`flex aspect-square flex-col items-center justify-center rounded-xl text-sm cursor-pointer ${sel ? "bg-ink-950 text-white" : closed ? "bg-rose-50 text-rose-700" : day === today ? "ring-2 ring-aqua-400 text-ink-950" : "text-ink-800 hover:bg-ink-50"}`}>
+                  <span className="font-semibold">{Number(day.slice(8))}</span>
+                  <span className="mt-0.5 flex h-1.5 gap-0.5">{ev && <span className="h-1.5 w-1.5 rounded-full bg-aqua-500" />}{fest && <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />}</span>
+                </button>
               );
             })}
           </div>
-
-        </div>
-
-        {/* RIGHT COLUMN: DAY LOG DETAILS PANEL */}
-        <div className="lg:col-span-4 space-y-6">
-          <div className={`p-6 md:p-8 rounded-3xl border ${bgCard} space-y-5 text-left`}>
-            
-            <div className="border-b border-current/10 pb-3">
-              <span className="text-[10px] font-mono tracking-wider opacity-60 uppercase">SCHEDULED ITEMS ON</span>
-              <h4 className="text-sm font-extrabold text-sky-500 mt-0.5">
-                {new Date(selectedDate).toLocaleDateString("en-IN", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-              </h4>
-            </div>
-
-            <div className="space-y-4 max-h-[420px] overflow-y-auto pr-1">
-              {selectedDayItems.length > 0 ? (
-                selectedDayItems.map((item) => (
-                  <div key={item.id} className={`p-4 rounded-2xl ${bgSubCard} space-y-3 relative group`}>
-                    
-                    {/* Header badge & title */}
-                    <div className="flex justify-between items-start">
-                      <div className="space-y-1">
-                        <span className={`px-2 py-0.5 rounded text-[8.5px] font-mono font-extrabold uppercase ${getTypeColor(item.type)}`}>
-                          {item.type}
-                        </span>
-                        <h5 className="text-xs font-extrabold mt-1 text-slate-800 dark:text-slate-100">{item.title}</h5>
-                      </div>
-
-                      {/* Admin action buttons */}
-                      {isAdmin && (
-                        <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={() => handleStartEdit(item)}
-                            className="p-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-sky-500 transition-colors cursor-pointer"
-                            title="Edit Event"
-                          >
-                            <Edit3 className="h-3 w-3" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteItem(item.id)}
-                            className="p-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-red-500 transition-colors cursor-pointer"
-                            title="Delete Event"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    <p className="text-[10.5px] opacity-75 leading-relaxed">{item.desc}</p>
-
-                    {/* Metadata lines */}
-                    <div className="space-y-1 pt-1.5 border-t border-current/5 text-[9.5px] font-mono opacity-60">
-                      <div className="flex items-center gap-1.5">
-                        <Clock className="h-3.5 w-3.5 text-sky-500" />
-                        <span>Slot: {item.timing}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <MapPin className="h-3.5 w-3.5 text-indigo-500" />
-                        <span>Venue: {item.venue}</span>
-                      </div>
-                    </div>
-
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-12 opacity-50 font-light text-xs space-y-2">
-                  <Info className="h-5 w-5 mx-auto opacity-40 text-slate-400" />
-                  <p>No training closures or events are scheduled for this day.</p>
-                  {isAdmin && (
-                    <button
-                      onClick={() => handleOpenAddForDay(selectedDate)}
-                      className="text-[11px] font-bold text-sky-500 hover:underline cursor-pointer"
-                    >
-                      + Schedule an Item
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-
+          <div className="mt-4 flex flex-wrap gap-4 text-xs text-ink-500">
+            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded bg-rose-100 ring-1 ring-rose-300" />Pool closed</span>
+            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-aqua-500" />Event</span>
+            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-400" />Festival</span>
           </div>
-        </div>
+        </section>
 
+        <section className="overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-card">
+          <div className="flex items-center justify-between border-b border-ink-100 px-5 py-4">
+            <h3 className="text-base font-bold text-ink-950">{selectedDay ? niceDate(selectedDay) : `This month`}</h3>
+            {selectedDay && <button type="button" onClick={() => setSelectedDay("")} className="text-sm font-semibold text-aqua-600 cursor-pointer">Show month</button>}
+          </div>
+          {items === null ? (
+            <p className="flex items-center gap-2 px-5 py-8 text-sm text-ink-500"><LoaderCircle className="h-4 w-4 animate-spin" />Loading…</p>
+          ) : (
+            <ul className="divide-y divide-ink-100">
+              {(selectedDay ? festivalsOn(selectedDay) : FESTIVALS.filter((f) => f.date.slice(0, 7) === month)).map((f) => (
+                <li key={`f-${f.name}-${f.date}`} className="flex items-center gap-3 px-5 py-3 text-sm">
+                  <span className="w-20 shrink-0 text-xs text-ink-500">{niceDate(f.date).slice(0, -5)}</span>
+                  <span className="flex-1 text-ink-700">{f.name}</span><span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800">Festival</span>
+                </li>
+              ))}
+              {listed.map((i) => (
+                <li key={`${i.kind}-${i.id}`}>
+                  <button type="button" disabled={!canEdit} onClick={() => setForm({ kind: i.kind, item: i })} className="flex w-full items-start gap-3 px-5 py-3 text-left hover:bg-ink-50 disabled:cursor-default disabled:hover:bg-transparent cursor-pointer">
+                    <span className="w-20 shrink-0 pt-0.5 text-xs text-ink-500">{niceDate(i.date).slice(0, -5)}{i.endDate !== i.date ? ` – ${Number(i.endDate.slice(8))}` : ""}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className={`block text-sm font-semibold ${i.status === "Cancelled" ? "text-ink-400 line-through" : "text-ink-950"}`}>{i.title}</span>
+                      <span className="block text-xs text-ink-500">
+                        {i.kind === "event" ? [time12(i.startTime) && `${time12(i.startTime)} – ${time12(i.endTime)}`, i.location].filter(Boolean).join(" · ") : "Pool closed"}
+                        {i.applicableTo === "Selected Batches" ? " · Some batches" : ""}
+                      </span>
+                    </span>
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${i.status === "Cancelled" ? "bg-ink-50 text-ink-500" : i.status === "Draft" ? "bg-slate-100 text-slate-600" : i.kind === "closure" ? "bg-rose-50 text-rose-700" : "bg-aqua-400/10 text-aqua-600"}`}>
+                      {i.status === "Cancelled" ? "Cancelled" : i.status === "Draft" ? "Draft" : i.kind === "closure" ? "Closure" : "Event"}
+                    </span>
+                  </button>
+                </li>
+              ))}
+              {listed.length === 0 && (selectedDay ? festivalsOn(selectedDay) : FESTIVALS.filter((f) => f.date.slice(0, 7) === month)).length === 0 && (
+                <li className="px-5 py-10 text-center"><CalendarDays className="mx-auto h-6 w-6 text-ink-300" /><p className="mt-2 text-sm text-ink-500">Nothing on {selectedDay ? "this day" : "the calendar this month"}.</p></li>
+              )}
+            </ul>
+          )}
+        </section>
       </div>
 
-      {/* ADD/EDIT EVENT MODAL */}
-      {showFormModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-100 dark:border-slate-800 p-6 md:p-8 rounded-3xl shadow-2xl max-w-md w-full text-left space-y-5 animate-in zoom-in-95 duration-200">
-            <div>
-              <span className="text-[10px] font-mono uppercase tracking-widest text-sky-500 font-bold block">
-                {editingId ? "Edit Calendar Entry" : "Add Calendar Entry"}
-              </span>
-              <h3 className="text-lg font-black mt-0.5 text-slate-900 dark:text-white">
-                {editingId ? "Edit Scheduled Item" : "Schedule New Event"}
-              </h3>
-            </div>
-
-            <form onSubmit={handleFormSubmit} className="space-y-4">
-              <div className="space-y-3.5">
-                
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[9.5px] font-mono uppercase text-slate-500 dark:text-slate-400 font-bold tracking-wider">Event Name</label>
-                  <input
-                    type="text"
-                    value={formTitle}
-                    onChange={(e) => setFormTitle(e.target.value)}
-                    placeholder="e.g. Pool Maintenance Deep Clean"
-                    className="p-3 text-xs rounded-xl border bg-slate-50 border-slate-200 focus:outline-none dark:bg-slate-800/50 dark:border-slate-700/60 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500"
-                    required
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[9.5px] font-mono uppercase text-slate-500 dark:text-slate-400 font-bold tracking-wider">Category</label>
-                    <select
-                      value={formType}
-                      onChange={(e) => setFormType(e.target.value as any)}
-                      className="p-3 text-xs rounded-xl border bg-slate-50 border-slate-200 focus:outline-none dark:bg-slate-800/50 dark:border-slate-700/60 text-slate-900 dark:text-slate-100"
-                    >
-                      <option value="Competition" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Competition Gala</option>
-                      <option value="Holiday" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Academy Holiday</option>
-                      <option value="Maintenance" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Maintenance Window</option>
-                      <option value="Workshop" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Safety Workshop</option>
-                      <option value="Specialized Training" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Stroke Camp</option>
-                    </select>
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[9.5px] font-mono uppercase text-slate-500 dark:text-slate-400 font-bold tracking-wider">Scheduled Date</label>
-                    <input
-                      type="date"
-                      value={formDate}
-                      onChange={(e) => setFormDate(e.target.value)}
-                      className="p-3 text-xs rounded-xl border bg-slate-50 border-slate-200 focus:outline-none dark:bg-slate-800/50 dark:border-slate-700/60 text-slate-900 dark:text-slate-100"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[9.5px] font-mono uppercase text-slate-500 dark:text-slate-400 font-bold tracking-wider">Slot / Timing</label>
-                    <input
-                      type="text"
-                      value={formTiming}
-                      onChange={(e) => setFormTiming(e.target.value)}
-                      placeholder="e.g. 10:00 AM - 12:00 PM"
-                      className="p-3 text-xs rounded-xl border bg-slate-50 border-slate-200 focus:outline-none dark:bg-slate-800/50 dark:border-slate-700/60 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[9.5px] font-mono uppercase text-slate-500 dark:text-slate-400 font-bold tracking-wider">Venue</label>
-                    <input
-                      type="text"
-                      value={formVenue}
-                      onChange={(e) => setFormVenue(e.target.value)}
-                      placeholder="e.g. Main Pool"
-                      className="p-3 text-xs rounded-xl border bg-slate-50 border-slate-200 focus:outline-none dark:bg-slate-800/50 dark:border-slate-700/60 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[9.5px] font-mono uppercase text-slate-500 dark:text-slate-400 font-bold tracking-wider">Description Remarks</label>
-                  <textarea
-                    value={formDesc}
-                    onChange={(e) => setFormDesc(e.target.value)}
-                    placeholder="Provide description regarding closures, rules, entry pricing, age criteria, or guidelines..."
-                    className="p-3 text-xs rounded-xl border bg-slate-50 border-slate-200 focus:outline-none dark:bg-slate-800/50 dark:border-slate-700/60 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 h-20 resize-none"
-                  />
-                </div>
-
-              </div>
-
-              <div className="flex gap-2.5 justify-end pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowFormModal(false)}
-                  className="px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className={`px-4 py-2 text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer ${buttonPrimary}`}
-                >
-                  {editingId ? "Save Changes" : "Confirm Schedule"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
+      <AnimatePresence>
+        {form && <ItemForm kind={form.kind} item={form.item} batches={batches} headers={headers} onClose={() => setForm(null)} onSaved={() => { setForm(null); void load(); }} />}
+      </AnimatePresence>
     </div>
   );
 }
+
+function ItemForm({ kind, item, batches, headers, onClose, onSaved }: { kind: Kind; item?: Item; batches: any[]; headers: (json?: boolean) => Record<string, string>; onClose: () => void; onSaved: () => void }) {
+  const [title, setTitle] = useState(item?.title || "");
+  const [date, setDate] = useState(item?.date || todayIndia());
+  const [endDate, setEndDate] = useState(item && item.endDate !== item.date ? item.endDate : "");
+  const [start, setStart] = useState(String(item?.startTime || "07:00").slice(0, 5));
+  const [end, setEnd] = useState(String(item?.endTime || "08:00").slice(0, 5));
+  const [location, setLocation] = useState(item?.location || "Main pool");
+  const [description, setDescription] = useState(item?.description || "");
+  const [audience, setAudience] = useState(item?.applicableTo === "Selected Batches" ? "batches" : "all");
+  const [chosen, setChosen] = useState<string[]>(item?.batchIds || []);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const base = kind === "event" ? "/api/admin/events" : "/api/admin/holidays";
+
+  const send = async (url: string, method: string, body?: any) => {
+    const res = await fetch(url, { method, credentials: "same-origin", headers: headers(Boolean(body)), body: body ? JSON.stringify(body) : undefined });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "That didn't work. Please try again.");
+    return data;
+  };
+
+  const save = async () => {
+    if (!title.trim()) return setError(kind === "event" ? "Enter a title." : "Enter a reason, for example Diwali or Maintenance.");
+    if (kind === "event" && start >= end) return setError("The start time must be before the end time.");
+    if (audience === "batches" && chosen.length === 0) return setError("Choose at least one batch.");
+    setBusy(true); setError("");
+    const target = { applicable_to: audience === "batches" ? "Selected Batches" : "All Members", applicable_batch_ids: audience === "batches" ? chosen : [] };
+    const body = kind === "event"
+      ? { title: title.trim(), event_date: date, start_time: `${start}:00`, end_time: `${end}:00`, location, description, event_type: "Event", status: "Published", ...target }
+      : { name: title.trim(), holiday_date: date, end_date: endDate || null, announcement_message: description, description, status: "Active", facility_closed: true, ...target };
+    try {
+      await send(item ? `${base}/${item.id}` : base, item ? "PUT" : "POST", body);
+      onSaved();
+    } catch (e: any) { setError(e.message); } finally { setBusy(false); }
+  };
+
+  const remove = async () => {
+    if (!item) return;
+    setBusy(true); setError("");
+    try {
+      // The server only deletes cancelled items, so cancel first.
+      if (item.status !== "Cancelled") await send(`${base}/${item.id}`, "PUT", kind === "event" ? { status: "Cancelled" } : { status: "Cancelled" });
+      await send(`${base}/${item.id}`, "DELETE");
+      onSaved();
+    } catch (e: any) { setError(e.message); } finally { setBusy(false); }
+  };
+
+  const field = "mt-1.5 min-h-11 w-full rounded-xl border border-ink-200 bg-white px-3.5 text-[15px] text-ink-900 outline-none focus:border-aqua-400 focus-visible:ring-2 focus-visible:ring-aqua-400/30";
+  return (
+    <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label={kind === "event" ? "Event" : "Pool closure"}>
+      <motion.button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-ink-950/50" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} />
+      <motion.div className="relative flex max-h-[92dvh] w-full max-w-lg flex-col rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl" initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}>
+        <div className="flex items-start justify-between border-b border-ink-100 p-6 pb-4">
+          <div><p className="text-sm text-ink-500">{item ? "Edit" : "Add"}</p><h3 className="text-xl font-bold text-ink-950">{kind === "event" ? "Event" : "Pool closure"}</h3></div>
+          <button type="button" onClick={onClose} aria-label="Close" className="rounded-xl p-2 text-ink-400 hover:bg-ink-50 cursor-pointer"><X className="h-5 w-5" /></button>
+        </div>
+        <div className="flex-1 space-y-4 overflow-y-auto p-6">
+          <label className="block text-sm font-medium text-ink-700">{kind === "event" ? "Title" : "Reason"}<input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={kind === "event" ? "e.g. Diwali Splash Gala" : "e.g. Diwali, pool maintenance"} className={field} /></label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block text-sm font-medium text-ink-700">{kind === "event" ? "Date" : "From"}<input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={field} /></label>
+            {kind === "closure" ? (
+              <label className="block text-sm font-medium text-ink-700">Until (optional)<input type="date" min={date} value={endDate} onChange={(e) => setEndDate(e.target.value)} className={field} /></label>
+            ) : (
+              <label className="block text-sm font-medium text-ink-700">Place<input value={location} onChange={(e) => setLocation(e.target.value)} className={field} /></label>
+            )}
+          </div>
+          {kind === "event" && (
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block text-sm font-medium text-ink-700">Starts<input type="time" value={start} onChange={(e) => setStart(e.target.value)} className={field} /></label>
+              <label className="block text-sm font-medium text-ink-700">Ends<input type="time" value={end} onChange={(e) => setEnd(e.target.value)} className={field} /></label>
+            </div>
+          )}
+          <label className="block text-sm font-medium text-ink-700">{kind === "event" ? "Details" : "Message to members"}<textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} className={`${field} py-2.5`} /></label>
+          <div>
+            <span className="block text-sm font-medium text-ink-700">Who is it for?</span>
+            <div className="mt-1.5 grid grid-cols-2 gap-2">
+              {[["all", "All members"], ["batches", "Some batches"]].map(([v, l]) => (
+                <button key={v} type="button" aria-pressed={audience === v} onClick={() => setAudience(v)} className={`min-h-11 rounded-xl border text-sm font-semibold cursor-pointer ${audience === v ? "border-ink-900 bg-ink-900 text-white" : "border-ink-200 text-ink-700 hover:bg-ink-50"}`}>{l}</button>
+              ))}
+            </div>
+            {audience === "batches" && (
+              <div className="mt-2 space-y-1.5">
+                {batches.map((b) => (
+                  <label key={b.id} className="flex items-center gap-2.5 rounded-xl border border-ink-100 px-3 py-2.5 text-sm text-ink-800">
+                    <input type="checkbox" checked={chosen.includes(String(b.id))} onChange={(e) => setChosen((c) => e.target.checked ? [...c, String(b.id)] : c.filter((x) => x !== String(b.id)))} className="h-4 w-4 accent-ink-900" />
+                    {b.batch_name}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+          {error && <p role="alert" className="rounded-xl bg-rose-50 px-3.5 py-2.5 text-sm text-rose-700">{error}</p>}
+        </div>
+        <div className="flex gap-2 border-t border-ink-100 p-6 pt-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:pb-6">
+          {item && <button type="button" disabled={busy} onClick={() => void remove()} aria-label="Delete" className="flex min-h-12 w-12 items-center justify-center rounded-2xl border border-rose-200 text-rose-600 hover:bg-rose-50 cursor-pointer"><Trash2 className="h-5 w-5" /></button>}
+          <button type="button" disabled={busy} onClick={() => void save()} className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-ink-950 text-[15px] font-semibold text-white hover:bg-ink-800 disabled:opacity-70 cursor-pointer">
+            {busy && <LoaderCircle className="h-5 w-5 animate-spin" />}{item ? "Save" : kind === "event" ? "Add event" : "Add closure"}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
