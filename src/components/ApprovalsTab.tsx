@@ -221,7 +221,7 @@ export function ApprovalsTab({ members, onApprove, onReject, onDelete, academyId
   };
 
   return (
-    <div className="space-y-6 md:space-y-8 max-w-7xl mx-auto px-4 md:px-0 text-left">
+    <div className="space-y-6 text-left">
       {/* WHATSAPP TOAST NOTIFICATION */}
       <AnimatePresence>
         {whatsappToast && (
@@ -245,11 +245,10 @@ export function ApprovalsTab({ members, onApprove, onReject, onDelete, academyId
       </AnimatePresence>
 
       {/* HEADER SECTION */}
-      <div>
-        <span className="text-xs font-black tracking-widest text-sky-600 uppercase block mb-1">New registrations</span>
-        <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Registration Approvals</h1>
-        <p className="text-sm text-slate-500 font-medium mt-1">Check walk-in and online registrations. Approve to start their membership, or reject with a short reason.</p>
-      </div>
+      <header>
+        <h2 className="font-display text-2xl font-bold tracking-[-0.02em] text-ink-950">Approvals</h2>
+        <p className="mt-1 text-sm text-ink-600">Check walk-in and online registrations. Approve to send the payment link, or reject with a short reason.</p>
+      </header>
 
       {/* FILTER & SEARCH */}
       <div className="bg-white border border-slate-150 rounded-3xl p-4 md:p-6 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">

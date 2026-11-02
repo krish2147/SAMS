@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { 
   Database, FileText, CheckCircle, Search, Calendar, Sliders, 
-  ArrowDownCircle, Download, FileSpreadsheet, RefreshCw, Layers, Sparkles, PieChart as PieChartIcon, BarChart2, TrendingUp
+  ArrowDownCircle, Download, FileSpreadsheet, RefreshCw, Layers, PieChart as PieChartIcon, BarChart2, TrendingUp
 } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, LineChart, Line } from "recharts";
 import { formatCurrency } from "../utils/formatter";
@@ -395,30 +395,21 @@ export function ReportsTab({ isSwim, members, coaches, userRole = "admin" }: Rep
     <div className="space-y-8 animate-in fade-in duration-300 text-left">
       
       {/* Module Title */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-mono tracking-widest text-slate-400 uppercase">Reports</span>
-            <Sparkles className="h-4 w-4 text-sky-500" />
-          </div>
-          <h3 className="text-2xl font-extrabold mt-1 tracking-tight text-slate-900 dark:text-white">
-            Reports
-          </h3>
-          <p className="text-xs opacity-65 mt-0.5 max-w-2xl">
-            See members, renewals and fees collected, and download them as PDF or CSV. Figures are always up to date.
-          </p>
+          <h2 className="font-display text-2xl font-bold tracking-[-0.02em] text-ink-950">Reports</h2>
+          <p className="mt-1 max-w-2xl text-sm text-ink-600">See members, renewals and fees collected, and download them as PDF or CSV.</p>
         </div>
-
-        <button 
+        <button
+          type="button"
           onClick={loadAllReportData}
           disabled={isApiLoading}
-          className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-mono font-bold hover:bg-slate-800 transition-colors cursor-pointer"
+          className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-ink-200 bg-white px-4 text-sm font-semibold text-ink-800 hover:bg-ink-50 disabled:opacity-60 cursor-pointer"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${isApiLoading ? "animate-spin" : ""}`} />
-          <span>REFRESH FIGURES</span>
+          <RefreshCw className={`h-4 w-4 ${isApiLoading ? "animate-spin" : ""}`} />
+          Refresh
         </button>
-      </div>
-
+      </header>
       {successMsg && (
         <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-2 font-semibold">
           <CheckCircle className="h-4 w-4" />

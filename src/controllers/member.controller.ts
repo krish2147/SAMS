@@ -132,11 +132,23 @@ export class MemberController {
         const memberName = approved.fullName || approved.name || "Member";
 
         const paymentService = new PaymentService();
-        const paymentResult = await paymentService.sendApprovalPaymentLinkWhatsApp({
-          memberId: approved.id,
-          membershipNo: approved.membershipNo,
-          approvedBy: (req as any).user?.name || (req as any).user?.fullName || "Admin"
-        });
+        let paymentResult: any;
+        try {
+          paymentResult = await paymentService.sendApprovalPaymentLinkWhatsApp({
+            memberId: approved.id,
+            membershipNo: approved.membershipNo,
+            approvedBy: (req as any).user?.name || (req as any).user?.fullName || "Admin"
+          });
+        } catch (linkErr: any) {
+          // The approval itself is saved. Say so plainly instead of reporting the whole step as failed.
+          console.error("Payment link could not be created after approval:", linkErr?.message || linkErr);
+          return res.json({
+            success: true,
+            member: approved,
+            linkSent: false,
+            message: `${memberName} is approved, but the payment link couldn't be sent. Use Resend WhatsApp, or take the payment at the reception.`
+          });
+        }
 
         res.json({ 
           success: true, 

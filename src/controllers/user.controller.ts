@@ -91,10 +91,14 @@ export class UserController {
     }
   };
 
-  getAllStaff = async (req: Request, res: Response, next: NextFunction) => {
+  getAllStaff = async (req: any, res: Response, next: NextFunction) => {
     try {
       const staffList = await this.userService.getAllStaff();
-      res.json(staffList);
+      // The developer (support) account is only visible to another developer.
+      const visible = req.user?.role === "developer" || !Array.isArray(staffList)
+        ? staffList
+        : staffList.filter((s: any) => String(s?.role || "").toLowerCase() !== "developer");
+      res.json(visible);
     } catch (err) {
       next(err);
     }

@@ -323,40 +323,17 @@ export const CommunicationTab: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Top Header Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-sky-900 to-slate-900 text-white rounded-2xl p-6 shadow-xl relative overflow-hidden">
-        <div className="absolute right-0 top-0 bottom-0 opacity-10 pointer-events-none flex items-center pr-6">
-          <MessageSquare className="w-64 h-64 text-sky-400" />
+      {/* Header */}
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="font-display text-2xl font-bold tracking-[-0.02em] text-ink-950">Messages</h2>
+          <p className="mt-1 text-sm text-ink-600">WhatsApp, SMS and email sent to members, and announcements.</p>
         </div>
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 relative z-10">
-          <div>
-            <div className="flex items-center gap-2 text-sky-400 text-xs font-bold uppercase tracking-wider mb-1">
-              <Sparkles className="w-4 h-4" /> Messages
-            </div>
-            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Communication Center</h1>
-            <p className="text-slate-300 text-sm mt-1 max-w-xl">
-              Automatic and manual WhatsApp, SMS and email messages to Baroda Swim Front members.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={fetchLogsAndStats}
-              disabled={refreshing}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold backdrop-blur-md transition shadow"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
-              Refresh Data
-            </button>
-            <button
-              onClick={() => { setActiveTab("bulk"); setBulkFocusRequest(n => n + 1); }}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white text-xs font-bold transition shadow-lg shadow-sky-500/25"
-            >
-              <Send className="w-3.5 h-3.5" />
-              New Bulk Announcement
-            </button>
-          </div>
+        <div className="flex gap-2">
+          <button type="button" onClick={fetchLogsAndStats} disabled={refreshing} aria-label="Refresh" className="flex min-h-11 w-11 items-center justify-center rounded-xl border border-ink-200 bg-white text-ink-700 hover:bg-ink-50 cursor-pointer"><RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /></button>
+          <button type="button" onClick={() => { setActiveTab("bulk"); setBulkFocusRequest(n => n + 1); }} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-ink-950 px-4 text-sm font-semibold text-white hover:bg-ink-800 cursor-pointer"><Send className="h-4 w-4" />New announcement</button>
         </div>
-      </div>
+      </header>
 
       {/* Summary KPI Statistics Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
