@@ -145,7 +145,7 @@ export function MemberSupportPage({ onNavigate }: { onNavigate: (section: Member
       </SettingsGroup>
 
       <SettingsGroup heading="Follow us">
-        <SocialLinks className="mx-auto max-w-xs px-4 py-4" />
+        <SocialLinks className="px-4 py-4" />
       </SettingsGroup>
 
       <SettingsGroup heading="Opening hours">

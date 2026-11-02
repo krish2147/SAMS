@@ -139,7 +139,7 @@ export function AcademyExplore({ onOpenLogin, onOpenRegister }: AcademyExplorePr
             </div>
             <div className="border-t border-ink-100 pt-4">
               <p className="text-sm font-semibold text-ink-900">Follow us</p>
-              <SocialLinks className="mt-3 max-w-xs" />
+              <SocialLinks className="mt-3" />
             </div>
           </div>
         </div>
