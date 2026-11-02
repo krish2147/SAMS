@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, lazy, Suspense } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { 
   X, LogOut, RefreshCw, LayoutDashboard, Globe, 
@@ -9,16 +9,23 @@ import { Navbar } from "./components/Navbar";
 import { AcademyExplore } from "./components/AcademyExplore";
 import { LoginModal } from "./components/LoginModal";
 import { RegisterPage } from "./components/RegisterPage";
-import { PaymentCheckoutPage } from "./components/PaymentCheckoutPage";
 
 // Sub Dashboards
-import { ParentDashboard } from "./components/ParentDashboard";
-import { MemberDashboardShell } from "./components/MemberDashboardShell";
-import { AdminDashboard } from "./components/AdminDashboard";
 import { sessionStore } from "./utils/sessionStore";
 import { useRememberedState, clearRememberedViews } from "./utils/useRememberedState";
 import { InstallAppPrompt } from "./components/InstallAppPrompt";
 import { LogoutConfirmDialog } from "./components/LogoutConfirmDialog";
+
+const PaymentCheckoutPage = lazy(() => import("./components/PaymentCheckoutPage").then((m) => ({ default: m.PaymentCheckoutPage })));
+const ParentDashboard = lazy(() => import("./components/ParentDashboard").then((m) => ({ default: m.ParentDashboard })));
+const MemberDashboardShell = lazy(() => import("./components/MemberDashboardShell").then((m) => ({ default: m.MemberDashboardShell })));
+const AdminDashboard = lazy(() => import("./components/AdminDashboard").then((m) => ({ default: m.AdminDashboard })));
+
+const ScreenLoading = () => (
+  <div className="min-h-screen min-h-[100dvh] flex items-center justify-center bg-canvas">
+    <RefreshCw className="h-6 w-6 animate-spin text-aqua-500" aria-label="Loading" />
+  </div>
+);
 
 export default function App() {
   // Global States
@@ -157,8 +164,12 @@ export default function App() {
 
   // Helper renderer for dashboards
   const renderDashboard = () => {
+    const screen = renderDashboardScreen();
+    return screen ? <Suspense fallback={<ScreenLoading />}>{screen}</Suspense> : null;
+  };
+  const renderDashboardScreen = () => {
     if (!userSession) return null;
-    
+
     switch (userSession.role) {
       case "parent":
         return <ParentDashboard academyId={selectedAcademyId!} userName={userSession.name} />;
@@ -189,7 +200,7 @@ export default function App() {
 
   const paymentOrderId = new URLSearchParams(window.location.search).get("order_id");
   if (window.location.pathname === "/pay" && paymentOrderId) {
-    return <PaymentCheckoutPage orderId={paymentOrderId} />;
+    return <Suspense fallback={<ScreenLoading />}><PaymentCheckoutPage orderId={paymentOrderId} /></Suspense>;
   }
 
   if (isRestoringSession) {

@@ -27,6 +27,12 @@ const ymd = (v: any) => {
 const ids = (v: any): string[] => { try { const p = JSON.parse(String(v || "[]")); return Array.isArray(p) ? p.map(String) : []; } catch { return []; } };
 const time12 = (t?: string) => { const m = String(t || "").match(/^(\d{1,2}):(\d{2})/); if (!m) return ""; const h = Number(m[1]); return `${h % 12 || 12}:${m[2]} ${h >= 12 ? "PM" : "AM"}`; };
 const niceDate = (d: string) => { const [y, m, dd] = d.split("-").map(Number); return new Date(y, m - 1, dd).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" }); };
+const shortDate = (d: string) => { const [y, m, dd] = d.split("-").map(Number); return new Date(y, m - 1, dd).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" }); };
+const timeRange = (start?: string, end?: string) => {
+  // An all-day event (stored as 00:00 – 23:59) shows no time.
+  if (!time12(start) || (String(start).startsWith("00:00") && String(end).startsWith("23:59"))) return "";
+  return `${time12(start)} – ${time12(end)}`;
+};
 const todayIndia = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
 
 function toItems(data: any): Item[] {
@@ -142,20 +148,22 @@ export function CalendarTab({ userRole = "admin", getSessionToken }: CalendarTab
             <p className="flex items-center gap-2 px-5 py-8 text-sm text-ink-500"><LoaderCircle className="h-4 w-4 animate-spin" />Loading…</p>
           ) : (
             <ul className="divide-y divide-ink-100">
-              {(selectedDay ? festivalsOn(selectedDay) : FESTIVALS.filter((f) => f.date.slice(0, 7) === month)).map((f) => (
+              {[
+                ...(selectedDay ? festivalsOn(selectedDay) : FESTIVALS.filter((f) => f.date.slice(0, 7) === month)).map((f) => ({ date: f.date, festival: f, item: null as Item | null })),
+                ...listed.map((i) => ({ date: i.date, festival: null as (typeof FESTIVALS)[number] | null, item: i }))
+              ].sort((a, b) => a.date.localeCompare(b.date)).map(({ festival: f, item: i }) => f ? (
                 <li key={`f-${f.name}-${f.date}`} className="flex items-center gap-3 px-5 py-3 text-sm">
-                  <span className="w-20 shrink-0 text-xs text-ink-500">{niceDate(f.date).slice(0, -5)}</span>
+                  <span className="w-24 shrink-0 text-xs text-ink-500">{shortDate(f.date)}</span>
                   <span className="flex-1 text-ink-700">{f.name}</span><span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800">Festival</span>
                 </li>
-              ))}
-              {listed.map((i) => (
+              ) : i && (
                 <li key={`${i.kind}-${i.id}`}>
                   <button type="button" disabled={!canEdit} onClick={() => setForm({ kind: i.kind, item: i })} className="flex w-full items-start gap-3 px-5 py-3 text-left hover:bg-ink-50 disabled:cursor-default disabled:hover:bg-transparent cursor-pointer">
-                    <span className="w-20 shrink-0 pt-0.5 text-xs text-ink-500">{niceDate(i.date).slice(0, -5)}{i.endDate !== i.date ? ` – ${Number(i.endDate.slice(8))}` : ""}</span>
+                    <span className="w-24 shrink-0 pt-0.5 text-xs text-ink-500">{shortDate(i.date)}{i.endDate !== i.date ? ` – ${Number(i.endDate.slice(8))}` : ""}</span>
                     <span className="min-w-0 flex-1">
                       <span className={`block text-sm font-semibold ${i.status === "Cancelled" ? "text-ink-400 line-through" : "text-ink-950"}`}>{i.title}</span>
                       <span className="block text-xs text-ink-500">
-                        {i.kind === "event" ? [time12(i.startTime) && `${time12(i.startTime)} – ${time12(i.endTime)}`, i.location].filter(Boolean).join(" · ") : "Pool closed"}
+                        {i.kind === "event" ? [timeRange(i.startTime, i.endTime), i.location].filter(Boolean).join(" · ") : "Pool closed"}
                         {i.applicableTo === "Selected Batches" ? " · Some batches" : ""}
                       </span>
                     </span>
