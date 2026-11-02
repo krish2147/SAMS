@@ -69,15 +69,15 @@ export function AcademyExplore({ onOpenLogin, onOpenRegister }: AcademyExplorePr
               <LogIn className="h-5 w-5" /> Login
             </button>
           </div>
-          <dl className="mx-auto mt-10 grid max-w-2xl grid-cols-3 gap-2 text-left sm:gap-4">
+          <dl className="mx-auto mt-10 grid max-w-2xl grid-cols-3 gap-2 text-center sm:gap-4">
             {[
               ["Morning", morning ? `${to12h(morning[0])} – ${to12h(morning[1])}` : "—"],
               ["Evening", evening ? `${to12h(evening[0])} – ${to12h(evening[1])}` : "—"],
               ["Days", "Mon – Sat"]
             ].map(([label, value]) => (
-              <div key={label} className="min-w-0 rounded-2xl border border-white/15 bg-white/5 px-2.5 py-3 backdrop-blur sm:px-4">
+              <div key={label} className="min-w-0 rounded-2xl border border-white/15 bg-white/5 px-2 py-3 backdrop-blur sm:px-4">
                 <dt className="text-xs text-white/60">{label}</dt>
-                <dd className="mt-0.5 whitespace-nowrap text-[13px] font-semibold tracking-[-0.01em] sm:text-base">{value}</dd>
+                <dd className="mt-0.5 whitespace-nowrap text-[clamp(11.5px,3.5vw,15px)] font-semibold tracking-[-0.01em] sm:text-base">{value}</dd>
               </div>
             ))}
           </dl>

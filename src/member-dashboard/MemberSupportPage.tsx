@@ -17,7 +17,7 @@ export const ACADEMY_CONTACT = {
   // Google Maps embed of the academy's listing (no API key needed).
   mapEmbedUrl: "https://www.google.com/maps/embed?origin=mfe&pb=!1m3!2m1!1sBaroda+Swim+Front,+Aark+International+School,+Vadodara!6i16",
   // Monday = 1 … Sunday = 0. Times are 24-hour, India time.
-  sessions: [["06:00", "09:00"], ["16:00", "20:00"]] as Array<[string, string]>,
+  sessions: [["06:00", "09:00"], ["16:00", "21:00"]] as Array<[string, string]>,
   closedDays: [0]
 };
 
