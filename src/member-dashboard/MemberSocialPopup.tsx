@@ -1,14 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Facebook, Instagram, X } from "lucide-react";
+import { X } from "lucide-react";
 import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-logo";
 
-// The academy's own social pages (from their public Instagram and Facebook profiles).
-export const ACADEMY_SOCIAL = {
-  instagramHandle: "@barodaswimfront",
-  instagramUrl: "https://www.instagram.com/barodaswimfront/",
-  facebookUrl: "https://www.facebook.com/profile.php?id=100090741057985"
-};
+import { SocialLinks } from "../components/SocialLinks";
+export { ACADEMY_SOCIAL } from "./academy-social";
 
 // Shown once each time a member signs in (a new browser session), inviting them to follow the
 // academy. Closing it, or tapping a link, hides it until their next sign-in.
@@ -63,15 +59,8 @@ export function MemberSocialPopup({ open, onClose }: { open: boolean; onClose: (
             <h2 id="social-popup-title" className="mt-4 text-xl font-bold tracking-[-0.01em] text-slate-950">Join us on Instagram and Facebook</h2>
             <p className="mt-1.5 text-sm leading-6 text-slate-600">Follow Baroda Swim Front for batch updates, events, holidays and photos from the pool.</p>
 
-            <div className="mt-5 space-y-2.5">
-              <a href={ACADEMY_SOCIAL.instagramUrl} target="_blank" rel="noreferrer" onClick={onClose}
-                className="flex min-h-12 w-full items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-[#f58529] via-[#dd2a7b] to-[#8134af] text-[15px] font-semibold text-white hover:opacity-95">
-                <Instagram className="h-5 w-5" /> Follow {ACADEMY_SOCIAL.instagramHandle}
-              </a>
-              <a href={ACADEMY_SOCIAL.facebookUrl} target="_blank" rel="noreferrer" onClick={onClose}
-                className="flex min-h-12 w-full items-center justify-center gap-2.5 rounded-2xl bg-[#1877f2] text-[15px] font-semibold text-white hover:bg-[#166fe0]">
-                <Facebook className="h-5 w-5" /> Like us on Facebook
-              </a>
+            <div className="mt-5 space-y-3">
+              <SocialLinks onLinkClick={onClose} className="pb-1" />
               <button type="button" onClick={onClose} className="min-h-11 w-full rounded-2xl text-sm font-semibold text-slate-500 hover:bg-slate-50 cursor-pointer">
                 Maybe later
               </button>

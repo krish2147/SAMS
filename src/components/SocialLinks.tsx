@@ -1,6 +1,6 @@
 import React from "react";
 import { Facebook, Instagram } from "lucide-react";
-import { ACADEMY_SOCIAL } from "../member-dashboard/MemberSocialPopup";
+import { ACADEMY_SOCIAL } from "../member-dashboard/academy-social";
 
 // "Follow us" links side by side, styled as pills with a brand-coloured blob icon overlapping one end,
 // alternating sides: Facebook on the left, Instagram on the right.
@@ -17,9 +17,10 @@ interface RowProps {
   icon: React.ReactNode;
   badgeStyle: React.CSSProperties;
   dotStyle: React.CSSProperties;
+  onClick?: () => void;
 }
 
-function SocialRow({ href, label, handle, side, icon, badgeStyle, dotStyle }: RowProps) {
+function SocialRow({ href, label, handle, side, icon, badgeStyle, dotStyle, onClick }: RowProps) {
   const badge = (
     <span aria-hidden="true" className="relative z-10 flex h-11 w-11 shrink-0 sm:h-12 sm:w-12 items-center justify-center text-white shadow-lg ring-[3px] ring-white transition-transform group-hover:scale-105" style={badgeStyle}>
       {icon}
@@ -27,7 +28,7 @@ function SocialRow({ href, label, handle, side, icon, badgeStyle, dotStyle }: Ro
   );
   const dot = <span aria-hidden="true" className="hidden h-2.5 w-2.5 shrink-0 rounded-full min-[400px]:block" style={dotStyle} />;
   return (
-    <a href={href} target="_blank" rel="noreferrer" aria-label={label} className={`group flex min-w-0 items-center ${side === "right" ? "flex-row-reverse" : ""}`}>
+    <a href={href} target="_blank" rel="noreferrer" aria-label={label} onClick={onClick} className={`group flex min-w-0 items-center ${side === "right" ? "flex-row-reverse" : ""}`}>
       {badge}
       <span className={`flex h-9 min-w-0 flex-1 items-center justify-between gap-1.5 border border-ink-100 bg-white shadow-card transition-colors group-hover:border-ink-200 ${
         side === "left" ? "-ml-3 rounded-r-full pl-4 pr-2.5" : "-mr-3 flex-row-reverse rounded-l-full pl-2.5 pr-4"
@@ -39,7 +40,7 @@ function SocialRow({ href, label, handle, side, icon, badgeStyle, dotStyle }: Ro
   );
 }
 
-export function SocialLinks({ className = "" }: { className?: string }) {
+export function SocialLinks({ className = "", onLinkClick }: { className?: string; onLinkClick?: () => void }) {
   return (
     <div className={`grid grid-cols-2 gap-2.5 ${className}`}>
       <SocialRow
@@ -50,6 +51,7 @@ export function SocialLinks({ className = "" }: { className?: string }) {
         icon={<Facebook className="h-5 w-5" fill="currentColor" strokeWidth={0} />}
         badgeStyle={{ background: "#1877f2", borderRadius: BLOB_A }}
         dotStyle={{ background: "#1877f2" }}
+        onClick={onLinkClick}
       />
       <SocialRow
         href={ACADEMY_SOCIAL.instagramUrl}
@@ -59,6 +61,7 @@ export function SocialLinks({ className = "" }: { className?: string }) {
         icon={<Instagram className="h-5 w-5" strokeWidth={2.25} />}
         badgeStyle={{ background: IG_GRADIENT, borderRadius: BLOB_B }}
         dotStyle={{ background: IG_GRADIENT }}
+        onClick={onLinkClick}
       />
     </div>
   );
