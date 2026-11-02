@@ -56,7 +56,7 @@ async function buildFeed(pool: any, role: string): Promise<FeedItem[]> {
   if (seesOffice) {
     for (const m of await rows(pool,
       `SELECT id, fullName, created_at FROM members
-       WHERE registration_status = 'Pending' AND created_at >= NOW() - INTERVAL 30 DAY
+       WHERE registration_status = 'Pending' AND deleted_at IS NULL AND created_at >= NOW() - INTERVAL 30 DAY
        ORDER BY created_at DESC LIMIT 25`)) {
       items.push({
         id: `reg:${m.id}`, type: "registration", title: "New registration",
@@ -78,7 +78,7 @@ async function buildFeed(pool: any, role: string): Promise<FeedItem[]> {
 
     const [due] = await rows(pool,
       `SELECT COUNT(*) AS n FROM members
-       WHERE membership_end_date BETWEEN CURDATE() AND CURDATE() + INTERVAL 7 DAY`);
+       WHERE deleted_at IS NULL AND membership_end_date BETWEEN CURDATE() AND CURDATE() + INTERVAL 7 DAY`);
     if (due && Number(due.n) > 0) {
       const n = Number(due.n);
       const today = new Date().toISOString().slice(0, 10);

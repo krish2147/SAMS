@@ -8,6 +8,7 @@ import { resolveRegistrationPlan } from "../utils/membership-plan-catalog";
 import { normalizeIndianMobile } from "../utils/phone";
 import { addCalendarDays, calendarDaysBetween } from "../utils/membership-date";
 import { indiaToday } from "./renewal-reminder.service";
+import { MemberDeletionService, type ArchiveMemberActor, type ArchiveMemberOptions } from "./member-deletion.service";
 
 const memberError = (message: string, status = 400) => Object.assign(new Error(message), { status });
 
@@ -472,7 +473,17 @@ export class MemberService {
     return updated;
   }
 
-  async deleteMember(membershipNo: string): Promise<boolean> {
+  /**
+   * With an actor (an admin deleting from Members), the member is archived: hidden everywhere while
+   * their payments and invoices are kept. Without one (clearing rejected applications), the
+   * application row is removed.
+   */
+  async deleteMember(membershipNo: string, actor?: ArchiveMemberActor, options: ArchiveMemberOptions = {}): Promise<any> {
+    if (actor) {
+      const result = await new MemberDeletionService().archiveMember(membershipNo, actor, options);
+      if (result.releasedBatchId) await this.batchRepository.updateStrengthAndStatus(result.releasedBatchId);
+      return result;
+    }
     const member = await this.memberRepository.getByMembershipNo(membershipNo);
     const success = await this.memberRepository.delete(membershipNo);
     if (success && member && member.selected_batch_id) {
@@ -481,13 +492,22 @@ export class MemberService {
     return success;
   }
 
-  async deleteMultipleMembers(membershipNos: string[]): Promise<boolean> {
+  /**
+   * Clears applications that never became members (pending or rejected, never paid). Anyone who was
+   * approved or has paid is skipped; they can only be removed (archived) by an admin from Members.
+   * Returns how many were removed and how many were skipped.
+   */
+  async deleteMultipleMembers(membershipNos: string[]): Promise<{ removed: number; skipped: number }> {
+    let removed = 0, skipped = 0;
     for (const no of membershipNos) {
-      if (no) {
-        await this.deleteMember(no);
-      }
+      if (!no) continue;
+      const m = await this.memberRepository.getByMembershipNo(no);
+      const reg = m?.registration_status || m?.status || "";
+      const neverMember = m && reg !== "Approved" && m.payment_status !== "Paid" && !m.endDate;
+      if (!neverMember) { skipped += 1; continue; }
+      if (await this.deleteMember(no)) removed += 1;
     }
-    return true;
+    return { removed, skipped };
   }
 
   async deleteAllRejectedMembers(academyId?: string): Promise<boolean> {
@@ -496,7 +516,7 @@ export class MemberService {
     const rejected = allMembers.filter((m: any) => {
       const rStatus = m.registration_status || m.status || "";
       const mAcad = (m.academyId || academyId || "swim").toLowerCase();
-      return (rStatus === "Rejected" || m.admin_approval === "Rejected") && mAcad === curAcademy;
+      return (rStatus === "Rejected" || m.admin_approval === "Rejected") && mAcad === curAcademy && m.payment_status !== "Paid" && !m.endDate;
     });
     for (const m of rejected) {
       if (m.membershipNo) {
@@ -602,7 +622,7 @@ export class MemberService {
   async resumeDuePauses(): Promise<number> {
     const pool = await getDbPool();
     const [rows]: any = await pool.query(
-      "SELECT membershipNo FROM members WHERE membership_status = 'Suspended' AND paused_on IS NOT NULL AND pause_until IS NOT NULL AND pause_until <= ?",
+      "SELECT membershipNo FROM members WHERE membership_status = 'Suspended' AND deleted_at IS NULL AND paused_on IS NOT NULL AND pause_until IS NOT NULL AND pause_until <= ?",
       [indiaToday()]
     );
     let resumed = 0;

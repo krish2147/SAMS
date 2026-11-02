@@ -8,6 +8,8 @@ import { persistUploadedFile } from "../services/object-storage.service";
 /** Name of the signed-in staff member, for the activity log. */
 const actorOf = (req: Request) => String((req as any).user?.name || "Admin");
 
+import { MemberDeletionError } from "../services/member-deletion.service";
+
 export class MemberController {
   private memberService = new MemberService();
 
@@ -253,16 +255,24 @@ export class MemberController {
     }
   };
 
+  // Deleting a member archives them: they disappear from lists, logins and messages, while their
+  // payments and invoices stay for the accounts. The request must carry confirmation "DELETE", and
+  // an active membership must be acknowledged explicitly.
   delete = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { membershipNo } = req.params;
-      const success = await this.memberService.deleteMember(membershipNo);
-      if (success) {
-        res.json({ success: true });
-      } else {
-        res.status(404).json({ error: "Member not found" });
+      if (req.body?.confirmation !== "DELETE") {
+        return res.status(400).json({ error: "Confirm the deletion first.", code: "DELETE_CONFIRMATION_REQUIRED" });
       }
-    } catch (err) {
+      const user = (req as any).user || {};
+      const result = await this.memberService.deleteMember(
+        membershipNo,
+        { userId: String(user.userId || ""), name: String(user.name || "Admin"), role: String(user.role || ""), academyId: String(user.academyId || "swim") },
+        { acknowledgeActiveMembership: req.body?.acknowledgeActiveMembership === true }
+      );
+      res.json({ success: true, archived: result });
+    } catch (err: any) {
+      if (err instanceof MemberDeletionError) return res.status(err.status).json({ error: err.message, code: err.code });
       next(err);
     }
   };
@@ -275,8 +285,13 @@ export class MemberController {
         return res.json({ success: true, message: "All rejected applications deleted successfully." });
       }
       if (Array.isArray(membershipNos) && membershipNos.length > 0) {
-        await this.memberService.deleteMultipleMembers(membershipNos);
-        return res.json({ success: true, message: "Selected applications deleted successfully." });
+        const { removed, skipped } = await this.memberService.deleteMultipleMembers(membershipNos);
+        return res.json({
+          success: true, removed, skipped,
+          message: skipped
+            ? `${removed} application${removed === 1 ? "" : "s"} deleted. ${skipped} skipped because they were approved or paid; remove those from Members.`
+            : "Selected applications deleted successfully."
+        });
       }
       res.status(400).json({ error: "No applications specified for deletion." });
     } catch (err) {
@@ -479,7 +494,7 @@ export class MemberController {
         .trim();
 
       const [rows]: any = await pool.query(
-        "SELECT * FROM members WHERE membershipNo = ? OR id = ? OR applicationNumber = ? OR mobileNo = ? LIMIT 1",
+        "SELECT * FROM members WHERE (membershipNo = ? OR id = ? OR applicationNumber = ? OR mobileNo = ?) AND deleted_at IS NULL LIMIT 1",
         [extractedMembershipNo, extractedMembershipNo, extractedMembershipNo, extractedMembershipNo]
       );
 
@@ -673,7 +688,7 @@ export class MemberController {
 
       // 1. Verify member exists
       const [memberRows]: any = await pool.query(
-        "SELECT * FROM members WHERE id = ? OR membershipNo = ? LIMIT 1",
+        "SELECT * FROM members WHERE (id = ? OR membershipNo = ?) AND deleted_at IS NULL LIMIT 1",
         [memberId, memberId]
       );
       if (!memberRows || memberRows.length === 0) {

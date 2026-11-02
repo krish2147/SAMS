@@ -249,7 +249,7 @@ export class UserController {
 
         // 4. Pending payments count from members
         const [pendingResult]: any = await pool.query(
-          "SELECT COUNT(*) as count FROM members WHERE payment_status = 'Pending'"
+          "SELECT COUNT(*) as count FROM members WHERE payment_status = 'Pending' AND deleted_at IS NULL"
         );
         const pendingPayments = Number(pendingResult[0]?.count || 0);
 
@@ -273,7 +273,7 @@ export class UserController {
 
         // 8. Approved but payment pending
         const [approvedPendingResult]: any = await pool.query(
-          "SELECT COUNT(*) as count FROM members WHERE registration_status = 'Approved' AND payment_status = 'Pending'"
+          "SELECT COUNT(*) as count FROM members WHERE registration_status = 'Approved' AND payment_status = 'Pending' AND deleted_at IS NULL"
         );
         const approvedPendingCount = Number(approvedPendingResult[0]?.count || 0);
 
@@ -423,7 +423,7 @@ export class UserController {
          FROM members m
          LEFT JOIN membership_plans p ON m.membership_plan_id = p.id
          LEFT JOIN batches b ON m.selected_batch_id = b.id
-         WHERE m.academyId = ?`,
+         WHERE m.academyId = ? AND m.deleted_at IS NULL`,
         [academyId]
       );
 

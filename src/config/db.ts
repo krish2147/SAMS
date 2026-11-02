@@ -225,6 +225,11 @@ const statements = cleanedSql
       "ALTER TABLE members ADD COLUMN pause_until DATE NULL",
       // Coaches' notes about a swimmer, kept apart from remarks (which hold the rejection reason).
       "ALTER TABLE members ADD COLUMN coach_notes TEXT NULL",
+      // Archived (deleted) members: hidden everywhere, but their payments and invoices are kept.
+      "ALTER TABLE members ADD COLUMN deleted_at TIMESTAMP NULL DEFAULT NULL",
+      "ALTER TABLE members ADD COLUMN deleted_by VARCHAR(100) NULL",
+      "ALTER TABLE members ADD COLUMN archived_mobile_no VARCHAR(15) NULL",
+      "ALTER TABLE member_batches ADD COLUMN removed_at TIMESTAMP NULL DEFAULT NULL",
       // Shared calendar (Admin > Calendar): publish state and who an event or pool closure is for.
       "ALTER TABLE events ADD COLUMN event_type VARCHAR(50) NULL",
       "ALTER TABLE events ADD COLUMN image_url VARCHAR(500) NULL",

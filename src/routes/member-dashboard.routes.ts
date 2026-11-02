@@ -51,7 +51,7 @@ async function getAuthenticatedMember(req: any): Promise<any> {
   // 1. Try search by numeric id first
   if (/^\d+$/.test(idOrNo)) {
     const [rows]: any = await pool.query(
-      `${MEMBER_SELECT} WHERE m.id = ? LIMIT 1`,
+      `${MEMBER_SELECT} WHERE m.id = ? AND m.deleted_at IS NULL LIMIT 1`,
       [parseInt(idOrNo, 10)]
     );
     if (rows && rows.length > 0) return rows[0];
@@ -59,7 +59,7 @@ async function getAuthenticatedMember(req: any): Promise<any> {
 
   // 2. Try search by membershipNo
   const [rowsByNo]: any = await pool.query(
-    `${MEMBER_SELECT} WHERE m.membershipNo = ? LIMIT 1`,
+    `${MEMBER_SELECT} WHERE m.membershipNo = ? AND m.deleted_at IS NULL LIMIT 1`,
     [idOrNo]
   );
   if (rowsByNo && rowsByNo.length > 0) return rowsByNo[0];

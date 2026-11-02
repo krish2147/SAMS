@@ -624,8 +624,23 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
   };
 
   // Delete Member Handler
-  const handleDeleteMember = (membershipNo: string) => {
-    handleDeleteMemberBatch([membershipNo]);
+  // Removes (archives) one member. Returns an error message, or null when it worked.
+  const handleDeleteMember = async (membershipNo: string, acknowledgeActiveMembership = false): Promise<string | null> => {
+    const token = getSessionToken();
+    try {
+      const res = await fetch(`/api/members/${encodeURIComponent(membershipNo)}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", ...(token ? { "x-session-token": token } : {}) },
+        body: JSON.stringify({ confirmation: "DELETE", acknowledgeActiveMembership })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return data.error || "The member could not be removed.";
+      setMembers(prev => prev.filter(m => m.membershipNo !== membershipNo));
+      if (selectedMember?.membershipNo === membershipNo) setSelectedMember(null);
+      return null;
+    } catch {
+      return "The member could not be removed. Check your internet connection and try again.";
+    }
   };
 
   // Delete Member / Batch Delete Handler
@@ -642,11 +657,6 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
             ...(token ? { "x-session-token": token } : {})
           },
           body: JSON.stringify({ deleteAllRejected: true, academyId })
-        });
-      } else if (membershipNos.length === 1) {
-        await fetch(`/api/members/${membershipNos[0]}`, {
-          method: "DELETE",
-          headers: token ? { "x-session-token": token } : {}
         });
       } else {
         await fetch(`/api/members/delete-batch`, {

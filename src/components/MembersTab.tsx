@@ -19,7 +19,7 @@ interface MembersTabProps {
   onApprove: (membershipNo: string) => Promise<void> | void;
   onReject: (membershipNo: string) => void;
   onSendPaymentLink: (membershipNo: string, mobileNo?: string) => Promise<void> | void;
-  onDelete: (membershipNo: string) => void;
+  onDelete: (membershipNo: string, acknowledgeActiveMembership: boolean) => Promise<string | null> | void;
   onRegister: () => void;
   onRenew: () => void;
   onChanged: () => void;
@@ -96,6 +96,7 @@ export function MembersTab({
   const [notes, setNotes] = useState("");
   const [notesSaved, setNotesSaved] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [ackActive, setAckActive] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState("");
 
@@ -537,17 +538,31 @@ export function MembersTab({
 
                   {canDelete && (confirmDelete ? (
                     <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3">
-                      <p className="text-sm text-rose-800">Delete {selected.fullName} and their records? This can't be undone.</p>
+                      <p className="text-sm text-rose-800">Remove {selected.fullName}? They disappear from members, logins and messages. Their payments and invoices are kept for your accounts.</p>
+                      {selected.membership_status === "Active" && (
+                        <label className="mt-2 flex items-start gap-2 text-sm text-rose-900">
+                          <input type="checkbox" checked={ackActive} onChange={(e) => setAckActive(e.target.checked)} className="mt-0.5 h-4 w-4 accent-rose-600" />
+                          I understand this member has an active membership until {formatDate(selected.endDate)}.
+                        </label>
+                      )}
                       <div className="mt-2 grid grid-cols-2 gap-2">
-                        <button type="button" onClick={() => setConfirmDelete(false)} className="min-h-10 rounded-xl bg-white text-sm font-semibold text-ink-700 ring-1 ring-ink-200 cursor-pointer">Keep</button>
-                        <button type="button" onClick={() => { const no = selected.membershipNo; setSelectedNo(null); setConfirmDelete(false); onDelete(no); }}
-                          className="min-h-10 rounded-xl bg-rose-600 text-sm font-semibold text-white hover:bg-rose-700 cursor-pointer">Delete</button>
+                        <button type="button" onClick={() => { setConfirmDelete(false); setAckActive(false); }} className="min-h-10 rounded-xl bg-white text-sm font-semibold text-ink-700 ring-1 ring-ink-200 cursor-pointer">Keep</button>
+                        <button type="button" disabled={(selected.membership_status === "Active" && !ackActive) || !!busy}
+                          onClick={async () => {
+                            const no = selected.membershipNo; const name = selected.fullName;
+                            setBusy("save"); setError("");
+                            const problem = await onDelete(no, ackActive);
+                            setBusy("");
+                            if (problem) { setError(problem); return; }
+                            setSelectedNo(null); setConfirmDelete(false); setAckActive(false); setDone(`${name} was removed. Their payments and invoices are kept.`);
+                          }}
+                          className="min-h-10 rounded-xl bg-rose-600 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-50 cursor-pointer">Remove member</button>
                       </div>
                     </div>
                   ) : (
                     <button type="button" onClick={() => setConfirmDelete(true)}
                       className="flex min-h-10 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold text-rose-600 hover:bg-rose-50 cursor-pointer">
-                      <Trash2 className="h-4 w-4" /> Delete member
+                      <Trash2 className="h-4 w-4" /> Remove member
                     </button>
                   ))}
                 </div>
