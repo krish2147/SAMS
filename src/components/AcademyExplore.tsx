@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { ArrowRight, Clock, Facebook, Instagram, LogIn, MapPin, Navigation, Phone, UserPlus, Users, Waves } from "lucide-react";
+import { ArrowRight, Clock, LogIn, MapPin, Navigation, Phone, UserPlus, Users, Waves } from "lucide-react";
 import { AcademyId } from "../types";
 import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-logo";
 import { ACADEMY_CONTACT } from "../member-dashboard/MemberSupportPage";
-import { ACADEMY_SOCIAL } from "../member-dashboard/MemberSocialPopup";
+import { SocialLinks } from "./SocialLinks";
 
 // The public home page of Baroda Swim Front: what the academy offers, when the pool is open, what
 // it costs, where it is, and the two actions that matter (register, sign in). Prices come from the
@@ -139,10 +139,7 @@ export function AcademyExplore({ onOpenLogin, onOpenRegister }: AcademyExplorePr
             </div>
             <div className="border-t border-ink-100 pt-4">
               <p className="text-sm font-semibold text-ink-900">Follow us</p>
-              <div className="mt-2 flex gap-2">
-                <a href={ACADEMY_SOCIAL.instagramUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-ink-200 px-3 text-sm font-semibold text-ink-800 hover:bg-ink-50"><Instagram className="h-4 w-4" />{ACADEMY_SOCIAL.instagramHandle}</a>
-                <a href={ACADEMY_SOCIAL.facebookUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-ink-200 px-3 text-sm font-semibold text-ink-800 hover:bg-ink-50"><Facebook className="h-4 w-4" />Facebook</a>
-              </div>
+              <SocialLinks className="mt-3" />
             </div>
           </div>
         </div>
