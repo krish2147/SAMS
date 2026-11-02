@@ -15,7 +15,7 @@ export const ACADEMY_CONTACT = {
   address: "Baroda Swim Front, Aark International School, beside Vasna–Bhayli Main Rd, behind Adventura, near Priya Cinema, Vadodara, Gujarat 391101",
   mapsUrl: "https://maps.app.goo.gl/RpAvS2juSqnszx9Q6",
   // Google Maps embed of the academy's listing (no API key needed).
-  mapEmbedUrl: "https://www.google.com/maps/embed?origin=mfe&pb=!1m3!2m1!1sBaroda+Swim+Front,+Aark+International+School,+Vadodara!6i16",
+  mapEmbedUrl: "https://www.google.com/maps/embed?origin=mfe&pb=!1m4!2m1!1sBaroda+Swim+Front,+Aark+International+School,+Vadodara!5e1!6i17",
   // Monday = 1 … Sunday = 0. Times are 24-hour, India time.
   sessions: [["06:00", "09:00"], ["16:00", "21:00"]] as Array<[string, string]>,
   closedDays: [0]
