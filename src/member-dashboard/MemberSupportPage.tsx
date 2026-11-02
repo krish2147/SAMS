@@ -12,7 +12,7 @@ import type { MemberSection } from "./member-navigation";
 export const ACADEMY_CONTACT = {
   phoneDisplay: "+91 93132 41071",
   phoneTel: "+919313241071",
-  address: "Aark International School, beside Vasna–Bhayli Main Rd, behind Adventura, near Priya Cinema, Vadodara, Gujarat 391101",
+  address: "Baroda Swim Front, Aark International School, beside Vasna–Bhayli Main Rd, behind Adventura, near Priya Cinema, Vadodara, Gujarat 391101",
   mapsUrl: "https://maps.app.goo.gl/RpAvS2juSqnszx9Q6",
   // Google Maps embed of the academy's listing (no API key needed).
   mapEmbedUrl: "https://www.google.com/maps/embed?origin=mfe&pb=!1m3!2m1!1sBaroda+Swim+Front,+Aark+International+School,+Vadodara!6i16",
