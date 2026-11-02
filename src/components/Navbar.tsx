@@ -132,14 +132,9 @@ export function Navbar({
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={() => onSelectAcademy(null)} className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold opacity-80 hover:bg-current/10 hover:opacity-100 cursor-pointer">
-              <ArrowLeftRight className="h-4 w-4" />Switch academy
-            </button>
-            <button type="button" onClick={onOpenLogin} className="rounded-xl border border-current/30 px-4 py-2 text-sm font-semibold hover:bg-current/10 cursor-pointer">
-              Login
-            </button>
-          </div>
+          <button type="button" onClick={() => onSelectAcademy(null)} className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold opacity-80 hover:bg-current/10 hover:opacity-100 cursor-pointer">
+            <ArrowLeftRight className="h-4 w-4" />Switch academy
+          </button>
         )}
       </div>
 
@@ -147,12 +142,6 @@ export function Navbar({
       <div className="md:hidden flex items-center gap-3">
         {userSession && (
           <span className="text-xs font-medium truncate max-w-[100px]">{userSession.name}</span>
-        )}
-        {!userSession && !isRegisterPageActive && (
-          <button type="button" onClick={onOpenLogin}
-            className="rounded-xl border border-current/30 px-3.5 py-2 text-sm font-semibold hover:bg-current/10 cursor-pointer">
-            Login
-          </button>
         )}
         {!userSession && isRegisterPageActive ? null : (
           <button
