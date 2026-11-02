@@ -6,7 +6,9 @@ import {
 } from "lucide-react";
 import { AcademyId, UserSession } from "./types";
 import { Navbar } from "./components/Navbar";
+import { AcademySelector } from "./components/AcademySelector";
 import { AcademyExplore } from "./components/AcademyExplore";
+import { CricketExplore } from "./components/CricketExplore";
 import { LoginModal } from "./components/LoginModal";
 import { RegisterPage } from "./components/RegisterPage";
 
@@ -29,8 +31,9 @@ const ScreenLoading = () => (
 
 export default function App() {
   // Global States
-  // SAMS serves one academy, Baroda Swim Front, so the site opens straight on it.
-  const [selectedAcademyId, setSelectedAcademyId] = useState<AcademyId | null>("swim");
+  const [selectedAcademyId, setSelectedAcademyId] = useState<AcademyId | null>(null);
+  // Baroda Swim Front has its own home page; the cricket academy keeps its original page.
+  const ExplorePage = selectedAcademyId === "cricket" ? CricketExplore : AcademyExplore;
   const [userSession, setUserSession] = useState<UserSession | null>(null);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isRegisterPageActive, setIsRegisterPageActive] = useRememberedState("app.register", false);
@@ -43,7 +46,7 @@ export default function App() {
     const savedAcademy = localStorage.getItem("sams_academy");
     const savedSessionStr = sessionStore.get();
     
-    if (savedAcademy !== "swim") localStorage.setItem("sams_academy", "swim");
+    if (savedAcademy) setSelectedAcademyId(savedAcademy as AcademyId);
     if (!savedSessionStr) {
       // No login survives (browser was closed without "Keep me logged in", or data was cleared),
       // so drop any profile copies left behind by the last person.
@@ -101,11 +104,16 @@ export default function App() {
     }
   }, []);
 
-  // Only one academy: "choosing" it just returns to the home page.
-  const handleSelectAcademy = (_id: AcademyId | null) => {
-    setSelectedAcademyId("swim");
+  const handleSelectAcademy = (id: AcademyId | null) => {
+    setSelectedAcademyId(id);
     setIsRegisterPageActive(false);
-    localStorage.setItem("sams_academy", "swim");
+    if (id) {
+      localStorage.setItem("sams_academy", id);
+    } else {
+      localStorage.removeItem("sams_academy");
+      // Going back to the academy picker signs out, so nobody stays logged in to the wrong academy.
+      handleLogout();
+    }
   };
 
   const handleLoginSuccess = (session: UserSession) => {
@@ -229,7 +237,18 @@ export default function App() {
 
       {/* 2. Main Orchestrator */}
       <AnimatePresence mode="wait">
-        {isRegisterPageActive ? (
+        {!selectedAcademyId ? (
+          /* ACADEMY PICKER */
+          <motion.div
+            key="selector"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <AcademySelector onSelectAcademy={handleSelectAcademy} />
+          </motion.div>
+        ) : isRegisterPageActive ? (
           /* DEDICATED FULL-PAGE REGISTRATION FORM */
           <motion.div
             key={`register-${selectedAcademyId}`}
@@ -351,7 +370,7 @@ export default function App() {
                         exit={{ opacity: 0, y: -10, filter: "blur(6px)" }}
                         transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
                       >
-                        <AcademyExplore 
+                        <ExplorePage 
                           academyId={selectedAcademyId} 
                           onOpenLogin={() => setIsLoginOpen(true)}
                           onOpenRegister={() => setIsRegisterPageActive(true)}
@@ -365,7 +384,7 @@ export default function App() {
               )
             ) : (
               /* Public exploration if not logged in */
-              <AcademyExplore 
+              <ExplorePage 
                 academyId={selectedAcademyId} 
                 onOpenLogin={() => setIsLoginOpen(true)}
                 onOpenRegister={() => setIsRegisterPageActive(true)}
