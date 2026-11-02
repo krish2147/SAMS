@@ -137,7 +137,7 @@ export function Navbar({
               <ArrowLeftRight className="h-4 w-4" />Switch academy
             </button>
             <button type="button" onClick={onOpenLogin} className="rounded-xl border border-current/30 px-4 py-2 text-sm font-semibold hover:bg-current/10 cursor-pointer">
-              Member sign in
+              Login
             </button>
           </div>
         )}
@@ -151,7 +151,7 @@ export function Navbar({
         {!userSession && !isRegisterPageActive && (
           <button type="button" onClick={onOpenLogin}
             className="rounded-xl border border-current/30 px-3.5 py-2 text-sm font-semibold hover:bg-current/10 cursor-pointer">
-            Sign in
+            Login
           </button>
         )}
         {!userSession && isRegisterPageActive ? null : (

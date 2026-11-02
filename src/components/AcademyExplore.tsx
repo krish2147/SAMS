@@ -66,7 +66,7 @@ export function AcademyExplore({ onOpenLogin, onOpenRegister }: AcademyExplorePr
               <UserPlus className="h-5 w-5" /> Register now
             </button>
             <button id="btn-explore-login" type="button" onClick={onOpenLogin} className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-2xl border border-white/30 bg-white/10 text-[15px] font-semibold text-white backdrop-blur hover:bg-white/20 cursor-pointer">
-              <LogIn className="h-5 w-5" /> Member sign in
+              <LogIn className="h-5 w-5" /> Login
             </button>
           </div>
           <dl className="mx-auto mt-10 grid max-w-2xl grid-cols-3 gap-2 text-left sm:gap-4">
