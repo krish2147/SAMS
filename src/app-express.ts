@@ -7,6 +7,8 @@ import { getDbPool, isMockDatabase } from "./config/db";
 import { getObject, objectStorageEnabled } from "./services/object-storage.service";
 
 const app = express();
+// Don't advertise the server framework.
+app.disable("x-powered-by");
 
 const configuredOrigins = (process.env.ALLOWED_ORIGINS || process.env.APP_URL || process.env.APP_BASE_URL || "")
   .split(",")
@@ -27,6 +29,14 @@ app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  // HTTPS only from now on (the site is served over HTTPS in production), and a policy that blocks
+  // plugins, other sites framing SAMS, and changes to the page's base URL. Scripts, styles and
+  // frames (Razorpay, Google Maps) are not restricted here, so nothing the app uses can break.
+  if (process.env.NODE_ENV === "production") {
+    res.setHeader("Strict-Transport-Security", "max-age=15552000; includeSubDomains");
+  }
+  res.setHeader("Content-Security-Policy", "frame-ancestors 'none'; object-src 'none'; base-uri 'self'");
+  res.setHeader("Permissions-Policy", "camera=(self), microphone=(), geolocation=(), payment=(self \"https://checkout.razorpay.com\" \"https://api.razorpay.com\")");
   if (req.method === "OPTIONS") {
     res.sendStatus(200);
     return;

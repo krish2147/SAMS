@@ -22,7 +22,7 @@ export class AnalyticsService {
     let renewals: any[] = [];
 
     try {
-      const [mRows]: any = await pool.query("SELECT * FROM members");
+      const [mRows]: any = await pool.query("SELECT * FROM members WHERE deleted_at IS NULL");
       members = Array.isArray(mRows) ? mRows : [];
     } catch (e) {
       console.error("Analytics: Error fetching members:", e);
@@ -437,7 +437,7 @@ export class AnalyticsService {
 
     try {
       const [mRows]: any = await pool.query(
-        "SELECT id, membershipNo, fullName, email, mobileNo, registration_status, membership_status, photoUrl FROM members WHERE fullName LIKE ? OR membershipNo LIKE ? OR mobileNo LIKE ? OR email LIKE ? OR applicationNumber LIKE ? LIMIT 10",
+        "SELECT id, membershipNo, fullName, email, mobileNo, registration_status, membership_status, photoUrl FROM members WHERE deleted_at IS NULL AND (fullName LIKE ? OR membershipNo LIKE ? OR mobileNo LIKE ? OR email LIKE ? OR applicationNumber LIKE ?) LIMIT 10",
         [term, term, term, term, term]
       );
       members = Array.isArray(mRows) ? mRows : [];

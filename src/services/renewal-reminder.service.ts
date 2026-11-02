@@ -77,7 +77,7 @@ export async function sendDueRenewalReminders(now = new Date()): Promise<number>
     `SELECT m.id, m.fullName, m.membershipNo, m.mobileNo, m.email, m.membership_end_date, b.batch_name, b.start_time, b.end_time
      FROM members m
      LEFT JOIN batches b ON m.selected_batch_id = b.id
-     WHERE m.membership_status = 'Active'
+     WHERE m.membership_status = 'Active' AND m.deleted_at IS NULL
        AND m.membership_end_date BETWEEN ? AND DATE_ADD(?, INTERVAL 3 DAY)`,
     [today, today]
   );

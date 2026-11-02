@@ -323,7 +323,7 @@ export function generateProfessionalHTMLEmail(
 }
 
 // 4. MULTI-CHANNEL DISPATCHERS (WHATSAPP, MSG91 SMS, EMAIL)
-export async function sendWhatsAppMessage(toMobile: string, content: string, templateName?: string): Promise<{ success: boolean; response: string }> {
+export async function sendWhatsAppMessage(toMobile: string, content: string, templateName?: string): Promise<{ success: boolean; response: string; skipped?: boolean }> {
   try {
     const rawNumber = toMobile.replace(/[^0-9]/g, "");
     const formattedNumber = rawNumber.startsWith("91") ? rawNumber : `91${rawNumber}`;
@@ -370,12 +370,12 @@ export async function sendWhatsAppMessage(toMobile: string, content: string, tem
             }
           })
         });
-        const msg91Data = await msg91Res.json();
-        if (msg91Res.ok) {
-          return { success: true, response: JSON.stringify(msg91Data) };
-        }
+        const msg91Data = await msg91Res.json().catch(() => ({}));
+        const rejected = !msg91Res.ok || msg91Data?.hasError === true || String(msg91Data?.status || "").toLowerCase() === "fail";
+        if (!rejected) return { success: true, response: JSON.stringify(msg91Data) };
+        return { success: false, response: `MSG91 rejected the message: ${JSON.stringify(msg91Data).slice(0, 400)}` };
       } catch (e: any) {
-        console.warn("MSG91 WhatsApp API request notice:", e.message);
+        return { success: false, response: `MSG91 WhatsApp request failed: ${e.message}` };
       }
     }
 
@@ -397,23 +397,18 @@ export async function sendWhatsAppMessage(toMobile: string, content: string, tem
           text: { body: content }
         })
       });
-      const data = await res.json();
-      if (res.ok) {
-        return { success: true, response: JSON.stringify(data) };
-      }
+      const data = await res.json().catch(() => ({}));
+      return { success: res.ok, response: JSON.stringify(data).slice(0, 400) };
     }
 
-    // Fallback simulation log when running in sandbox/staging environment
-    return { 
-      success: true, 
-      response: `[WhatsApp Gateway Active] Dispatched to ${toMobile} via ${msg91IntegratedNumber ? `MSG91 (${msg91IntegratedNumber})` : "WhatsApp Cloud API"}. Template: ${whatsappTemplateName}` 
-    };
+    // No WhatsApp provider configured: nothing was sent, and it must not be reported as delivered.
+    return { success: false, skipped: true, response: "WhatsApp is not set up, so this message was not sent." };
   } catch (err: any) {
     return { success: false, response: err.message || "WhatsApp dispatch error" };
   }
 }
 
-export async function sendSMSMSG91(toMobile: string, content: string): Promise<{ success: boolean; response: string }> {
+export async function sendSMSMSG91(toMobile: string, content: string): Promise<{ success: boolean; response: string; skipped?: boolean }> {
   try {
     const authKey = process.env.MSG91_AUTHKEY || process.env.MSG91_AUTH_KEY;
     const senderId = process.env.MSG91_SENDER_ID || "BARSWF";
@@ -431,14 +426,11 @@ export async function sendSMSMSG91(toMobile: string, content: string): Promise<{
           content: content
         })
       });
-      const data = await res.json();
-      return { success: res.ok, response: JSON.stringify(data) };
+      const data = await res.json().catch(() => ({}));
+      const rejected = !res.ok || data?.type === "error" || data?.hasError === true;
+      return { success: !rejected, response: JSON.stringify(data).slice(0, 400) };
     }
-    // Fallback simulation log
-    return { 
-      success: true, 
-      response: `[MSG91 SMS Gateway Simulated] Dispatched to ${toMobile} via Sender ID: ${senderId}` 
-    };
+    return { success: false, skipped: true, response: "SMS is not set up, so this message was not sent." };
   } catch (err: any) {
     return { success: false, response: err.message || "MSG91 SMS error" };
   }
@@ -450,7 +442,7 @@ export async function sendHTMLEmail(
   subject: string, 
   bodyHtml: string,
   attachments?: Array<{ filename: string; path?: string; content?: any; contentType?: string }>
-): Promise<{ success: boolean; response: string }> {
+): Promise<{ success: boolean; response: string; skipped?: boolean }> {
   try {
     const host = process.env.SMTP_HOST;
     const user = process.env.SMTP_USER;
@@ -482,10 +474,7 @@ export async function sendHTMLEmail(
       return { success: true, response: `SMTP Delivered: ${info.messageId}` };
     }
 
-    return { 
-      success: true, 
-      response: `[BSF HTML Mailer Simulated] Dispatched to ${toEmail}. Subject: ${subject}` 
-    };
+    return { success: false, skipped: true, response: "Email is not set up, so this message was not sent." };
   } catch (err: any) {
     return { success: false, response: err.message || "Email transport error" };
   }
@@ -542,13 +531,13 @@ export async function sendEventNotification(
 
   if (recipient.mobileNo && enabledChannels.includes("whatsapp")) {
     const waRes = await sendWhatsAppMessage(recipient.mobileNo, whatsappTxt, template.whatsapp_template_name);
-    waStatus = waRes.success ? "Delivered" : "Failed";
+    waStatus = waRes.skipped ? "N/A" : waRes.success ? "Delivered" : "Failed";
     waResp = waRes.response;
   }
 
   if (recipient.mobileNo && enabledChannels.includes("sms")) {
     const smsRes = await sendSMSMSG91(recipient.mobileNo, smsTxt);
-    smsStatus = smsRes.success ? "Delivered" : "Failed";
+    smsStatus = smsRes.skipped ? "N/A" : smsRes.success ? "Delivered" : "Failed";
     smsResp = smsRes.response;
   }
 
@@ -560,13 +549,13 @@ export async function sendEventNotification(
       emailBody, 
       customVariables.attachments
     );
-    emailStatus = emailRes.success ? "Delivered" : "Failed";
+    emailStatus = emailRes.skipped ? "N/A" : emailRes.success ? "Delivered" : "Failed";
     emailResp = emailRes.response;
   }
 
-  const overallStatus = (waStatus === "Failed" || smsStatus === "Failed" || emailStatus === "Failed")
-    ? "Failed"
-    : "Delivered";
+  // Delivered only if at least one channel actually went out and none failed.
+  const statuses = [waStatus, smsStatus, emailStatus];
+  const overallStatus = statuses.includes("Failed") || !statuses.includes("Delivered") ? "Failed" : "Delivered";
 
   const logRecord: CommunicationLog = {
     member_id: recipient.id || null,
@@ -649,7 +638,7 @@ export const BULK_AUDIENCES = ["active", "all", "expiring", "ended", "pending_pa
 
 /** Member columns used for announcement recipients. */
 const MEMBER_RECIPIENT = "SELECT id, fullName AS memberName, mobileNo, email FROM members";
-const ACADEMY_MEMBERS = "(academyId = ? OR academyId IS NULL)";
+const ACADEMY_MEMBERS = "(academyId = ? OR academyId IS NULL) AND deleted_at IS NULL";
 
 /** The SQL and parameters for an audience, or null if the audience is unknown. */
 export function bulkAudienceQuery(targetGroup: string, academyId: string): { sql: string; params: any[] } | null {

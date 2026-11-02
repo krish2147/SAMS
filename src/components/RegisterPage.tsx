@@ -643,7 +643,7 @@ export function RegisterPage({ academyId, onCancel, embedded = false, walkIn = f
               <div className="absolute inset-0 opacity-30" style={{ background: "radial-gradient(120% 80% at 100% 0%, #16a9c4 0%, transparent 60%)" }} />
               <div className="relative">
                 <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-aqua-500/20 text-aqua-300"><Check className="h-7 w-7" strokeWidth={3} /></span>
-                <h1 className="mt-5 font-display text-[28px] font-bold leading-tight tracking-[-0.02em]">You're all set, {submitted.fullName.split(/\s+/)[0]}.</h1>
+                <h1 className="mt-5 font-display text-[28px] font-bold leading-tight tracking-[-0.02em]">Application sent, {submitted.fullName.split(/\s+/)[0]}.</h1>
                 <p className="mt-2 text-[15px] text-ink-200">Your application has reached {academyName}.</p>
                 {submitted.applicationNumber && (
                   <p className="mt-5 inline-flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-1.5 font-mono text-[13px] text-white">

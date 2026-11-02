@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, lazy, Suspense } from "react";
 import { accessRole, roleLabel } from "../utils/roles";
 import { MIN_PASSWORD_LENGTH } from "../utils/password";
 import { motion, AnimatePresence } from "motion/react";
@@ -17,17 +17,12 @@ import { BatchManagementTab } from "./BatchManagementTab";
 import { RenewalsTab } from "./RenewalsTab";
 import { MembersTab } from "./MembersTab";
 import { GuestsTab } from "./GuestsTab";
-import { ReportsTab } from "./ReportsTab";
 import { ActivityTab } from "./ActivityTab";
-import { PaymentsTab } from "./PaymentsTab";
 import { ApprovalsTab } from "./ApprovalsTab";
 import { BARODA_SWIM_FRONT_LOGO_DATA_URI } from "../assets/baroda-swim-front-logo";
 import { SettingsTab } from "./SettingsTab";
 import { NotificationDrawer } from "./NotificationDrawer";
 import { SideMenuDrawer } from "./SideMenuDrawer";
-import { CalendarTab } from "./CalendarTab";
-import { CommunicationTab } from "./CommunicationTab";
-import { AnalyticsDashboard } from "./AnalyticsDashboard";
 import { CommandPaletteModal } from "./CommandPaletteModal";
 import { RegisterPage } from "./RegisterPage";
 import { DailyClosingReportModal } from "./DailyClosingReportModal";
@@ -37,6 +32,16 @@ import { useStaffNotifications } from "../utils/useStaffNotifications";
 import { NotificationCountBadge } from "./NotificationCountBadge";
 import { PasswordInput } from "./PasswordInput";
 import { mobileDigits } from "../utils/phone";
+
+const ReportsTab = lazy(() => import("./ReportsTab").then((m) => ({ default: m.ReportsTab })));
+const AnalyticsDashboard = lazy(() => import("./AnalyticsDashboard").then((m) => ({ default: m.AnalyticsDashboard })));
+const PaymentsTab = lazy(() => import("./PaymentsTab").then((m) => ({ default: m.PaymentsTab })));
+const CommunicationTab = lazy(() => import("./CommunicationTab").then((m) => ({ default: m.CommunicationTab })));
+const CalendarTab = lazy(() => import("./CalendarTab").then((m) => ({ default: m.CalendarTab })));
+
+const TabLoading = () => (
+  <div className="flex items-center justify-center py-24 text-ink-400" role="status"><RefreshCw className="h-6 w-6 animate-spin" aria-label="Loading" /></div>
+);
 
 
 
@@ -624,8 +629,23 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
   };
 
   // Delete Member Handler
-  const handleDeleteMember = (membershipNo: string) => {
-    handleDeleteMemberBatch([membershipNo]);
+  // Removes (archives) one member. Returns an error message, or null when it worked.
+  const handleDeleteMember = async (membershipNo: string, acknowledgeActiveMembership = false): Promise<string | null> => {
+    const token = getSessionToken();
+    try {
+      const res = await fetch(`/api/members/${encodeURIComponent(membershipNo)}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", ...(token ? { "x-session-token": token } : {}) },
+        body: JSON.stringify({ confirmation: "DELETE", acknowledgeActiveMembership })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return data.error || "The member could not be removed.";
+      setMembers(prev => prev.filter(m => m.membershipNo !== membershipNo));
+      if (selectedMember?.membershipNo === membershipNo) setSelectedMember(null);
+      return null;
+    } catch {
+      return "The member could not be removed. Check your internet connection and try again.";
+    }
   };
 
   // Delete Member / Batch Delete Handler
@@ -642,11 +662,6 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
             ...(token ? { "x-session-token": token } : {})
           },
           body: JSON.stringify({ deleteAllRejected: true, academyId })
-        });
-      } else if (membershipNos.length === 1) {
-        await fetch(`/api/members/${membershipNos[0]}`, {
-          method: "DELETE",
-          headers: token ? { "x-session-token": token } : {}
         });
       } else {
         await fetch(`/api/members/delete-batch`, {
@@ -1009,6 +1024,8 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
                   settings={settings}
                   userRole={accessRole(activeUser.role)}
                   userName={activeUser.name}
+                  getSessionToken={getSessionToken}
+                  onSendPaymentLink={handleSendWhatsAppPaymentLink}
                   onNavigate={setActiveTab}
                   onOpenAddMember={() => { setActiveTab("register"); setSelectedMember(null); }}
                 />
@@ -1567,27 +1584,27 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
 
         {/* TAB: REPORTS */}
         {activeTab === "reports" && (
-          <ReportsTab
+          <Suspense fallback={<TabLoading />}><ReportsTab
             isSwim={isSwim}
             members={members}
             coaches={coachesList}
             userRole={accessRole(activeUser.role)}
-          />
+          /></Suspense>
         )}
 
         {/* TAB: EXECUTIVE ANALYTICS DASHBOARD */}
         {activeTab === "analytics" && (
-          <AnalyticsDashboard />
+          <Suspense fallback={<TabLoading />}><AnalyticsDashboard /></Suspense>
         )}
 
         {/* TAB: REVENUE (ADMIN ONLY) */}
         {(activeTab === "revenue" || activeTab === "payments") && (
-          <PaymentsTab getSessionToken={getSessionToken} userRole={accessRole(activeUser.role)} username={activeUser.name} />
+          <Suspense fallback={<TabLoading />}><PaymentsTab getSessionToken={getSessionToken} userRole={accessRole(activeUser.role)} username={activeUser.name} /></Suspense>
         )}
 
         {/* TAB: COMMUNICATION CENTER */}
         {activeTab === "communication" && (
-          <CommunicationTab />
+          <Suspense fallback={<TabLoading />}><CommunicationTab /></Suspense>
         )}
 
         {/* TAB: REGISTER NEW MEMBER */}
@@ -1612,7 +1629,7 @@ export function AdminDashboard({ academyId, userName, userRole = "admin", onLogo
 
         {/* TAB: SAMS UNIFIED CALENDAR / EVENTS / HOLIDAYS */}
         {(activeTab === "calendar" || activeTab === "events" || activeTab === "holidays") && (
-          <CalendarTab isSwim={isSwim} userRole={accessRole(activeUser.role)} />
+          <Suspense fallback={<TabLoading />}><CalendarTab isSwim={isSwim} userRole={accessRole(activeUser.role)} getSessionToken={getSessionToken} /></Suspense>
         )}
 
         {/* TAB: SYSTEM SETTINGS */}

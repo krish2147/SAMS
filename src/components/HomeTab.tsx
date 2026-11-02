@@ -1,449 +1,204 @@
-import React, { useEffect, useState } from "react";
-import { SystemHealthMonitor } from "./SystemHealthMonitor";
-import { 
-  ShieldCheck, 
-  Users, 
-  RefreshCw, 
-  IndianRupee, 
-  Calendar, 
-  Sparkles, 
-  AlertTriangle, 
-  Database,
-  ArrowRight,
-  UserPlus
-} from "lucide-react";
-import { formatCurrency } from "../utils/formatter";
+import React, { useEffect, useMemo, useState } from "react";
+import { CalendarDays, CheckCircle2, ChevronRight, Clock3, IndianRupee, LoaderCircle, MessageCircle, RefreshCw, ShieldCheck, UserPlus, Users } from "lucide-react";
 
-const formatDateToIndian = (dateStr?: string) => {
-  if (!dateStr) return "";
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) return dateStr;
-  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (match) {
-    return `${match[3]}/${match[2]}/${match[1]}`;
-  }
-  try {
-    const d = new Date(dateStr);
-    if (!isNaN(d.getTime())) {
-      const dd = String(d.getDate()).padStart(2, '0');
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const yyyy = d.getFullYear();
-      return `${dd}/${mm}/${yyyy}`;
-    }
-  } catch (e) {}
-  return dateStr;
-};
+// Staff home for every role. Admins and reception get a to-do list (applications to approve,
+// approved members who haven't paid with a one-tap reminder, memberships ending soon); admins also
+// see today's collections; coaches see their batches with the swimmers in each. Everyone sees
+// today's pool sessions and what's coming up on the calendar. All figures are live.
 
 interface HomeTabProps {
-  isSwim: boolean;
   members: any[];
-  coachesCount: number;
-  eventsCount: number;
-  events: any[];
-  holidays: any[];
-  settings: any;
   userRole?: string;
   userName?: string;
+  getSessionToken?: () => string;
   onNavigate: (tabId: string) => void;
   onOpenAddMember: () => void;
+  onSendPaymentLink?: (membershipNo: string, mobileNo?: string) => Promise<void> | void;
+  // Older props still passed by the dashboard; not used here.
+  [key: string]: any;
 }
 
-export function HomeTab({ 
-  isSwim, 
-  members, 
-  coachesCount, 
-  eventsCount, 
-  events = [], 
-  holidays = [], 
-  settings, 
-  userRole = "admin", 
-  userName,
-  onNavigate,
-  onOpenAddMember
-}: HomeTabProps) {
-  
-  // Normalized user access variables
-  const isAdmin = userRole === "super_admin" || userRole === "admin";
+const todayIndia = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+const daysUntil = (d?: string | null) => {
+  const m = String(d || "").match(/^(\d{4})-(\d{2})-(\d{2})/); if (!m) return null;
+  const [ty, tm, td] = todayIndia().split("-").map(Number);
+  return Math.round((Date.UTC(+m[1], +m[2] - 1, +m[3]) - Date.UTC(ty, tm - 1, td)) / 86_400_000);
+};
+const rupees = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
+const toMinutes = (t: string) => { const m = String(t || "").trim().toUpperCase().match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/); if (!m) return 9999; let h = Number(m[1]) % (m[3] ? 12 : 24); if (m[3] === "PM") h += 12; return h * 60 + Number(m[2]); };
+const shortTime = (t: string) => String(t || "").replace(/^0(\d)/, "$1");
+const greeting = () => { const h = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", hour12: false }).format(new Date())); return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"; };
+const dateLabel = (d: string) => { const [y, m, dd] = d.split("-").map(Number); return new Date(y, m - 1, dd).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" }); };
+
+function Card({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <section className="overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-card">
+      <div className="flex items-center justify-between border-b border-ink-100 px-5 py-4"><h3 className="text-base font-bold text-ink-950">{title}</h3>{action}</div>
+      {children}
+    </section>
+  );
+}
+
+export function HomeTab({ members, userRole = "admin", userName, getSessionToken, onNavigate, onOpenAddMember, onSendPaymentLink }: HomeTabProps) {
+  const isAdmin = userRole === "admin" || userRole === "super_admin";
   const isCoach = userRole === "coach";
-  const isStaff = userRole === "staff" || userRole === "receptionist";
+  const isDesk = !isCoach;
+  const headers = (): Record<string, string> => { const t = getSessionToken?.() || ""; return t ? { "x-session-token": t } : {}; };
 
-  // Calculations
-  const approvedMembers = members.filter(m => m.status === "Approved");
-  
-  // Pending Approvals
-  const pendingApprovalsCount = members.filter(m => {
-    const rStatus = (m.registration_status || m.status || "").trim();
-    return rStatus === "Pending" || rStatus === "Pending Approval" || rStatus.toLowerCase().includes("pending");
-  }).length;
+  const [batches, setBatches] = useState<any[] | null>(null);
+  const [calendar, setCalendar] = useState<any[]>([]);
+  const [collections, setCollections] = useState<number | null>(null);
+  const [reminding, setReminding] = useState("");
+  const [reminded, setReminded] = useState<string[]>([]);
 
-  // Active Members
-  const activeMembersCount = approvedMembers.length;
-
-  // Renewals Due (Expired or expiring within 30 days)
-  const getMembershipStatus = (endDateStr: string) => {
-    if (!endDateStr) return "Unknown";
-    const today = new Date();
-    const end = new Date(endDateStr);
-    const diffTime = end.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays < 0) return "Expired";
-    if (diffDays <= 30) return "Expiring Soon";
-    return "Active";
-  };
-
-  const renewalsDueCount = approvedMembers.filter(m => {
-    const status = getMembershipStatus(m.endDate);
-    return status === "Expired" || status === "Expiring Soon";
-  }).length;
-
-  // Today's collections come from the payments ledger, the same figure the Payments page shows.
-  // This used to multiply members registered today by hardcoded plan prices (₹3,500 by default),
-  // which showed revenue that was never collected and missed payments made today.
-  const [todaysCollections, setTodaysCollections] = useState<number | null>(null);
   useEffect(() => {
-    // Money figures are for admins only; reception and coaches don't see collections.
-    if (!isAdmin) return;
-    let cancelled = false;
-    fetch("/api/admin/payments", { credentials: "same-origin" })
-      .then(res => (res.ok ? res.json() : null))
-      .then(data => {
-        const value = Number(data?.summary?.todaysRevenue);
-        if (!cancelled) setTodaysCollections(Number.isFinite(value) ? value : null);
-      })
-      .catch(() => { if (!cancelled) setTodaysCollections(null); });
-    return () => { cancelled = true; };
-  }, [isAdmin]);
-  const todaysCollectionsLabel = todaysCollections === null ? "—" : formatCurrency(todaysCollections);
-
-  // Quick actions grid
-  const quickActions = [
-    {
-      id: "registrations",
-      label: "Approve Members",
-      icon: ShieldCheck,
-      description: "Approve pending walk-ins & online entries",
-      allowed: isAdmin || isStaff,
-    },
-    {
-      id: "members",
-      label: "Members Directory",
-      icon: Users,
-      description: "Search, view or manage your swimmers",
-      allowed: true, // Everyone can see member list
-    },
-    {
-      id: "revenue",
-      label: "Payments",
-      icon: IndianRupee,
-      description: "See fees collected and past payments",
-      allowed: isAdmin,
-    },
-    {
-      id: "batches",
-      label: "Batch Schedules",
-      icon: Calendar,
-      description: "Manage morning & evening training slots",
-      allowed: true,
-    },
-    {
-      id: "renewals",
-      label: "Renewals",
-      icon: RefreshCw,
-      description: "Renew expired swimmer subscriptions",
-      allowed: isAdmin || isStaff,
-    },
-    {
-      id: "events",
-      label: "Academy Events",
-      icon: Sparkles,
-      description: "Track competitions, stroke camps & workshops",
-      allowed: true,
-    },
-    {
-      id: "holidays",
-      label: "Holidays",
-      icon: AlertTriangle,
-      description: "Configure pool maintenance days & closures",
-      allowed: true,
-    },
-    {
-      id: "reports",
-      label: "Reports",
-      icon: Database,
-      description: "Download member, attendance & fee reports",
-      allowed: isAdmin,
+    fetch("/api/admin/batches/operations", { credentials: "same-origin", headers: headers() })
+      .then((r) => (r.ok ? r.json() : null)).then((d) => setBatches(Array.isArray(d?.batches) ? d.batches : [])).catch(() => setBatches([]));
+    fetch("/api/admin/calendar?limit=60", { credentials: "same-origin", headers: headers() })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        const today = todayIndia();
+        const ev = (d?.events || []).filter((e: any) => (e.status || "Published") === "Published").map((e: any) => ({ kind: "Event", title: e.title, date: String(e.event_date).slice(0, 10) }));
+        const cl = (d?.holidays || []).filter((h: any) => (h.status || "Active") === "Active").map((h: any) => ({ kind: "Pool closed", title: h.name, date: String(h.holiday_date).slice(0, 10) }));
+        setCalendar([...ev, ...cl].filter((x) => x.date >= today).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 4));
+      }).catch(() => setCalendar([]));
+    if (isAdmin) {
+      fetch("/api/admin/payments", { credentials: "same-origin", headers: headers() })
+        .then((r) => (r.ok ? r.json() : null)).then((d) => { const v = Number(d?.summary?.todaysRevenue); setCollections(Number.isFinite(v) ? v : null); }).catch(() => setCollections(null));
     }
-  ];
+  }, [isAdmin]);
 
-  const visibleActions = quickActions.filter(act => act.allowed);
+  const reg = (m: any) => m.registration_status || m.status;
+  const toApprove = members.filter((m) => reg(m) !== "Approved" && reg(m) !== "Rejected");
+  const unpaid = members.filter((m) => reg(m) === "Approved" && !m.endDate);
+  const ending = members.filter((m) => m.membership_status === "Active" && (daysUntil(m.endDate) ?? 99) >= 0 && (daysUntil(m.endDate) ?? 99) <= 7);
+  const active = members.filter((m) => m.membership_status === "Active").length;
 
-  // Recent activity calculations from real members array
-  const recentActivities = [...members]
-    .sort((a, b) => {
-      const dateA = a.registrationDate || "";
-      const dateB = b.registrationDate || "";
-      return dateB.localeCompare(dateA);
-    })
-    .slice(0, 4);
+  const sessions = useMemo(() => [...(batches || [])].sort((a, b) => toMinutes(a.startTime) - toMinutes(b.startTime)), [batches]);
+  const nowMin = (() => { const p = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date()).split(":").map(Number); return p[0] * 60 + p[1]; })();
+  const sunday = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Kolkata", weekday: "short" }).format(new Date()) === "Sun";
 
-  // Time of day greeting
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good Morning";
-    if (hour < 17) return "Good Afternoon";
-    return "Good Evening";
+  const remind = async (m: any) => {
+    if (!onSendPaymentLink) return;
+    setReminding(m.membershipNo);
+    try { await onSendPaymentLink(m.membershipNo, m.mobileNo); setReminded((r) => [...r, m.membershipNo]); } finally { setReminding(""); }
   };
-
-  const displayName = userName?.trim() || (userRole === "super_admin" || userRole === "admin" ? "Admin" : userRole === "coach" ? "Coach" : "Desk Staff");
 
   return (
-    <div className="space-y-6 md:space-y-8 max-w-7xl mx-auto">
-      
-      {/* 1. HEADER */}
-      <div className="bg-gradient-to-r from-ink-950 via-ink-900 to-ink-950 text-white rounded-3xl p-6 md:p-8 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative overflow-hidden border border-white/10">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(14,165,233,0.12),transparent_50%)] animate-pulse" />
-        <div className="text-left relative z-10 space-y-3">
-          <h2 className="text-2xl md:text-3xl font-black tracking-tight">
-            {getGreeting()} {displayName} 👋
-          </h2>
+    <div className="space-y-6 text-left">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-sm text-ink-500">{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Kolkata" })}</p>
+          <h2 className="font-display text-2xl font-bold tracking-[-0.02em] text-ink-950">{greeting()}{userName ? `, ${userName.split(/\s+/)[0]}` : ""}</h2>
+        </div>
+        {isDesk && (
+          <button type="button" onClick={onOpenAddMember} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-ink-950 px-4 text-sm font-semibold text-white hover:bg-ink-800 cursor-pointer"><UserPlus className="h-4 w-4" />Register a member</button>
+        )}
+      </header>
 
-          <p className="text-xs text-slate-300 max-w-xl font-normal leading-relaxed">
-            {isSwim ? "Here's what's happening at the pool today." : "Here's what's happening at the academy today."}
-          </p>
+      {/* Key numbers */}
+      <div className={`grid gap-3 ${isAdmin ? "grid-cols-2 lg:grid-cols-4" : isCoach ? "grid-cols-2" : "grid-cols-3"}`}>
+        {[
+          { label: "Active members", value: String(active), icon: Users, tab: "members" },
+          ...(isDesk ? [{ label: "To approve", value: String(toApprove.length), icon: ShieldCheck, tab: "registrations" }, { label: "Awaiting payment", value: String(unpaid.length), icon: IndianRupee, tab: "members" }] : [{ label: "Batches", value: batches ? String(batches.length) : "…", icon: Clock3, tab: "batches" }]),
+          ...(isAdmin ? [{ label: "Collected today", value: collections === null ? "—" : rupees(collections), icon: IndianRupee, tab: "revenue" }] : [])
+        ].map((k) => (
+          <button key={k.label} type="button" onClick={() => onNavigate(k.tab)} className="rounded-2xl border border-ink-100 bg-white p-4 text-left shadow-card hover:border-ink-200 cursor-pointer">
+            <k.icon className="h-5 w-5 text-aqua-600" />
+            <p className="mt-3 text-2xl font-bold tabular-nums text-ink-950">{k.value}</p>
+            <p className="text-sm text-ink-500">{k.label}</p>
+          </button>
+        ))}
+      </div>
 
-          {/* Today's Tasks Badge Summary */}
-          <div className="pt-1 flex flex-wrap items-center gap-2">
-            <span className="text-[10px] font-mono text-ink-400 font-bold uppercase tracking-wider mr-1">Today's Tasks:</span>
-            <div 
-              onClick={() => onNavigate("registrations")}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-bold cursor-pointer transition-colors"
-            >
-              <span>• {pendingApprovalsCount} Pending Approvals</span>
-            </div>
-            <div 
-              onClick={() => onNavigate("renewals")}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-xs font-bold cursor-pointer transition-colors"
-            >
-              <span>• {renewalsDueCount} Renewals Due</span>
-            </div>
-            {isAdmin && (
-              <div 
-                onClick={() => onNavigate("revenue")}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs font-bold cursor-pointer transition-colors"
-              >
-                <span>• {todaysCollectionsLabel} Today's Collections</span>
-              </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* To do (desk) or my batches (coach) */}
+        {isDesk ? (
+          <Card title="To do">
+            {toApprove.length + unpaid.length + ending.length === 0 ? (
+              <p className="flex items-center gap-2 px-5 py-8 text-sm text-ink-500"><CheckCircle2 className="h-5 w-5 text-emerald-500" />All caught up.</p>
+            ) : (
+              <ul className="divide-y divide-ink-100">
+                {toApprove.length > 0 && (
+                  <li><button type="button" onClick={() => onNavigate("registrations")} className="flex w-full items-center gap-3 px-5 py-3.5 text-left hover:bg-ink-50 cursor-pointer">
+                    <ShieldCheck className="h-5 w-5 text-sky-600" /><span className="flex-1 text-sm"><b className="text-ink-950">{toApprove.length} application{toApprove.length === 1 ? "" : "s"}</b> <span className="text-ink-600">to approve</span></span><ChevronRight className="h-4 w-4 text-ink-300" />
+                  </button></li>
+                )}
+                {unpaid.slice(0, 6).map((m) => (
+                  <li key={m.membershipNo} className="flex items-center gap-3 px-5 py-3">
+                    <IndianRupee className="h-5 w-5 shrink-0 text-violet-600" />
+                    <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-ink-950">{m.fullName}</span><span className="block text-xs text-ink-500">Approved, not paid yet</span></span>
+                    {onSendPaymentLink && (reminded.includes(m.membershipNo)
+                      ? <span className="text-xs font-semibold text-emerald-700">Reminder sent</span>
+                      : <button type="button" disabled={!!reminding} onClick={() => void remind(m)} className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-xl border border-ink-200 px-3 text-xs font-semibold text-ink-800 hover:bg-ink-50 disabled:opacity-60 cursor-pointer">
+                          {reminding === m.membershipNo ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <MessageCircle className="h-3.5 w-3.5" />}Remind
+                        </button>)}
+                  </li>
+                ))}
+                {unpaid.length > 6 && <li><button type="button" onClick={() => onNavigate("members")} className="w-full px-5 py-3 text-left text-sm font-semibold text-aqua-600 cursor-pointer">+{unpaid.length - 6} more awaiting payment</button></li>}
+                {ending.length > 0 && (
+                  <li><button type="button" onClick={() => onNavigate("renewals")} className="flex w-full items-center gap-3 px-5 py-3.5 text-left hover:bg-ink-50 cursor-pointer">
+                    <RefreshCw className="h-5 w-5 text-amber-600" /><span className="flex-1 text-sm"><b className="text-ink-950">{ending.length} membership{ending.length === 1 ? "" : "s"}</b> <span className="text-ink-600">ending within 7 days</span></span><ChevronRight className="h-4 w-4 text-ink-300" />
+                  </button></li>
+                )}
+              </ul>
             )}
-          </div>
-        </div>
+          </Card>
+        ) : (
+          <Card title="Batches and swimmers" action={<button type="button" onClick={() => onNavigate("batches")} className="text-sm font-semibold text-aqua-600 cursor-pointer">All batches</button>}>
+            {batches === null ? <p className="flex items-center gap-2 px-5 py-8 text-sm text-ink-500"><LoaderCircle className="h-4 w-4 animate-spin" />Loading…</p> : (
+              <ul className="divide-y divide-ink-100">
+                {sessions.map((b) => {
+                  const swimmers = members.filter((m) => Number(m.selected_batch_id) === b.id && m.membership_status === "Active");
+                  return (
+                    <li key={b.id} className="px-5 py-3.5">
+                      <div className="flex items-center justify-between gap-3"><span className="text-sm font-semibold text-ink-950">{b.batchName}</span><span className="text-xs text-ink-500">{shortTime(b.startTime)} – {shortTime(b.endTime)} · {swimmers.length} swimmer{swimmers.length === 1 ? "" : "s"}</span></div>
+                      {swimmers.length > 0 && <p className="mt-1 text-xs leading-5 text-ink-600">{swimmers.slice(0, 12).map((s) => s.fullName).join(", ")}{swimmers.length > 12 ? ` and ${swimmers.length - 12} more` : ""}</p>}
+                    </li>
+                  );
+                })}
+                {sessions.length === 0 && <li className="px-5 py-8 text-sm text-ink-500">No batches yet.</li>}
+              </ul>
+            )}
+          </Card>
+        )}
 
-        <div className="relative z-10 flex gap-2 w-full md:w-auto shrink-0">
-          {isAdmin && (
-            <button
-              onClick={onOpenAddMember}
-              className="w-full md:w-auto px-5 py-3 rounded-xl bg-aqua-500 hover:bg-aqua-600 text-white text-xs font-bold uppercase tracking-wider transition-all shadow-md hover:shadow-aqua-500/20 active:scale-[0.97] cursor-pointer flex items-center justify-center gap-2"
-            >
-              <UserPlus className="h-4 w-4" />
-              <span>Add Walk-in</span>
-            </button>
+        {/* Today's pool sessions */}
+        <Card title="Today at the pool">
+          {sunday ? <p className="px-5 py-8 text-sm text-ink-500">The pool is closed on Sundays.</p> : batches === null ? <p className="flex items-center gap-2 px-5 py-8 text-sm text-ink-500"><LoaderCircle className="h-4 w-4 animate-spin" />Loading…</p> : (
+            <ul className="divide-y divide-ink-100">
+              {sessions.filter((b) => b.status === "OPEN" || b.activeMemberCount > 0).map((b) => {
+                const start = toMinutes(b.startTime), end = toMinutes(b.endTime);
+                const state = nowMin >= start && nowMin < end ? "Now" : nowMin >= end ? "Done" : "";
+                return (
+                  <li key={b.id} className={`flex items-center gap-3 px-5 py-3 ${state === "Done" ? "opacity-50" : ""}`}>
+                    <span className="w-24 shrink-0 text-sm font-semibold tabular-nums text-ink-950">{shortTime(b.startTime)}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm text-ink-700">{b.batchName}</span>
+                    <span className="text-xs text-ink-500">{b.activeMemberCount}/{b.capacity}</span>
+                    {state === "Now" && <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">Now</span>}
+                  </li>
+                );
+              })}
+              {sessions.length === 0 && <li className="px-5 py-8 text-sm text-ink-500">No batches yet.</li>}
+            </ul>
           )}
-        </div>
-      </div>
+        </Card>
 
-
-      {/* 2. QUICK ACTIONS (Approve, Members, Payments...) */}
-      <div>
-        <div className="mb-4 text-left">
-          <span className="text-[10px] font-mono tracking-wider text-ink-400 uppercase font-bold">Fast Access Desk</span>
-          <h3 className="text-base font-extrabold text-ink-900 uppercase tracking-tight mt-0.5">Quick Actions</h3>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5">
-          {visibleActions.map((act) => {
-            const Icon = act.icon;
-            return (
-              <button
-                key={act.id}
-                id={`quick-action-btn-${act.id}`}
-                onClick={() => onNavigate(act.id)}
-                className="bg-white border border-ink-100 p-4 md:p-5 rounded-2xl text-left transition-all hover:border-ink-200 hover:shadow-sm active:scale-[0.98] group cursor-pointer focus:outline-none flex flex-col justify-between min-h-[125px]"
-              >
-                <div className="p-2.5 rounded-xl bg-ink-50 border border-ink-100 w-fit group-hover:bg-aqua-400/10 group-hover:border-aqua-400/25 transition-colors">
-                  <Icon className="h-5 w-5 text-ink-600 group-hover:text-aqua-600 transition-colors" />
-                </div>
-                <div>
-                  <h5 className="text-xs font-bold text-ink-900 uppercase tracking-tight mt-3">
-                    {act.label}
-                  </h5>
-                  <p className="text-[10px] text-ink-400 font-medium leading-normal mt-1 block">
-                    {act.description}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 3. TODAY'S ALERTS (Pending Approvals, Renewals, Revenue) */}
-      <div className="space-y-4">
-        <div className="text-left">
-          <span className="text-[10px] font-mono tracking-wider text-ink-400 uppercase font-bold">At a glance</span>
-          <h3 className="text-base font-extrabold text-ink-900 uppercase tracking-tight mt-0.5">Today's Alerts</h3>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          
-          {/* Pending Approvals */}
-          <button 
-            onClick={() => {
-              if (isAdmin || isStaff) onNavigate("registrations");
-            }}
-            disabled={isCoach}
-            className="bg-white border border-ink-100 rounded-2xl p-5 text-left transition-all hover:border-ink-200 active:scale-[0.98] group cursor-pointer focus:outline-none shadow-card"
-          >
-            <span className="text-[10px] md:text-xs font-semibold tracking-wider text-ink-400 uppercase block">Pending Approvals</span>
-            <div className="flex items-baseline justify-between mt-2">
-              <span className="font-display text-[26px] md:text-[30px] font-bold text-ink-950 tracking-[-0.02em]">
-                {pendingApprovalsCount}
-              </span>
-              <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-            </div>
-            <span className="text-[9.5px] md:text-11px text-amber-600 font-semibold block mt-3 pt-2.5 border-t border-slate-50">
-              {isCoach ? "View-only mode" : "Requires review →"}
-            </span>
-          </button>
-
-          {/* Renewals */}
-          <button 
-            onClick={() => {
-              if (isAdmin || isStaff) onNavigate("renewals");
-            }}
-            disabled={isCoach}
-            className="bg-white border border-ink-100 rounded-2xl p-5 text-left transition-all hover:border-ink-200 active:scale-[0.98] group cursor-pointer focus:outline-none shadow-card"
-          >
-            <span className="text-[10px] md:text-xs font-semibold tracking-wider text-ink-400 uppercase block">Renewals Due</span>
-            <div className="flex items-baseline justify-between mt-2">
-              <span className={`text-2xl md:text-3xl font-extrabold tracking-tight ${renewalsDueCount > 0 ? "text-rose-500" : "text-ink-900"}`}>
-                {renewalsDueCount}
-              </span>
-              {renewalsDueCount > 0 && <span className="text-[9px] font-bold text-rose-500 font-mono">CRITICAL</span>}
-            </div>
-            <span className="text-[9.5px] md:text-11px text-rose-500/80 font-semibold block mt-3 pt-2.5 border-t border-slate-50">
-              {isCoach ? "Coaches check-only" : "Process renewal →"}
-            </span>
-          </button>
-
-          {/* Revenue */}
-          {isAdmin ? (
-            <button 
-              onClick={() => onNavigate("revenue")}
-              className="bg-white border border-ink-100 rounded-2xl p-5 text-left transition-all hover:border-ink-200 active:scale-[0.98] group cursor-pointer focus:outline-none shadow-card"
-            >
-              <span className="text-[10px] md:text-xs font-semibold tracking-wider text-ink-400 uppercase block">Today's Revenue</span>
-              <div className="flex items-baseline justify-between mt-2">
-                <span className="font-display text-[26px] md:text-[30px] font-bold text-ink-950 tracking-[-0.02em]">
-                  {todaysCollectionsLabel}
-                </span>
-                <span className="text-[9px] font-bold text-emerald-600 font-mono">INR</span>
-              </div>
-              <span className="text-[9.5px] md:text-11px text-emerald-600 font-semibold block mt-3 pt-2.5 border-t border-slate-50">
-                View payments →
-              </span>
-            </button>
-          ) : (
-            <div className="bg-ink-50 border border-ink-100/80 rounded-2xl p-5 text-left shadow-card flex flex-col justify-between">
-              <div>
-                <span className="text-[10px] md:text-xs font-semibold tracking-wider text-ink-400 uppercase block">Active Swimmers</span>
-                <span className="text-2xl md:text-3xl font-extrabold text-ink-900 tracking-tight block mt-2">
-                  {activeMembersCount}
-                </span>
-              </div>
-              <span className="text-[9.5px] md:text-11px text-ink-600 font-medium block mt-3 pt-2.5 border-t border-ink-100">
-                Members with an active plan
-              </span>
-            </div>
+        {/* Coming up */}
+        <Card title="Coming up" action={<button type="button" onClick={() => onNavigate("calendar")} className="text-sm font-semibold text-aqua-600 cursor-pointer">Calendar</button>}>
+          {calendar.length === 0 ? <p className="flex items-center gap-2 px-5 py-8 text-sm text-ink-500"><CalendarDays className="h-5 w-5 text-ink-300" />Nothing scheduled.</p> : (
+            <ul className="divide-y divide-ink-100">
+              {calendar.map((c, i) => (
+                <li key={i} className="flex items-center gap-3 px-5 py-3">
+                  <span className="w-24 shrink-0 text-xs text-ink-500">{dateLabel(c.date)}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink-950">{c.title}</span>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${c.kind === "Pool closed" ? "bg-rose-50 text-rose-700" : "bg-aqua-400/10 text-aqua-600"}`}>{c.kind}</span>
+                </li>
+              ))}
+            </ul>
           )}
-
-        </div>
+        </Card>
       </div>
-
-      {/* 4. RECENT ACTIVITY */}
-      <div className="bg-white border border-ink-100 rounded-3xl p-6 shadow-sm text-left">
-        <div className="flex items-center justify-between mb-6 border-b border-slate-50 pb-4">
-          <div>
-            <span className="text-[10px] font-mono tracking-wider text-ink-400 uppercase font-bold">Lobby & Registration Feed</span>
-            <h3 className="text-sm font-bold text-ink-900 uppercase tracking-tight mt-0.5">Recent Activity</h3>
-          </div>
-          <button 
-            onClick={() => onNavigate("activity")}
-            className="text-xs font-bold text-aqua-600 hover:text-sky-700 flex items-center gap-1 transition-all cursor-pointer"
-          >
-            <span>View All Activity</span>
-            <ArrowRight className="h-3.5 w-3.5" />
-          </button>
-        </div>
-
-        <div className="divide-y divide-slate-100">
-          {recentActivities.map((m, idx) => {
-            const isApproved = m.status === "Approved";
-            const isRejected = m.status === "Rejected";
-
-            return (
-              <div key={m.membershipNo || idx} className="py-4 first:pt-0 last:pb-0 flex items-start justify-between gap-4">
-                <div className="flex items-start gap-3">
-                  <div className={`h-9 w-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 shadow-card ${
-                    isApproved ? "bg-emerald-50 text-emerald-600 border border-emerald-100" :
-                    isRejected ? "bg-rose-50 text-rose-600 border border-rose-100" :
-                    "bg-amber-50 text-amber-600 border border-amber-100"
-                  }`}>
-                    {isApproved ? "✓" : isRejected ? "✗" : "⏳"}
-                  </div>
-                  <div>
-                    <h5 className="text-xs font-bold text-ink-900 uppercase tracking-tight">
-                      {m.fullName}
-                    </h5>
-                    <p className="text-[10.5px] text-ink-400 font-medium leading-relaxed mt-0.5">
-                      {isApproved ? "Registration approved" : 
-                       isRejected ? `Profile registration rejected (Reason: ${m.remarks || "Bad details"})` :
-                       "New registration waiting for approval"}
-                    </p>
-                    <div className="flex items-center gap-2 mt-1.5 text-[9px] font-mono text-ink-400">
-                      <span className="bg-ink-50 border border-ink-100 px-1.5 py-0.5 rounded">
-                        {m.membershipNo}
-                      </span>
-                      <span>•</span>
-                      <span>{m.typeOfMembership} Plan</span>
-                      <span>•</span>
-                      <span>{formatDateToIndian(m.registrationDate)}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="shrink-0">
-                  <span className={`text-[9px] font-extrabold uppercase px-2.5 py-1 rounded-full border tracking-wider ${
-                    isApproved ? "bg-emerald-50 text-emerald-700 border-emerald-200/50" :
-                    isRejected ? "bg-rose-50 text-rose-700 border-rose-200/50" :
-                    "bg-amber-50 text-amber-700 border-amber-200/50"
-                  }`}>
-                    {m.status}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-
-          {recentActivities.length === 0 && (
-            <div className="py-12 text-center text-ink-400 space-y-2">
-              <span className="text-sm font-medium">No recent activity yet</span>
-              <p className="text-xs">New walk-ins and online registrations will show up here.</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* System Health & API Infrastructure Monitor */}
-      <SystemHealthMonitor isSwim={isSwim} />
-
     </div>
   );
 }

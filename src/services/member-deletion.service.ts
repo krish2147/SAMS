@@ -66,9 +66,12 @@ export class MemberDeletionService {
         );
       }
 
+      // The mobile number moves to archived_mobile_no so the person can register again later
+      // (mobileNo is unique); nothing else about the member, their payments or invoices changes.
       const [archiveResult]: any = await conn.query(
         `UPDATE members
-         SET deleted_at = CURRENT_TIMESTAMP, deleted_by = ?, login_enabled = 0, selected_batch_id = NULL
+         SET deleted_at = CURRENT_TIMESTAMP, deleted_by = ?, login_enabled = 0, selected_batch_id = NULL,
+             archived_mobile_no = mobileNo, mobileNo = CONCAT('archived-', id)
          WHERE id = ? AND deleted_at IS NULL`,
         [actor.userId, member.id]
       );

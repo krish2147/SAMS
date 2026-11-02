@@ -78,6 +78,7 @@ export class MemberRepository {
       FROM members m
       LEFT JOIN membership_plans p ON m.membership_plan_id = p.id
       LEFT JOIN batches b ON m.selected_batch_id = b.id
+      WHERE m.deleted_at IS NULL
       ORDER BY m.id DESC
     `);
     return rows.map((r: any) => this.mapRowToMember(r));
@@ -92,8 +93,9 @@ export class MemberRepository {
       FROM members m
       LEFT JOIN membership_plans p ON m.membership_plan_id = p.id
       LEFT JOIN batches b ON m.selected_batch_id = b.id
-      WHERE REPLACE(m.mobileNo, ' ', '') LIKE ?
-         OR ? LIKE CONCAT('%', REPLACE(m.mobileNo, ' ', ''), '%')
+      WHERE m.deleted_at IS NULL
+        AND (REPLACE(m.mobileNo, ' ', '') LIKE ?
+         OR ? LIKE CONCAT('%', REPLACE(m.mobileNo, ' ', ''), '%'))
       ORDER BY m.id DESC
       LIMIT 1
     `, [`%${cleanPhone}%`, cleanPhone]);
@@ -108,7 +110,7 @@ export class MemberRepository {
       FROM members m
       LEFT JOIN membership_plans p ON m.membership_plan_id = p.id
       LEFT JOIN batches b ON m.selected_batch_id = b.id
-      WHERE LOWER(m.email) = LOWER(?)
+      WHERE LOWER(m.email) = LOWER(?) AND m.deleted_at IS NULL
       LIMIT 1
     `, [email.trim()]);
     return rows && rows.length > 0 ? this.mapRowToMember(rows[0]) : null;
@@ -121,7 +123,7 @@ export class MemberRepository {
       FROM members m
       LEFT JOIN membership_plans p ON m.membership_plan_id = p.id
       LEFT JOIN batches b ON m.selected_batch_id = b.id
-      WHERE m.membershipNo = ?
+      WHERE m.membershipNo = ? AND m.deleted_at IS NULL
       LIMIT 1
     `, [membershipNo]);
 

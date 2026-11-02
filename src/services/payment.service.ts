@@ -234,8 +234,8 @@ export class PaymentService {
         paymentDate: t.payment_date || t.created_at,
         createdAt: t.created_at,
         approvedBy: t.approved_by || "System Admin",
-        receiptNo: t.receipt_no || `BSF-REC-2026-${String(t.id).padStart(6, "0")}`,
-        invoiceNo: t.invoice_no || `BSF-INV-2026-${String(t.id).padStart(6, "0")}`,
+        receiptNo: t.receipt_no || "",
+        invoiceNo: t.invoice_no || "",
         invoicePath: t.invoice_path || null,
         invoiceUrl: t.invoice_url || null,
         generatedAt: t.generated_at || null,
@@ -298,7 +298,7 @@ export class PaymentService {
     });
 
     const [pendingMembers]: any = await pool.query(
-      "SELECT COUNT(*) as count FROM members WHERE registration_status = 'Approved' AND payment_status = 'Pending'"
+      "SELECT COUNT(*) as count FROM members WHERE registration_status = 'Approved' AND payment_status = 'Pending' AND deleted_at IS NULL"
     );
     const approvedPendingMembersCount = Number(pendingMembers[0]?.count || 0);
 
@@ -385,7 +385,7 @@ export class PaymentService {
 
     // 1. Fetch member details
     const [memberRows]: any = await pool.query(
-      "SELECT * FROM members WHERE id = ? OR membershipNo = ?",
+      "SELECT * FROM members WHERE (id = ? OR membershipNo = ?) AND deleted_at IS NULL",
       [payload.memberId || 0, payload.membershipNo || ""]
     );
     const member = memberRows[0];
@@ -466,8 +466,10 @@ export class PaymentService {
     const orderId = rzpOrder?.id || `order_${Math.random().toString(36).substring(2, 14)}`;
 
     // 5. Generate sequential receipt and invoice numbers
-    const receiptNo = await this.generateSequentialNumber("REC");
-    const invoiceNo = await this.generateSequentialNumber("INV");
+    // Receipt and invoice numbers are given only when the payment is made, so unpaid or
+    // cancelled orders never use up numbers in the invoice series.
+    const receiptNo: string | null = null;
+    const invoiceNo: string | null = null;
 
     // 6. Generate real payment URL using configured APP_BASE_URL
     const appBaseUrl = (process.env.APP_BASE_URL || process.env.APP_URL || "http://localhost:3000").replace(/\/+$/, "");
@@ -603,8 +605,9 @@ export class PaymentService {
         ]);
         if (memberRows[0]) {
           const amountInINR = Math.round(amountInPaise / 100);
-          const receiptNo = await this.generateSequentialNumber("REC");
-          const invoiceNo = await this.generateSequentialNumber("INV");
+          // Numbers are assigned when the order is paid (verifyPayment).
+          const receiptNo: string | null = null;
+          const invoiceNo: string | null = null;
 
           await pool.query(
             `INSERT INTO payments 
@@ -959,7 +962,7 @@ export class PaymentService {
   async recordCashPayment(payload: { membershipNo: string; receivedBy: string; paymentType?: "Registration" | "Renewal" }) {
     const paymentType = payload.paymentType === "Renewal" ? "Renewal" : "Registration";
     const pool = await getDbPool();
-    const [memberRows]: any = await pool.query("SELECT * FROM members WHERE membershipNo = ?", [payload.membershipNo]);
+    const [memberRows]: any = await pool.query("SELECT * FROM members WHERE membershipNo = ? AND deleted_at IS NULL", [payload.membershipNo]);
     const member = memberRows?.[0];
     if (!member) {
       const err: any = new Error("Member not found.");
@@ -1228,7 +1231,7 @@ export class PaymentService {
     const razorpay = getRazorpay();
 
     const [memberRows]: any = await pool.query(
-      "SELECT * FROM members WHERE id = ? OR membershipNo = ?",
+      "SELECT * FROM members WHERE (id = ? OR membershipNo = ?) AND deleted_at IS NULL",
       [payload.memberId || 0, payload.membershipNo || ""]
     );
     const member = memberRows[0];
@@ -1258,8 +1261,10 @@ export class PaymentService {
     const pricing = await this.calculatePayableAmount(member.membership_plan_id, "Registration");
     const amountInINR = pricing.totalAmount;
     const amountInPaise = Math.round(amountInINR * 100);
-    const receiptNo = await this.generateSequentialNumber("REC");
-    const invoiceNo = await this.generateSequentialNumber("INV");
+    // Receipt and invoice numbers are given only when the payment is made, so unpaid or
+    // cancelled orders never use up numbers in the invoice series.
+    const receiptNo: string | null = null;
+    const invoiceNo: string | null = null;
 
     const [insertResult]: any = await pool.query(
       `INSERT INTO payments
@@ -1399,7 +1404,7 @@ export class PaymentService {
     }
 
     if (payload.memberId || payload.membershipNo) {
-      const [mRows]: any = await pool.query("SELECT * FROM members WHERE id = ? OR membershipNo = ?", [
+      const [mRows]: any = await pool.query("SELECT * FROM members WHERE (id = ? OR membershipNo = ?) AND deleted_at IS NULL", [
         payload.memberId || 0,
         payload.membershipNo || ""
       ]);
@@ -1767,8 +1772,8 @@ export class PaymentService {
       status: standardizeStatus(t.payment_status),
       paymentDate: t.payment_date || t.created_at,
       createdAt: t.created_at,
-      receiptNo: t.receipt_no || `BSF-REC-2026-${String(t.id).padStart(6, "0")}`,
-      invoiceNo: t.invoice_no || `BSF-INV-2026-${String(t.id).padStart(6, "0")}`,
+      receiptNo: t.receipt_no || "",
+      invoiceNo: t.invoice_no || "",
       failureReason: t.failure_reason,
       refundAmount: Number(t.refund_amount || 0),
       refundStatus: t.refund_status,
@@ -1804,8 +1809,8 @@ export class PaymentService {
       orderId: t.razorpay_order_id || `ORD-${t.id}`,
       status: standardizeStatus(t.payment_status),
       paymentDate: t.payment_date || t.created_at,
-      receiptNo: t.receipt_no || `BSF-REC-2026-${String(t.id).padStart(6, "0")}`,
-      invoiceNo: t.invoice_no || `BSF-INV-2026-${String(t.id).padStart(6, "0")}`
+      receiptNo: t.receipt_no || "",
+      invoiceNo: t.invoice_no || ""
     }));
   }
 

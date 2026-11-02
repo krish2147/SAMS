@@ -51,7 +51,7 @@ async function getAuthenticatedMember(req: any): Promise<any> {
   // 1. Try search by numeric id first
   if (/^\d+$/.test(idOrNo)) {
     const [rows]: any = await pool.query(
-      `${MEMBER_SELECT} WHERE m.id = ? LIMIT 1`,
+      `${MEMBER_SELECT} WHERE m.id = ? AND m.deleted_at IS NULL LIMIT 1`,
       [parseInt(idOrNo, 10)]
     );
     if (rows && rows.length > 0) return rows[0];
@@ -59,7 +59,7 @@ async function getAuthenticatedMember(req: any): Promise<any> {
 
   // 2. Try search by membershipNo
   const [rowsByNo]: any = await pool.query(
-    `${MEMBER_SELECT} WHERE m.membershipNo = ? LIMIT 1`,
+    `${MEMBER_SELECT} WHERE m.membershipNo = ? AND m.deleted_at IS NULL LIMIT 1`,
     [idOrNo]
   );
   if (rowsByNo && rowsByNo.length > 0) return rowsByNo[0];
@@ -282,10 +282,11 @@ router.get("/member/events", requireAuth(["member", "parent"]), async (req: any,
     if (!member) return res.status(404).json({ error: "Authenticated member record not found" });
     const pool = await getDbPool();
     const [rows]: any = await pool.query(
-      "SELECT * FROM events WHERE event_date >= CURDATE() AND (status IS NULL OR status = 'Published') ORDER BY event_date ASC, start_time ASC LIMIT 30"
+      "SELECT * FROM events WHERE event_date >= CURDATE() ORDER BY event_date ASC, start_time ASC LIMIT 40"
     );
+    // Status and targeting columns only exist on newer databases; rows without them count as published for everyone.
     const audience = await memberAudience(pool, member);
-    res.json((rows || []).filter((row: any) => isForMember(row, audience)).slice(0, 10).map((row: any) => ({
+    res.json((rows || []).filter((row: any) => (!row.status || row.status === "Published") && isForMember(row, audience)).slice(0, 10).map((row: any) => ({
       title: row.title,
       description: row.description || null,
       eventDate: toDateOnlyString(row.event_date),
@@ -307,10 +308,13 @@ router.get("/member/holidays", requireAuth(["member", "parent"]), async (req: an
     if (!member) return res.status(404).json({ error: "Authenticated member record not found" });
     const pool = await getDbPool();
     const [rows]: any = await pool.query(
-      "SELECT * FROM holidays WHERE COALESCE(end_date, holiday_date) >= CURDATE() AND (status IS NULL OR status = 'Active') ORDER BY holiday_date ASC LIMIT 40"
+      "SELECT * FROM holidays WHERE holiday_date >= DATE_SUB(CURDATE(), INTERVAL 31 DAY) ORDER BY holiday_date ASC LIMIT 60"
     );
+    const today = new Date().toISOString().slice(0, 10);
     const audience = await memberAudience(pool, member);
-    res.json((rows || []).filter((row: any) => isForMember(row, audience)).slice(0, 15).map((row: any) => ({
+    res.json((rows || [])
+      .filter((row: any) => (toDateOnlyString(row.end_date || row.holiday_date) || "") >= today && (!row.status || row.status === "Active") && isForMember(row, audience))
+      .slice(0, 15).map((row: any) => ({
       name: row.name,
       description: row.announcement_message || row.description || null,
       startDate: toDateOnlyString(row.holiday_date),

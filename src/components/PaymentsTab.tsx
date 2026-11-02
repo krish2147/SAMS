@@ -405,44 +405,20 @@ export function PaymentsTab({ getSessionToken, userRole = "admin", username = "A
   }
 
   return (
-    <div className="space-y-6 md:space-y-8 max-w-7xl mx-auto px-4 md:px-0 text-left">
+    <div className="space-y-6 text-left">
       
-      {/* HEADER SECTION */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+      {/* Header */}
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <span className="text-xs font-black tracking-widest text-sky-600 uppercase block mb-1">Fees & payments</span>
-          <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Payments & Revenue</h1>
-          <p className="text-sm text-slate-500 font-medium mt-1">See every fee collected, track Razorpay payments and download invoices.</p>
+          <h2 className="font-display text-2xl font-bold tracking-[-0.02em] text-ink-950">Payments</h2>
+          <p className="mt-1 text-sm text-ink-600">Every fee collected, online and cash, with invoices.</p>
         </div>
-        
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={handleOpenReports}
-            className="inline-flex items-center gap-2 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 font-bold px-4 py-2 rounded-2xl shadow-xs text-xs md:text-sm transition-all cursor-pointer"
-          >
-            <Sparkles className="h-4 w-4 text-sky-600" />
-            <span>Financial Reports</span>
-          </button>
-
-          <button
-            onClick={() => generateCSVReport(transactions)}
-            disabled={transactions.length === 0}
-            className="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-bold px-4 py-2 rounded-2xl shadow-xs text-xs md:text-sm transition-all cursor-pointer disabled:opacity-50"
-          >
-            <FileSpreadsheet className="h-4 w-4 text-slate-300" />
-            <span>Export CSV</span>
-          </button>
-
-          <button
-            onClick={fetchPaymentsData}
-            disabled={isRefreshing}
-            className="inline-flex items-center gap-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold px-4 py-2 rounded-2xl shadow-xs text-xs md:text-sm transition-all cursor-pointer disabled:opacity-50"
-          >
-            <RefreshCw className={`h-4 w-4 text-slate-500 ${isRefreshing ? "animate-spin" : ""}`} />
-            <span>{isRefreshing ? "Refreshing..." : "Refresh"}</span>
-          </button>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={fetchPaymentsData} disabled={isRefreshing} aria-label="Refresh" className="flex min-h-11 w-11 items-center justify-center rounded-xl border border-ink-200 bg-white text-ink-700 hover:bg-ink-50 cursor-pointer"><RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} /></button>
+          <button type="button" onClick={handleOpenReports} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-ink-200 bg-white px-4 text-sm font-semibold text-ink-800 hover:bg-ink-50 cursor-pointer"><Sparkles className="h-4 w-4" />Reports</button>
+          <button type="button" onClick={() => generateCSVReport(transactions)} disabled={transactions.length === 0} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-ink-950 px-4 text-sm font-semibold text-white hover:bg-ink-800 disabled:opacity-50 cursor-pointer"><FileSpreadsheet className="h-4 w-4" />Export CSV</button>
         </div>
-      </div>
+      </header>
 
       {/* MESSAGES BAR */}
       {errorMsg && (

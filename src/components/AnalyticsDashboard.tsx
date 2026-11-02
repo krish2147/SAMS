@@ -200,7 +200,7 @@ export const AnalyticsDashboard: React.FC = () => {
       ["New Registrations (This Month)", kpis.newRegistrationsThisMonth.toString(), "Total Renewals", kpis.renewalsCount.toString()],
       ["Revenue Today", formatCurrency(kpis.revenueToday), "Revenue This Month", formatCurrency(kpis.revenueThisMonth)],
       ["Revenue This Year", formatCurrency(kpis.revenueThisYear), "Pending Payments", `${formatCurrency(kpis.pendingPaymentsAmount)} (${kpis.pendingPaymentsCount})`],
-      ["Attendance Rate Today", `${kpis.attendancePercentage}%`, "Batch Occupancy Rate", `${kpis.overallBatchOccupancy}%`]
+      ["Batch Occupancy Rate", `${kpis.overallBatchOccupancy}%`, "", ""]
     ];
 
     autoTable(doc, {
@@ -253,7 +253,6 @@ export const AnalyticsDashboard: React.FC = () => {
     csvContent += `Revenue This Month,${kpis.revenueThisMonth}\n`;
     csvContent += `Revenue This Year,${kpis.revenueThisYear}\n`;
     csvContent += `Pending Payments Amount,${kpis.pendingPaymentsAmount}\n`;
-    csvContent += `Attendance Percentage,${kpis.attendancePercentage}%\n`;
     csvContent += `Batch Occupancy Percentage,${kpis.overallBatchOccupancy}%\n\n`;
 
     csvContent += "MONTHLY REVENUE TREND\n";
@@ -279,62 +278,18 @@ export const AnalyticsDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Executive Header Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-sky-950 to-slate-900 text-white rounded-3xl p-6 md:p-8 shadow-2xl relative overflow-hidden border border-slate-800">
-        <div className="absolute right-0 top-0 bottom-0 opacity-10 pointer-events-none flex items-center pr-8">
-          <BarChart3 className="w-80 h-80 text-sky-400" />
+      {/* Header */}
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="font-display text-2xl font-bold tracking-[-0.02em] text-ink-950">Analytics</h2>
+          <p className="mt-1 text-sm text-ink-600">New members, fees collected, batch sizes and how members pay.</p>
         </div>
-
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 relative z-10">
-          <div>
-            <div className="flex items-center gap-2 text-sky-400 text-xs font-bold uppercase tracking-wider mb-2">
-              <Sparkles className="w-4 h-4 text-sky-400" /> Baroda Swim Front at a glance
-            </div>
-            <h1 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tight text-white">
-              Academy Insights
-            </h1>
-            <p className="text-slate-300 text-xs md:text-sm mt-1.5 max-w-2xl">
-              New members, fees collected, daily attendance, batch sizes and how members pay — all in one place.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={fetchAnalytics}
-              disabled={refreshing}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold backdrop-blur-md transition border border-white/15 shadow"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
-              Refresh Analytics
-            </button>
-
-            {/* Export Group */}
-            <div className="flex items-center gap-1.5 bg-sky-500/20 p-1 rounded-xl border border-sky-400/30 backdrop-blur-md">
-              <button
-                onClick={handleExportPDF}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition shadow"
-                title="Export PDF Report"
-              >
-                <FileText className="w-3.5 h-3.5" /> PDF
-              </button>
-              <button
-                onClick={handleExportCSV}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow"
-                title="Export CSV"
-              >
-                <Download className="w-3.5 h-3.5" /> CSV
-              </button>
-              <button
-                onClick={handleExportCSV}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow"
-                title="Export spreadsheet-compatible CSV"
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5" /> Spreadsheet
-              </button>
-            </div>
-          </div>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={fetchAnalytics} disabled={refreshing} aria-label="Refresh" className="flex min-h-11 w-11 items-center justify-center rounded-xl border border-ink-200 bg-white text-ink-700 hover:bg-ink-50 cursor-pointer"><RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /></button>
+          <button type="button" onClick={handleExportPDF} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-ink-200 bg-white px-4 text-sm font-semibold text-ink-800 hover:bg-ink-50 cursor-pointer"><FileText className="h-4 w-4" />PDF</button>
+          <button type="button" onClick={handleExportCSV} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-ink-950 px-4 text-sm font-semibold text-white hover:bg-ink-800 cursor-pointer"><Download className="h-4 w-4" />CSV</button>
         </div>
-      </div>
+      </header>
 
       {/* Interactive Filters Bar */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
@@ -531,18 +486,7 @@ export const AnalyticsDashboard: React.FC = () => {
           <p className="text-[11px] text-rose-600 font-semibold mt-1">{kpis.pendingPaymentsCount} Invoices Due</p>
         </div>
 
-        {/* KPI 9: Attendance Percentage */}
-        <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group hover:shadow-md transition">
-          <div className="flex items-center justify-between">
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Attendance %</p>
-            <div className="p-2 rounded-xl bg-teal-50 text-teal-600 border border-teal-100">
-              <CheckCircle2 className="w-4 h-4" />
-            </div>
-          </div>
-          <p className="text-2xl font-black text-teal-600 mt-2">{kpis.attendancePercentage}%</p>
-          <p className="text-[11px] text-slate-400 mt-1 font-medium">{kpis.todayAttendanceCount} Check-ins Today</p>
-        </div>
-
+        
         {/* KPI 10: Batch Occupancy */}
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group hover:shadow-md transition">
           <div className="flex items-center justify-between">
@@ -639,36 +583,9 @@ export const AnalyticsDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* CHARTS GRID 2: ATTENDANCE TREND & RENEWAL TREND */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* CHART 3: ATTENDANCE TREND */}
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                <Activity className="w-5 h-5 text-teal-600" />
-                Daily Attendance Trend (Last 7 Days)
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">Daily member check-in volume</p>
-            </div>
-            <span className="px-2.5 py-1 rounded-full bg-teal-50 text-teal-700 text-[10px] font-bold uppercase tracking-wider border border-teal-100">
-              Check-ins
-            </span>
-          </div>
-
-          <div className="h-72 w-full pt-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={charts.attendanceTrend} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="day" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ backgroundColor: "#0f172a", borderRadius: "12px", color: "#fff", border: "none" }} />
-                <Line type="monotone" dataKey="checkIns" name="Check-ins" stroke={COLORS.teal} strokeWidth={3} dot={{ r: 5, fill: COLORS.teal }} activeDot={{ r: 7 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
+      {/* CHARTS GRID 2: RENEWAL TREND */}
+      <div className="grid grid-cols-1 gap-6">
+        
         {/* CHART 4: RENEWAL TREND */}
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 space-y-4">
           <div className="flex items-center justify-between">
