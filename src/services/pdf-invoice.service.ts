@@ -276,7 +276,8 @@ Txn ID: ${data.razorpayPaymentId || "N/A"}`;
     }
 
     try {
-      doc.addImage(BSF_SIGNATURE_DATA_URI, "PNG", RIGHT - 40, signY - 3, 40, 24, undefined, "FAST");
+      // The signature image is about 2.9 : 1, so keep that shape and sit it just above the line.
+      doc.addImage(BSF_SIGNATURE_DATA_URI, "PNG", RIGHT - 47, signY + 5, 46, 16, undefined, "FAST");
     } catch (_) {}
     doc.setDrawColor(...RULE);
     doc.setLineWidth(0.2);
